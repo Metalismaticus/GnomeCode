@@ -20,3 +20,17 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# Builds & caches
+dist/
+src-tauri/target/
+
+# Public repo: чужие кадры-референсы не коммитятся (в паспорте — ссылка на источник)
+docs/refs/**/ref-*
+
+# Local app data (проверки и копии)
+*.local.sqlite
+data/
+
+# Tauri generated schemas
+src-tauri/gen/

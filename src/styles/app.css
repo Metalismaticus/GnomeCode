@@ -1,0 +1,381 @@
+/* Каркас приложения: три колонки по референсам (docs/DESIGN.md, раздел 5) */
+
+.app {
+  display: flex;
+  height: 100%;
+}
+
+/* ---------- Левая колонка (Sidebar) ---------- */
+.sidebar {
+  width: var(--sidebar-w);
+  min-width: var(--sidebar-w);
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-4);
+  gap: var(--space-4);
+}
+
+.sidebar__logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.sidebar__logo-mark {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-gradient);
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  color: var(--on-accent);
+}
+
+.btn {
+  border: none;
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  font-size: 14px;
+  transition: background 0.15s ease;
+}
+
+.btn--primary {
+  background: var(--accent-gradient);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+.btn--primary:hover {
+  filter: brightness(1.1);
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+}
+
+.btn--ghost:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.sidebar__section-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  margin: var(--space-2) 0 var(--space-1);
+}
+
+.sidebar__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  font-size: 13px;
+  cursor: pointer;
+  border: none;
+  background: none;
+  text-align: left;
+  width: 100%;
+}
+
+.sidebar__item:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.sidebar__footer {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.sidebar__avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent-gradient);
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  color: var(--on-accent);
+}
+
+/* ---------- Центр (чат) ---------- */
+.chat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.chat__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+
+.chat__title {
+  font-weight: 600;
+  font-size: 15px;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--badge-bg);
+  border: 1px solid var(--badge-border);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.chat__messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.msg {
+  display: flex;
+  gap: var(--space-3);
+  max-width: 85%;
+}
+
+.msg--user {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.msg__avatar {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  border-radius: 50%;
+  background: var(--accent-gradient);
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  color: var(--on-accent);
+}
+
+.msg__bubble {
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.msg--user .msg__bubble {
+  background: var(--badge-bg);
+  border-color: var(--badge-border);
+}
+
+.msg__meta {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: var(--space-1);
+}
+
+.tool-line {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  padding: var(--space-1) var(--space-2);
+  border-left: 2px solid var(--border-strong);
+}
+
+.tool-line--warn {
+  border-left-color: var(--warning);
+}
+
+/* ---------- Композер ---------- */
+.composer {
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--border);
+}
+
+.composer__box {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  background: var(--bg-input);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: var(--space-2) var(--space-3);
+}
+
+.composer__input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text);
+  resize: none;
+  font-size: 14px;
+  line-height: 1.4;
+  max-height: 160px;
+  padding: var(--space-2) 0;
+}
+
+.composer__add {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent-gradient);
+  color: var(--on-accent);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.composer__send {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--accent-gradient);
+  color: var(--on-accent);
+}
+
+.composer__add:hover,
+.composer__send:hover {
+  filter: brightness(1.12);
+}
+
+.composer__hint {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: var(--space-2);
+  text-align: center;
+}
+
+/* ---------- Правая панель (контекст) ---------- */
+.context {
+  width: var(--context-w);
+  min-width: var(--context-w);
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.context__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.context__section {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.context__section-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  margin-bottom: var(--space-2);
+}
+
+.context__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.context__row-value {
+  font-size: 12px;
+}
+
+.context__row-value--ok {
+  color: var(--success);
+}
+
+.context__row-value--off {
+  color: var(--danger);
+}
+
+/* ---------- Пустой чат (Home state) ---------- */
+.empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-5);
+}
+
+.empty__title {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.empty__subtitle {
+  color: var(--text-dim);
+}
+
+.empty__cards {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.empty__card {
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  font-size: 13px;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.empty__card:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}

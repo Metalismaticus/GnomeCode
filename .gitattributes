@@ -1,0 +1,16 @@
+# Единые концы строк: autocrlf=true у владельца — без этого diff шумит
+* text=auto eol=lf
+
+# Бинарные типы стека
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.icns binary
+*.woff binary
+*.woff2 binary
+*.exe binary
+*.dll binary
+*.msi binary
+*.jsonl binary
