@@ -15,6 +15,7 @@ GnomeCode — настольное приложение: чат с AI-модел
 ## Ключевые документы
 
 - [Спека: система плагинов](docs/SPEC/plugins.md) — установка, подключение из чата, скоупы, безопасность
+- [Спека: Фаза 2](docs/SPEC/phase2.md) — Workspaces, Skills, Context Packs, Tasks, Artifacts, домены Legal/GameDev
 - [Решения (ADR)](docs/DECISIONS.md) — ядро, бренд, стек
 
 ## Стек
