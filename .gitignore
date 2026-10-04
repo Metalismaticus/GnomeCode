@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Build
+dist/
+build/
+out/
+*.exe
+*.app
+
+# Environment & secrets
+.env
+.env.*
+*.local
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
