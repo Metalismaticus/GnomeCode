@@ -5,52 +5,18 @@
 //   node tests/ui/window_shot.mjs
 // Итог: код возврата и последняя строка вывода — как у любой проверки (tests/lib/runner_lib.py).
 // Ограничение: снимается страница интерфейса, а не окно Tauri — WebView2 Playwright не водит.
-import { spawn } from "node:child_process";
-import { createServer } from "node:net";
 import { mkdir } from "node:fs/promises";
 import { chromium } from "@playwright/test";
+
+import { done, startInterface, INSTALL } from "../lib/ui_lib.mjs";
 
 const OUT_DIR = "shots";
 const SIZES = [[1440, 900], [1024, 640]];
 const TEXTS = ["Новый чат", "Контекст проекта"];
-const INSTALL = "npx playwright install chromium";
-const done = (code, line) => {
-  console.log(line);
-  process.exit(code);
-};
 
-const freePort = () =>
-  new Promise((resolve, reject) => {
-    const probe = createServer().on("error", reject).listen(0, "127.0.0.1", () => {
-      const { port } = probe.address();
-      probe.close(() => resolve(port));
-    });
-  });
-
-const waiting = async (url, seconds) => {
-  const until = Date.now() + seconds * 1000;
-  while (Date.now() < until) {
-    try {
-      await fetch(url);
-      return true;
-    } catch {
-      await new Promise((r) => setTimeout(r, 300));
-    }
-  }
-  return false;
-};
-
-const port = await freePort();
-const url = `http://127.0.0.1:${port}/`;
-// npx на Windows — это .cmd, и Node 22 не запускает его без оболочки; аргументы свои, не пользовательские.
-const server = spawn("npx", ["vite", "--port", String(port), "--strictPort", "--host", "127.0.0.1"], {
-  stdio: "ignore",
-  shell: true,
-});
-const stop = () => server.kill();
-process.on("exit", stop);
+const { url, stop, ok, port } = await startInterface();
 try {
-  if (!(await waiting(url, 60))) {
+  if (!ok) {
     done(1, `сервер интерфейса не поднялся на порту ${port} — vite не отвечает`);
   }
   await mkdir(OUT_DIR, { recursive: true });

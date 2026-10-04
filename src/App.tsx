@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 
+import { useFeed } from "./chat";
+import type { FeedRow } from "./bridge";
+
 type Theme = "dark" | "light";
 
 /** Каркас трёх колонок по референсам: сайдбар · чат · правая панель.
@@ -45,6 +48,12 @@ function Sidebar() {
 
 function ChatView({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: () => void }) {
   const [draft, setDraft] = useState("");
+  const { rows, error, send } = useFeed();
+
+  const ask = (text: string) => {
+    setDraft("");
+    void send(text);
+  };
 
   return (
     <main className="chat">
@@ -57,33 +66,57 @@ function ChatView({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: () =>
           {theme === "dark" ? "☀ Светлая" : "☾ Тёмная"}
         </button>
       </header>
-      <div className="chat__messages">
-        <div className="empty">
-          <div className="empty__title">Новый чат</div>
-          <div className="empty__subtitle">
-            Опишите задачу, приложите файл или выберите сценарий
+      <div className="chat__messages" data-testid="feed">
+        {rows.length ? (
+          <Feed rows={rows} />
+        ) : (
+          <div className="empty">
+            <div className="empty__title">Новый чат</div>
+            <div className="empty__subtitle">
+              Опишите задачу, приложите файл или выберите сценарий
+            </div>
+            <div className="empty__cards">
+              <button className="empty__card">Прототипировать идею</button>
+              <button className="empty__card">Проверить код</button>
+              <button className="empty__card">Открыть проект</button>
+            </div>
           </div>
-          <div className="empty__cards">
-            <button className="empty__card">Прототипировать идею</button>
-            <button className="empty__card">Проверить код</button>
-            <button className="empty__card">Открыть проект</button>
-          </div>
-        </div>
+        )}
+        {error ? <div className="feed__notice">{error}</div> : null}
       </div>
       <div className="composer">
         <div className="composer__box">
           <button className="composer__add" title="Добавить">+</button>
           <textarea
             className="composer__input"
+            data-testid="composer"
             placeholder="Напишите сообщение… (Ctrl + Enter — отправить)"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && e.ctrlKey) {
+                ask(draft);
+              }
+            }}
           />
-          <button className="composer__send" title="Отправить">↑</button>
+          <button className="composer__send" data-testid="send" title="Отправить" onClick={() => ask(draft)}>↑</button>
         </div>
-        <div className="composer__hint">Enter — перенос строки · ответ модели появится здесь (Этап 1)</div>
+        <div className="composer__hint">Enter — перенос строки · Ctrl + Enter — отправить</div>
       </div>
     </main>
+  );
+}
+
+/** Лента: строки по порядку, вид строки — по её роли в разговоре. */
+function Feed({ rows }: { rows: FeedRow[] }) {
+  return (
+    <>
+      {rows.map((row) => (
+        <div key={row.id} className={`feed__row feed__row--${row.kind}`} data-kind={row.kind}>
+          {row.text || "…"}
+        </div>
+      ))}
+    </>
   );
 }
 
