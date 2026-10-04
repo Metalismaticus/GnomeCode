@@ -1,7 +1,6 @@
 ---
 description: Дизайнер интерфейса для пунктов партии с меткой [ui]. До исполнителя пишет спецификацию экрана — раскладку, размеры, состояния, крайние случаи — по docs/DESIGN.md и готовым компонентам. Кода не пишет. Зовёт только координатор /studio/start.
 mode: subagent
-model: opencode-go/glm-5.3
 permissions:
   - { action: question, resource: "*", effect: deny }
   - { action: edit, resource: "*", effect: deny }

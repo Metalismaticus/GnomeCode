@@ -1,7 +1,6 @@
 ---
 description: Проверяющий пункта партии в ЛЁГКОМ режиме (/studio/start all) — diff, проверка пункта и её группа, быстрая; снимки по протоколу взгляда, полная проверка — один раз в конце партии, её гоняет reviewer или координатор. Модель дешевле: routine-проверки без полной. Код и документы не правит. Зовёт только координатор /studio/start.
 mode: subagent
-model: opencode-go/glm-5.3-flash
 steps: 80
 permissions:
   - { action: question, resource: "*", effect: deny }

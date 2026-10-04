@@ -1,7 +1,6 @@
 ---
 description: Доведение одного пункта партии после executor-code — гоняет проверку пункта и её группу, чинит находки здоровья кода в файлах пункта, снимает кадры, собирает лист сравнения, прогоняет look_sheet --sanity и складывает полный итог в 20 строк, сливая свой с итогом executor-code. Зовёт только координатор /studio/start; круги 2–3 его не зовут.
 mode: subagent
-model: opencode-go/glm-5.3-flash
 steps: 80
 permissions:
   - { action: question, resource: "*", effect: deny }
