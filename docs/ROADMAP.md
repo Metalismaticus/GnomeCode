@@ -26,7 +26,7 @@
 одной строкой «Потом: …», их системы в «Покрытии» — «Потом»; этап — не больше
 экрана. Проверка — `python -X utf8 tools/roadmap_check.py`.
 
-Сейчас: Этап 1 · Следом: Этап 2 · Дальше: Этап 3. Чего не делаем — `CONCEPT.md`.
+Сейчас: Этап 1 · Следом: Этап 2 · Дальше: Этапы 3–4. Чего не делаем — `CONCEPT.md`.
 
 ### Этап 1. Первая рабочая версия GnomeCode [идёт] · размер: большой
 Зачем: проверить связку «Tauri + OpenCode server» и принцип «плагин в два клика»
@@ -54,6 +54,15 @@
 Главный риск: механизм retrieval знаний → первый пункт этапа — проба
 Вопросы к этапу: механизм retrieval — в «Решениях» BLOCKED.md
 Закрыт, когда: AI находит и выполняет Skill по обычной фразе пользователя
+
+### Этап 4. Контекст без границ [потом] · размер: большой
+Зачем: «работать месяцами, но платить за контекст как за молодой разговор» — слова владельца (спека `docs/SPEC/context.md`)
+Что увидит игрок: длинный чат сжимается сам с предпросмотром и историей версий → «Continue in new chat» переносит рабочее состояние, а не историю → важное закреплено и переживает сжатие
+Системы: С-20, С-21, С-22
+Зависит от: Этап 3
+Главный риск: Working State поверх компакции OpenCode server — не свой движок (ADR-0001) → первый пункт этапа — проба: сжать живую сессию через ядро, Working State сохранить и развернуть
+Вопросы к этапу: нет
+Закрыт, когда: владелец ведёт один длинный проектный чат, сжимает его и продолжает в новом без потери рабочего состояния — и говорит «да»
 
 Потом: Legal- и Godot/Gamedev-домены (С-17, С-18) — специализированные
 среды; не раньше Этапа 3.
@@ -86,6 +95,9 @@
 | С-17 | Legal-домен: Evidence Mode, Official Sources Only, Confidentiality | Фаза 2 | phase2.md разделы 39–42 | С-09, С-11 | Потом | впереди |
 | С-18 | Godot/Gamedev-домен: Scene Context, Visual History, цикл разработки | Фаза 2 | phase2.md разделы 43–46 | С-09, С-11 | Потом | впереди |
 | С-19 | Осознанные отказы: свой агентный движок, macOS/Linux в Этапе 1, веб и мобильные версии | Чего не делаем | «ядро — OpenCode server» (ADR-0001); «Windows сначала» — сказали вы; веб и мобильные — [допущение] | — | Не делаем | впереди |
+| С-20 | Smart Context Compression: Working State, предпросмотр, история версий с восстановлением, «что удалено», Context Lock, меню сообщений, свежесть решений, приоритеты сборки контекста | Контекст | «Keep working for months, but pay context costs as if the conversation were much younger»; «Do not preserve contradictory obsolete decisions as equally valid facts» — context.md | С-01 | 4 | впереди |
+| С-21 | Continue in new chat: перенос Working State, знаний, задач, Skills, файлов и ограничений в свежий чат с предпросмотром; старый — в Archive | Контекст | «The new chat should feel like a continuation of the same work, not a new conversation where the user must explain everything again» — context.md | С-20, С-10, С-14 | 4 | впереди |
+| С-22 | Pinned Context: закрепление важного, защита от сжатия, «Move to Project Knowledge», подсказка о reusable-решениях без автосохранения | Контекст | «Pinned information must be protected from automatic compression»; «Do not save automatically» — context.md | С-20, С-10 | 4 | впереди |
 
 ## Очередь
 
