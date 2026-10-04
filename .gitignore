@@ -1,6 +1,7 @@
 # Dependencies
 node_modules/
 vendor/
+__pycache__/
 
 # Build
 dist/
@@ -31,6 +32,9 @@ docs/refs/**/ref-*
 # Local app data (проверки и копии)
 *.local.sqlite
 data/
+
+# Снимки экрана полигона (playwright, tests/checks/window_shot.py)
+shots/
 
 # Tauri generated schemas
 src-tauri/gen/

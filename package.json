@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "check": "npm run build && cargo check --manifest-path src-tauri/Cargo.toml",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "shot": "python -X utf8 tools/run_checks.py window_shot"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.1.1",
@@ -15,6 +16,7 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tauri-apps/cli": "^2.1.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
