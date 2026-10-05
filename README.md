@@ -10,11 +10,16 @@ Desktop AI coding client for Windows: multi-model chat over the OpenCode core, t
 - **Now:** Stage 1 — the app window opens: three columns, chat with a streaming model, project files, plugin buttons in the chat header.
 - **Next:** Stage 2 — the full plugin experience: the plugin section, permissions, and automatic GitHub updates at launch.
 <!-- studio:end status -->
-
 <!-- studio:begin features -->
 ## What works
 
-- Nothing playable yet: Stage 1 is in progress.
+- App window in three columns; dark and light themes switch the whole window.
+- Chat with the OpenCode engine: the answer streams into the feed; tool calls
+  and a dropped connection show as lines, not silence.
+- Pick a project folder, browse its files in the panel and attach them to a question.
+- Plugins from chat: the plus menu offers Connect plugin, commands become
+  header buttons (running them waits for the permissions layer).
+- One quick check command verifies the whole product; a built copy lands in `builds/`.
 <!-- studio:end features -->
 
 <!-- studio:begin run -->
@@ -27,7 +32,8 @@ npm install
 npm run tauri dev    # opens the app window
 ```
 
-Quick build check: `npm run build` and `cargo check` (in `src-tauri/`).
+Quick check of everything: `npm run check`. Full check suite: `python -X utf8 tools/run_checks.py`.
+Built copies for trying without the dev setup land in `builds/`.
 <!-- studio:end run -->
 
 <!-- studio:begin shots -->
