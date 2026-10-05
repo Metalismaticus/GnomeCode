@@ -62,6 +62,7 @@ export function ChatView({
   onTogglePanel,
   panelOpen,
   project,
+  onFirstQuestion,
 }: {
   title: string;
   theme: Theme;
@@ -70,6 +71,8 @@ export function ChatView({
   panelOpen: boolean;
   /** Файлы контекста: уходят с вопросом, чипы живут в композере. */
   project: ProjectState;
+  /** Первый вопрос владельца становится титулом чата (src/appstate.ts). */
+  onFirstQuestion?: (question: string) => void;
 }) {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -82,13 +85,14 @@ export function ChatView({
     async (text: string) => {
       setDraft("");
       setSending(true);
+      onFirstQuestion?.(text);
       try {
         await send(text, project.files.map((file) => file.path));
       } finally {
         setSending(false);
       }
     },
-    [send, project.files],
+    [send, project.files, onFirstQuestion],
   );
 
   /** Подключение из списка закрывает список: кнопки в шапке — подтверждение,

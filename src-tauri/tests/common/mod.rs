@@ -6,10 +6,27 @@
 
 use std::io::Read;
 use std::net::TcpStream;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use gnomecode_lib::opencode::client::{Endpoint, FeedEvent};
 use gnomecode_lib::opencode::{EngineLife, Sink};
+
+static ISOLATED: AtomicBool = AtomicBool::new(false);
+
+/// Изолировать данные движка для всего процесса: переменные окружения общие у всех
+/// тестов одного процесса, второй раз ставить их нельзя — первый вызов уже сработал бы.
+/// Иначе проверки создавали бы сессии в базе владельца (docs/TESTING.md, «Данные пользователя»).
+pub fn isolate_engine_data() {
+    if ISOLATED.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    let base = std::env::temp_dir().join(format!("gnomecode-engine-{}", std::process::id()));
+    for key in ["XDG_DATA_HOME", "XDG_CONFIG_HOME"] {
+        std::fs::create_dir_all(base.join(key)).expect("временная папка движка создана");
+        std::env::set_var(key, base.join(key));
+    }
+}
 
 /// Запрос клиента: заголовки и тело по `Content-Length`.
 pub fn read_request(socket: &mut TcpStream) -> String {

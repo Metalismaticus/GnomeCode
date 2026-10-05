@@ -6,11 +6,8 @@
 // Итог: код возврата и последняя строка вывода — как у любой проверки (tests/lib/runner_lib.py).
 // Страница интерфейса, а не окно Tauri: WebView2 Playwright не водит, поэтому вне окна
 // интерфейс получает фикстуру (src/fixture.ts, состояние `?состояние=проект`).
-import { chromium } from "@playwright/test";
+import { done, openProjectPage, startInterface, INSTALL } from "../lib/ui_lib.mjs";
 
-import { done, startInterface, INSTALL } from "../lib/ui_lib.mjs";
-
-const WIDE = { width: 1440, height: 900 };
 const FILE = "bridge.ts";
 const DIR = "components";
 const QUESTION = "Что здесь происходит?";
@@ -31,16 +28,10 @@ const activeTab = (page) =>
     return on ? on.textContent.trim() : "нет активной вкладки";
   });
 
-const { url, stop, ok, port } = await startInterface();
+const iface = await startInterface();
 try {
-  if (!ok) {
-    done(1, `сервер интерфейса не поднялся на порту ${port} — vite не отвечает`);
-  }
-  const browser = await chromium.launch();
+  const { browser, page } = await openProjectPage(iface);
   try {
-    const page = await browser.newPage({ viewport: WIDE });
-    await page.goto(`${url}?состояние=проект`, { waitUntil: "networkidle" });
-
     // а) В правой панели есть дерево выбранной папки --------------------------------
     if ((await rows(page)).length === 0) {
       done(1, "дерева файлов в правой панели нет: нет [data-testid=tree]");

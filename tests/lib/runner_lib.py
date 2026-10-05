@@ -16,7 +16,8 @@ FOLDERS = (("tests/checks", ".py"), ("tests/ui", ".mjs"))  # папка, рас�
 LIMITS = {"quick_build": 150, "harness": 180, "window_shot": 600, "opencode_client": 600,
           "opencode_engine": 180, "chat_stream": 300, "window_look": 300,
           "no_raw_colors": 30, "project_tree": 180, "project_files": 300,
-          "plugins": 300}  # секунды: замер × 3, одно место
+          "plugins": 300, "state_files": 180, "session_resume": 180,
+          "full_cycle": 600}  # секунды: замер × 3, одно место
 DEFAULT_LIMIT = 60
 
 

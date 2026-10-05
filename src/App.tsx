@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { ChatView } from "./components/ChatView";
 import { ContextPanel } from "./components/ContextPanel";
 import { Sidebar } from "./components/Sidebar";
 import { panels } from "./fixture";
+import { chatTitleOf, loadState, patchState, type WindowState } from "./appstate";
 import { useProject } from "./features/project/useProject";
 import { params, type Theme } from "./viewparams";
 
@@ -26,28 +27,33 @@ function useNarrow(): boolean {
   return narrow;
 }
 
-/** Главное окно: корень только собирает три колонки, держит тему и оверлей панели. */
-export default function App() {
-  const [theme, setTheme] = useState<Theme>(params.theme);
-  const [panelOpen, setPanelOpen] = useState(params.right);
-  const narrow = useNarrow();
-  const data = panels(params.feed);
-  const project = useProject(data.project);
-  const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
-
+/** Состояние прошлого запуска — один запрос при старте. StrictMode зовёт эффект
+ *  дважды: подписка первого размывается, второй ответ перезапишет те же поля и
+ *  двойной записи не оставит. */
+function useSavedState(apply: (saved: WindowState) => void): void {
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-  }, [theme]);
+    let alive = true;
+    loadState().then((saved) => {
+      if (alive && saved) {
+        apply(saved);
+      }
+    });
+    return () => {
+      alive = false;
+    };
+  }, [apply]);
+}
 
-  // Оверлей правой панели закрывается по Esc и клику снаружи; клик по самой `☰`
-  // остаётся за кнопкой — иначе открытие тут же закрылось бы.
+/** Оверлей правой панели закрывается по Esc и клику снаружи; клик по самой `☰`
+ *  остаётся за кнопкой — иначе открытие тут же закрылось бы. */
+function usePanelOverlay(narrow: boolean, panelOpen: boolean, close: (open: boolean) => void): void {
   useEffect(() => {
     if (!narrow || !panelOpen) {
       return;
     }
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setPanelOpen(false);
+        close(false);
       }
     };
     const onClick = (event: MouseEvent) => {
@@ -55,7 +61,7 @@ export default function App() {
       if (target?.closest(".context") || target?.closest('[data-testid="panel-toggle"]')) {
         return;
       }
-      setPanelOpen(false);
+      close(false);
     };
     window.addEventListener("keydown", onKey);
     window.addEventListener("click", onClick);
@@ -63,28 +69,104 @@ export default function App() {
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("click", onClick);
     };
-  }, [narrow, panelOpen]);
+  }, [narrow, panelOpen, close]);
+}
+
+/** Переключатель темы: тема живёт в `html[data-theme]`, правка уходит в состояние окна. */
+function useThemeToggle(theme: Theme, setTheme: (theme: Theme) => void): () => void {
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
+  return useCallback(() => {
+    const next: Theme = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    void patchState({ theme: next });
+  }, [theme, setTheme]);
+}
+
+/** Главное окно: корень только собирает три колонки, держит тему и оверлей панели.
+ *  Тема, титул чата и папка приходят из состояния окна (`src/appstate.ts`): в окне
+ *  Tauri они переживают перезапуск, для снимков фикстура показывает свою ленту. */
+export default function App() {
+  const [theme, setTheme] = useState<Theme>(params.theme);
+  const toggleTheme = useThemeToggle(theme, setTheme);
+  const [panelOpen, setPanelOpen] = useState(params.right);
+  const narrow = useNarrow();
+  const data = panels(params.feed);
+  // Папка проекта и титул чата: сначала фикстура/пусто, после ответа моста — сохранённые.
+  // Титул не берётся из фиксёрного списка: otherwise «known непусто» считает его
+  // настоящим чатом и первый вопрос титул не записывает.
+  const [projectRoot, setProjectRoot] = useState(data.project);
+  const [chatTitle, setChatTitle] = useState("");
+  const project = useProject(projectRoot);
+
+  // Состояние прошлого запуска — один запрос при старте: см. useSavedState.
+  const applySaved = useCallback((saved: WindowState) => {
+    if (saved.project) {
+      setProjectRoot(saved.project);
+    }
+    if (saved.theme) {
+      setTheme(saved.theme);
+    }
+    if (saved.chatTitle) {
+      setChatTitle(saved.chatTitle);
+    }
+  }, []);
+  useSavedState(applySaved);
+
+  /** Титул чата: первый вопрос. Повторные вопросы титул не меняют. */
+  const rememberChat = useCallback(
+    (question: string) => {
+      if (chatTitle) {
+        return;
+      }
+      const title = chatTitleOf(question);
+      setChatTitle(title);
+      void patchState({ chatTitle: title });
+    },
+    [chatTitle],
+  );
+
+  // Оверлей правой панели закрывается сам — см. usePanelOverlay.
+  usePanelOverlay(narrow, panelOpen, setPanelOpen);
 
   return (
     <div className="app">
       <Sidebar
-        projects={data.projects}
-        chats={data.chats}
+        projects={projectsList(data, projectRoot)}
+        chats={chatsList(data, chatTitle)}
         theme={theme}
         onToggleTheme={toggleTheme}
         onPickFolder={project.pick}
       />
       <ChatView
-        title="Новый чат"
+        title={chatTitle || "Новый чат"}
         theme={theme}
         onToggleTheme={toggleTheme}
         onTogglePanel={() => setPanelOpen(!panelOpen)}
         panelOpen={panelOpen}
         project={project}
+        onFirstQuestion={rememberChat}
       />
       {narrow && !panelOpen ? null : (
         <ContextPanel sections={data.sections} engineDown={data.engineDown} project={project} />
       )}
     </div>
   );
+}
+
+/** Проекты сайдбара: настоящая папка проекта, когда она есть, иначе фикстура. */
+function projectsList(data: ReturnType<typeof panels>, root: string): string[] {
+  if (root) {
+    return [root];
+  }
+  return data.projects;
+}
+
+/** Чаты сайдбара: настоящий титул, когда он есть, иначе фиксёрный список. */
+function chatsList(data: ReturnType<typeof panels>, title: string) {
+  if (title) {
+    return [{ title, active: true }];
+  }
+  return data.chats;
 }

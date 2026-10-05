@@ -5,6 +5,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { fixture } from "./fixture";
+import type { WindowState, WindowPatch } from "./appstate";
+import { readFixtureState, writeFixtureState } from "./fixtureState";
 import {
   connect as connectFixture,
   plugins as fixturePlugins,
@@ -78,6 +80,10 @@ type Bridge = {
     label: string,
     decision: ApprovalDecision,
   ): Promise<void>;
+  /** Что окно помнит о себе: сессия, титул чата, папка, тема (src-tauri/src/state.rs). */
+  stateGet(): Promise<WindowState>;
+  /** Правка названных полей состояния: тема папку и чат не затирает. */
+  statePatch(patch: WindowPatch): Promise<WindowState>;
 };
 
 /** Канал Tauri, по которому лента получает строки (src-tauri/src/opencode/mod.rs). */
@@ -118,6 +124,12 @@ const tauriBridge = (): Bridge => ({
     decision: ApprovalDecision,
   ) {
     await invoke("plugin_decide", { plugin, command, label, decision });
+  },
+  async stateGet() {
+    return (await invoke<WindowState>("state_get")) as WindowState;
+  },
+  async statePatch(patch: WindowPatch) {
+    return (await invoke<WindowState>("state_patch", { patch })) as WindowState;
   },
 });
 
@@ -168,7 +180,40 @@ const fixtureBridge = (): Bridge => ({
     }
     fixtureLaunch(plugin, label);
   },
+  async stateGet() {
+    // Зеркало state.json для страницы (src/fixtureState.ts) с одной разницей:
+    // папку «?состояние=проект» фикстура считает выбранной — сценарий дерева
+    // и полного цикла открывают её с уже готовым проектом.
+    const saved = readFixtureState();
+    const theme = windowState(saved.theme);
+    return {
+      session: null,
+      chatTitle: saved.chatTitle || null,
+      project: saved.project || fixtureProject(),
+      theme,
+    };
+  },
+  async statePatch(patch: WindowPatch) {
+    const saved = readFixtureState();
+    const next = {
+      chatTitle: patch.chatTitle ?? saved.chatTitle,
+      project: patch.project ?? saved.project,
+      theme: patch.theme ?? saved.theme,
+    };
+    writeFixtureState(next);
+    return {
+      session: null,
+      chatTitle: next.chatTitle || null,
+      project: next.project || fixtureProject(),
+      theme: windowState(next.theme),
+    };
+  },
 });
+
+/** Тема строки зеркала, если она названа. */
+function windowState(theme: string): WindowState["theme"] {
+  return theme === "light" || theme === "dark" ? theme : null;
+}
 
 let chosen: Bridge | undefined;
 

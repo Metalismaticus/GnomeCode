@@ -9,6 +9,7 @@
 
 pub mod client;
 pub mod engine;
+pub mod session;
 
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};
 use std::sync::{Arc, Mutex};
@@ -84,7 +85,8 @@ impl EngineLife for Engine {
     }
 }
 
-/// Живой чат: команда интерфейса «отправить» и отписка.
+/// Занять сессию ленты: сохранённая прошлого запуска приложения, если она
+/// жива в списке движка («Один полный цикл»), иначе — новая, запомненная в state.json.
 pub struct Chat {
     tx: Sender<Cmd>,
     /// Адрес движка для команд, которым нужен сервер, а не лента (список плагинов).
@@ -94,9 +96,10 @@ pub struct Chat {
 
 impl Chat {
     /// Поднять движок и начать ленту — то, что делает приложение при старте.
-    pub fn start(sink: Arc<dyn Sink>) -> Chat {
+    /// Хранилище даёт путь к возвращению к чату прошлого запуска, его ведёт поток ленты.
+    pub fn start(store: Arc<crate::state::Store>, sink: Arc<dyn Sink>) -> Chat {
         match Engine::start() {
-            Ok(engine) => Chat::with_engine(Box::new(engine), sink),
+            Ok(engine) => Chat::with_saved(Box::new(engine), sink, Some(store)),
             Err(reason) => {
                 // Движка нет — приложение всё равно должно открыться и сказать об этом в ленте.
                 sink.emit(FeedEvent::notice(
@@ -113,14 +116,30 @@ impl Chat {
         }
     }
 
-    /// Лента на своём движке: тот же путь, что у приложения, но движок подставляет
-    /// вызывающий — так проверка стережёт обрыв потока, не поднимая настоящий opencode.
-    pub fn with_engine(engine: Box<dyn EngineLife>, sink: Arc<dyn Sink>) -> Chat {
+    // Лента на своём движке с хранилищем: чат, который вела прошлая жизнь окна,
+    // возвращается по сохранённому идентификатору (session::acquire).
+    pub fn with_saved(
+        engine: Box<dyn EngineLife>,
+        sink: Arc<dyn Sink>,
+        store: Option<Arc<crate::state::Store>>,
+    ) -> Chat {
         let (tx, rx) = std::sync::mpsc::channel();
         let endpoint = Arc::new(Mutex::new(Some(engine.endpoint())));
         let known = Arc::clone(&endpoint);
-        thread::spawn(move || supervise(engine, rx, sink, known));
+        // Сохранённая сессия читается при старте окна: у потока ленты она одна.
+        let saved = store
+            .as_ref()
+            .map(|store| store.load())
+            .and_then(|state| state.session);
+        thread::spawn(move || supervise(engine, rx, sink, known, saved, store));
         Chat { tx, endpoint }
+    }
+
+    /// Лента на своём движке: тот же путь, что у приложения, но движок подставляет
+    /// вызывающий — так проверка стережёт обрыв потока, не поднимая настоящий opencode.
+    /// Хранилища у проверок нет: запоминать сессии некому.
+    pub fn with_engine(engine: Box<dyn EngineLife>, sink: Arc<dyn Sink>) -> Chat {
+        Chat::with_saved(engine, sink, None)
     }
 
     /// Адрес движка, пока он поднят: команды окна, которым нужен сервер, идут через него.
@@ -171,11 +190,15 @@ impl Drop for Chat {
 }
 
 /// Поток ленты: сессия, поток событий, команды пользователя и перезапуск движка.
+/// `saved` — сессия прошлого запуска приложения: жива ли она, решит список движка,
+/// а не память моста.
 fn supervise(
     mut engine: Box<dyn EngineLife>,
     rx: Receiver<Cmd>,
     sink: Arc<dyn Sink>,
     known: Arc<Mutex<Option<client::Endpoint>>>,
+    mut saved: Option<String>,
+    store: Option<Arc<crate::state::Store>>,
 ) {
     let endpoint = engine.endpoint();
     if let Ok(mut held) = known.lock() {
@@ -209,19 +232,24 @@ fn supervise(
         if let Ok(mut held) = known.lock() {
             *held = Some(endpoint.clone());
         }
-        let id = match session
-            .clone()
-            .or_else(|| api.create_session("GnomeCode").ok())
-        {
+        let id = match session.clone() {
             Some(id) => id,
-            None => {
-                sink.emit(FeedEvent::notice(
-                    "engine",
-                    "Сессия не создана: сервер не ответил",
-                ));
-                thread::sleep(Duration::from_secs(RETRY_SECONDS));
-                continue;
-            }
+            None => match session::acquire(&api, saved.clone(), store.as_deref()) {
+                Ok(id) => {
+                    // Ответ получен: сохранённый чат подобран или заменён новым —
+                    // прошлого списка больше не спрашиваем.
+                    saved = None;
+                    id
+                }
+                Err(reason) => {
+                    sink.emit(FeedEvent::notice(
+                        "engine",
+                        &format!("Сессия не создана: сервер не ответил — {reason}"),
+                    ));
+                    thread::sleep(Duration::from_secs(RETRY_SECONDS));
+                    continue;
+                }
+            },
         };
         session = Some(id.clone());
         let mut stream = match EventStream::connect(&endpoint) {

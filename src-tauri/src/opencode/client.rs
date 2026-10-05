@@ -790,7 +790,7 @@ fn base64(input: &[u8]) -> String {
 
 /// Тело запроса к серверу: сессия и отправка текста.
 pub struct Api<'a> {
-    endpoint: &'a Endpoint,
+    pub(crate) endpoint: &'a Endpoint,
 }
 
 impl<'a> Api<'a> {
@@ -808,6 +808,12 @@ impl<'a> Api<'a> {
             .and_then(Value::as_str)
             .map(str::to_string)
             .ok_or_else(|| "сервер создал сессию без идентификатора".to_string())
+    }
+
+    /// Сырой ответ списка сессий движка: `GET /api/session`. Форму элемента
+    /// разбирает `session.rs` (ADR-0001: тип крейта, не строки чужого JSON).
+    pub(crate) fn sessions_raw(&self) -> Result<Value, String> {
+        self.endpoint.call("GET", "/api/session", None)
     }
 
     /// Отправить текст в сессию: ответ придёт событиями, не телом запроса.

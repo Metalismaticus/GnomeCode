@@ -5,6 +5,7 @@
 // Итог сценария — код возврата и последняя строка вывода (tests/lib/runner_lib.py).
 import { spawn } from "node:child_process";
 import { createServer } from "node:net";
+import { chromium } from "@playwright/test";
 
 export const INSTALL = "npx playwright install chromium";
 
@@ -54,3 +55,32 @@ export const startInterface = async () => {
   }
   return { url, stop, ok: true, port };
 };
+
+/** Открыть страницу проекта в свежем браузере: подъём интерфейса уже проверен, и если
+ *  vite не ответил — выход; иначе страница с фикстурой `?состояние=проект`.
+ *  Браузер возвращается владельцу: сценарий сам держит свой catch/finally и его закрывает. */
+export const openProjectPage = async (iface) => {
+  const { url, stop, ok, port } = iface;
+  if (!ok) {
+    done(1, `сервер интерфейса не поднялся на порту ${port} — vite не отвечает`);
+  }
+  const browser = await chromium.launch();
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  await page.goto(`${url}?состояние=проект`, { waitUntil: "networkidle" });
+  return { browser, page };
+};
+
+/** Тема страницы: атрибут `html[data-theme]` — его правит и переключатель, и состояние. */
+export const themeOf = (page) =>
+  page.$eval("html", (el) => el.getAttribute("data-theme") ?? "тема не проставлена");
+
+/** Текст активного чата в сайдбаре: сценарии перезапуска сверяют его с прошлым циклом. */
+export const activeChat = (page) =>
+  page.$eval('[data-testid="chat-active"]', (el) => el.textContent.trim());
+
+/** Папка в разделе «Проект» правой панели: видна дереву и вопросу с файлом. */
+export const panelFolder = (page) =>
+  page.$eval(
+    '[data-testid="context-panel"] .context__folder .context-row__value',
+    (el) => el.textContent.trim(),
+  );
