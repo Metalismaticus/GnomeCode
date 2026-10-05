@@ -1,0 +1,218 @@
+/* Раздел «Плагины» (docs/SPEC/plugins.md, сцена A): вкладки сверху, карточки
+   установленного списком, оверлей каталога поверх. Тянется между сайдбаром
+   и правой панелью, как чат (src/components/ChatView.css). */
+
+.plugins-page {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow-y: auto;
+  padding: var(--space-5);
+  gap: var(--space-4);
+}
+
+.plugins-page__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  flex-wrap: wrap;
+}
+
+.plugins-page__title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.plugins-page__tabs {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.plugins-page__tab {
+  border: 1px solid transparent;
+  background: none;
+  color: var(--text-dim);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+}
+
+.plugins-page__tab:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.plugins-page__tab[aria-selected="true"] {
+  background: var(--badge-bg);
+  border-color: var(--badge-border);
+  color: var(--text);
+}
+
+.plugins-page__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.plugins-page__empty {
+  color: var(--text-dim);
+  padding: var(--space-5);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+}
+
+/* Оверлей каталога на странице раздела: пикер прижат к низу (стоит над
+   композером чата), здесь его якорит верхний край раздела. */
+.plugins-page .catalog-picker {
+  top: var(--space-5);
+  bottom: auto;
+}
+
+/* Карточка плагина: иконка, поля и действия в один ряд. */
+
+.plugin-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+}
+
+.plugin-card__icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  border-radius: var(--radius-md);
+  background: var(--badge-bg);
+  border: 1px solid var(--badge-border);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.plugin-card__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.plugin-card__line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.plugin-card__name {
+  font-weight: 600;
+}
+
+.plugin-card__version,
+.plugin-card__author,
+.plugin-card__status {
+  color: var(--text-dim);
+}
+
+.plugin-card__description {
+  color: var(--text-dim);
+}
+
+.plugin-card__permissions,
+.plugin-card__commands {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.plugin-card__permission,
+.plugin-card__command {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 2px var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+}
+
+.plugin-card__actions {
+  display: flex;
+  gap: var(--space-2);
+  flex: none;
+  flex-wrap: wrap;
+}
+
+.plugin-card__action {
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+}
+
+.plugin-card__action:hover {
+  background: var(--bg-hover);
+}
+
+.plugin-card__action--danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* Окно подтверждения удаления: как сводка прав — над страницей (PluginSummary.css). */
+
+.plugins-confirm {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-3);
+  margin: auto;
+  width: min(420px, calc(100% - var(--space-5)));
+  height: fit-content;
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-panel-2);
+  box-shadow: var(--shadow);
+  z-index: 10;
+}
+
+.plugins-confirm__title {
+  font-weight: 600;
+}
+
+.plugins-confirm__text {
+  color: var(--text-dim);
+}
+
+.plugins-confirm__actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.plugins-confirm__btn {
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+}
+
+.plugins-confirm__btn:hover {
+  background: var(--bg-hover);
+}
+
+.plugins-confirm__btn--danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}

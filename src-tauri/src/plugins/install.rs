@@ -60,6 +60,10 @@ pub struct CatalogEntry {
     pub permissions: Vec<Permission>,
     #[serde(default)]
     pub commands: Vec<CommandSpec>,
+    /// Выключен ли плагин владельцем: поле записи, а не отдельный объект — старые
+    /// реестры без поля читаются (serde default), повторная установка включает заново.
+    #[serde(default)]
+    pub disabled: bool,
 }
 
 /// Что реестр помнит об установленном плагине: вся запись каталога целиком.

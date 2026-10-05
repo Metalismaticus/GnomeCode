@@ -261,11 +261,13 @@ fn merge_lists_installed_plugins_from_the_registry() {
             name: "issues".to_string(),
             description: "list issues".to_string(),
         }],
+        disabled: false,
     }];
 
     let merged = merged(
         engine.as_array().expect("список движка — массив"),
         commands.as_array().expect("команды движка — массив"),
+        &[],
         &[],
         &installed,
     );

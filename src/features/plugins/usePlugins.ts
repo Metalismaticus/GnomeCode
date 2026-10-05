@@ -31,6 +31,10 @@ export type PluginsState = {
   connect: (id: string) => void;
   install: (id: string) => void;
   favorite: (id: string) => void;
+  /** Enable/Disable карточки раздела «Плагины»: кнопки команд уходят из всех чатов. */
+  setEnabled: (disabled: boolean, id: string) => void;
+  /** Uninstall после подтверждения: запись реестра и файл плагина уходят. */
+  uninstall: (id: string) => void;
 };
 
 /** Список плагинов проекта: загрузка, поиск, подключение и избранное. */
@@ -82,10 +86,33 @@ export function usePlugins(): PluginsState {
     );
   }, []);
 
+  /** Enable/Disable карточки: мост меняет состояние плагина (список — как после
+   *  подключения), кнопки команд в шапках пересчитаются при возврате в чат. */
+  const setEnabled = useCallback((disabled: boolean, id: string) => {
+    bridge()
+      .setPluginEnabled(disabled, id)
+      .then((list) => {
+        setPlugins(list);
+        setError("");
+      })
+      .catch((reason: unknown) => setError(String(reason)));
+  }, []);
+
+  /** Uninstall после подтверждения: мост удаляет запись и файл, список — свежий. */
+  const uninstall = useCallback((id: string) => {
+    bridge()
+      .uninstallPlugin(id)
+      .then((list) => {
+        setPlugins(list);
+        setError("");
+      })
+      .catch((reason: unknown) => setError(String(reason)));
+  }, []);
+
   const found = useMemo(() => foundIn(plugins, query), [plugins, query]);
   return {
     plugins,
-    connected: plugins.filter((plugin) => plugin.connected),
+    connected: plugins.filter((plugin) => plugin.connected && !plugin.disabled),
     groups: grouped(found, favorites, recent),
     query,
     favorites,
@@ -95,6 +122,8 @@ export function usePlugins(): PluginsState {
     connect,
     install,
     favorite,
+    setEnabled,
+    uninstall,
   };
 }
 

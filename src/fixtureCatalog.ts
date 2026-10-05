@@ -10,7 +10,7 @@
 
 import type { Plugin } from "./bridge";
 import type { CatalogEntry } from "./catalog";
-import { adopt, builder, plugins as fixturePlugins } from "./fixturePlugins";
+import { adopt, builder, plugins as fixturePlugins, type Card } from "./fixturePlugins";
 
 const GITHUB: CatalogEntry = {
   id: "github",
@@ -46,14 +46,23 @@ export function entries(): CatalogEntry[] {
   return ENTRIES.map((one) => ({ ...one, permissions: [...one.permissions], commands: [...one.commands] }));
 }
 
-/** Установка по «Разрешить» сводки прав: карточка собирается в плагин
- *  (builder) и принимается в установленные с подключением к текущему чату
- *  (adopt) — тем же путём, что в окне (plugin_install + plugin_connect). */
+/** Установка по «Разрешить» сводки прав: карточка собирается в плагин с полями
+ *  записи каталога (в окне их даёт реестр установленного — installed.json),
+ *  принимается в установленные и подключается к текущему чату (adopt) — тем же
+ *  путём, что в окне (plugin_install + plugin_connect). */
 export function install(id: string): Plugin[] {
   const entry = ENTRIES.find((one) => one.id === id);
   if (!entry) {
     throw new Error(`в каталоге нет плагина «${id}»`);
   }
-  adopt(builder(entry.id, entry.commands));
+  const card: Card = {
+    name: entry.name,
+    author: entry.author,
+    version: entry.version,
+    description: entry.description,
+    permissions: entry.permissions.map((one) => `${one.category}: ${one.value}`),
+    uninstallable: true,
+  };
+  adopt(builder(entry.id, entry.commands, card));
   return fixturePlugins();
 }

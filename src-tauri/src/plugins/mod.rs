@@ -11,6 +11,7 @@
 pub mod catalog;
 pub mod commands;
 pub mod install;
+pub mod manage;
 pub mod model;
 pub mod permissions;
 pub mod registry;

@@ -10,6 +10,7 @@ use crate::opencode::{client::Api, Chat};
 
 use super::catalog;
 use super::install;
+use super::manage;
 use super::model::Plugin;
 use super::permissions::Grants;
 use super::registry::Registry;
@@ -35,8 +36,53 @@ pub fn plugin_list(
         &api.plugins()?,
         &api.commands()?,
         &registry.connected(),
+        &registry.disabled(),
         &installed,
     ))
+}
+
+/// Отмечено ли владелец включил или выключил плагин — Enable или Disable карточки:
+/// у записанного в реестр выключение в файле, у прочих — в реестре чата (память
+/// окна, как подключение). Список отдаём свежий — карточки пересчитают вкладки.
+#[tauri::command]
+pub fn plugin_set_enabled(
+    app: AppHandle,
+    chat: State<'_, Chat>,
+    registry: State<'_, Registry>,
+    disabled: bool,
+    id: String,
+) -> Result<Vec<Plugin>, String> {
+    let fallback = app
+        .path()
+        .app_data_dir()
+        .unwrap_or_else(|_| std::env::temp_dir());
+    if !manage::set_disabled(&id, disabled, &install::registry_file(fallback))? {
+        if disabled {
+            registry.disable(&id);
+        } else {
+            registry.enable(&id);
+        }
+    }
+    plugin_list(app, chat, registry)
+}
+
+/// Удалить плагин после подтверждения: запись реестра и файл плагина уходят,
+/// движок перезапускается тихо (читал файл при старте — перечитывать нечего).
+#[tauri::command]
+pub fn plugin_uninstall(
+    app: AppHandle,
+    chat: State<'_, Chat>,
+    registry: State<'_, Registry>,
+    id: String,
+) -> Result<Vec<Plugin>, String> {
+    let fallback = app
+        .path()
+        .app_data_dir()
+        .unwrap_or_else(|_| std::env::temp_dir());
+    manage::remove(&id, &install::registry_file(fallback), &install::plugins_dir())?;
+    registry.forget(&id);
+    chat.restart()?;
+    plugin_list(app, chat, registry)
 }
 
 /// Подключить плагин к чату: он появляется кнопками в шапке без перезапуска.

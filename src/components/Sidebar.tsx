@@ -15,6 +15,8 @@ export function Sidebar({
   theme,
   onToggleTheme,
   onPickFolder,
+  onOpenPlugins,
+  onOpenChat,
 }: {
   projects: string[];
   chats: SidebarChat[];
@@ -22,6 +24,10 @@ export function Sidebar({
   onToggleTheme: () => void;
   /** Выбор папки проекта системным диалогом — кнопка «+ Новый проект». */
   onPickFolder: () => void;
+  /** Раздел «Плагины» из главной левой навигации (docs/SPEC/plugins.md, сцена A). */
+  onOpenPlugins: () => void;
+  /** Возврат в чат кликом по строке чата: страница раздела размонтируется. */
+  onOpenChat: () => void;
 }) {
   return (
     <nav className="sidebar" data-testid="sidebar">
@@ -35,6 +41,7 @@ export function Sidebar({
       <Button variant="ghost" data-testid="btn-new-chat">
         Новый чат
       </Button>
+      <SidebarItem title="Плагины" testid="sidebar-plugins" onClick={onOpenPlugins} />
       <div className="sidebar__lists">
         <div className="sidebar__section-title">Проекты</div>
         {projects.length ? (
@@ -50,6 +57,7 @@ export function Sidebar({
               title={chat.title}
               active={chat.active}
               testid={chat.active ? "chat-active" : undefined}
+              onClick={chat.active ? onOpenChat : undefined}
             />
           ))
         ) : (

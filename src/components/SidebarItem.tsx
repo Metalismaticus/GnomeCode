@@ -6,10 +6,13 @@ export function SidebarItem({
   title,
   active = false,
   testid,
+  onClick,
 }: {
   title: string;
   active?: boolean;
   testid?: string;
+  /** Клик по строке: чат открывается, раздел «Плагины» тоже ведёт отсюда. */
+  onClick?: () => void;
 }) {
   return (
     <button
@@ -18,6 +21,7 @@ export function SidebarItem({
       title={title}
       data-testid={testid}
       aria-current={active ? "true" : undefined}
+      onClick={onClick}
     >
       {title}
     </button>

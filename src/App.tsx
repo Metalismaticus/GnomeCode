@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { ChatView } from "./components/ChatView";
 import { ContextPanel } from "./components/ContextPanel";
+import { PluginsPage } from "./components/PluginsPage";
 import { Sidebar } from "./components/Sidebar";
 import { panels } from "./fixture";
 import { chatTitleOf, loadState, patchState, type WindowState } from "./appstate";
@@ -9,6 +10,11 @@ import { useProject } from "./features/project/useProject";
 import { params, type Theme } from "./viewparams";
 
 import "./styles/app.css";
+
+/** Что открыто в окне: чат или раздел «Плагины» (docs/SPEC/plugins.md, сцена A).
+ *  Страницы размонтируют друг друга: возврат в чат заново читает список плагинов,
+ *  и кнопки команд в шапке пересчитываются с учётом выключенных. */
+type Page = "chat" | "plugins";
 
 /** Ширина, ниже которой правая панель складывается в кнопку `☰` (docs/DESIGN.md, раздел 5). */
 const NARROW = "(max-width: 1199px)";
@@ -92,6 +98,8 @@ export default function App() {
   const toggleTheme = useThemeToggle(theme, setTheme);
   const [panelOpen, setPanelOpen] = useState(params.right);
   const narrow = useNarrow();
+  /** Прямой доступ раздела для снимков и сценария: `?состояние=плагины-раздел`. */
+  const [page, setPage] = useState<Page>(params.feed === "plugins-section" ? "plugins" : "chat");
   const data = panels(params.feed);
   // Папка проекта и титул чата: сначала фикстура/пусто, после ответа моста — сохранённые.
   // Титул не берётся из фиксёрного списка: otherwise «known непусто» считает его
@@ -138,16 +146,22 @@ export default function App() {
         theme={theme}
         onToggleTheme={toggleTheme}
         onPickFolder={project.pick}
+        onOpenPlugins={() => setPage("plugins")}
+        onOpenChat={() => setPage("chat")}
       />
-      <ChatView
-        title={chatTitle || "Новый чат"}
-        theme={theme}
-        onToggleTheme={toggleTheme}
-        onTogglePanel={() => setPanelOpen(!panelOpen)}
-        panelOpen={panelOpen}
-        project={project}
-        onFirstQuestion={rememberChat}
-      />
+      {page === "plugins" ? (
+        <PluginsPage />
+      ) : (
+        <ChatView
+          title={chatTitle || "Новый чат"}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onTogglePanel={() => setPanelOpen(!panelOpen)}
+          panelOpen={panelOpen}
+          project={project}
+          onFirstQuestion={rememberChat}
+        />
+      )}
       {narrow && !panelOpen ? null : (
         <ContextPanel sections={data.sections} engineDown={data.engineDown} project={project} />
       )}

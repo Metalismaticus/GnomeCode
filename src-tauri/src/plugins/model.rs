@@ -26,6 +26,23 @@ pub struct Plugin {
     pub commands: Vec<Command>,
     /// Подключён ли плагин к этому чату — по реестру чата.
     pub connected: bool,
+    /// Поля карточки раздела «Плагины» (docs/SPEC/plugins.md, сцена A) — их даёт
+    /// реестр установленного; у плагина движка их нет, поэтому Option и пропускаются,
+    /// форма движка не растекается (ADR-0001).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub author: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// Права вида «Категория: значение» — пусто, если реестр их не помнит.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub permissions: Vec<String>,
+    /// Выключен владельцем: кнопки команд уходят из чатов, установка не тронута.
+    /// Плагин движка не выключен никогда: его реестр не задевает.
+    pub disabled: bool,
 }
 
 /// Состояние движка «плагина работает».

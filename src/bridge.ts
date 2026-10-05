@@ -10,7 +10,10 @@ import type { CatalogEntry } from "./catalog";
 import { readFixtureState, writeFixtureState } from "./fixtureState";
 import {
   connect as connectFixture,
+  disable as disableFixture,
+  enable as enableFixture,
   plugins as fixturePlugins,
+  uninstall as uninstallFixture,
 } from "./fixturePlugins";
 import { entries as fixtureCatalog, install as installFixture } from "./fixtureCatalog";
 import {
@@ -45,6 +48,20 @@ export type Plugin = {
   error: string;
   commands: PluginCommand[];
   connected: boolean;
+  /** Поля карточки раздела «Плагины» (docs/SPEC/plugins.md, сцена A) — из реестра
+   *  установленного; их нет у плагина движка, поэтому поля необязательные. */
+  name?: string;
+  author?: string;
+  version?: string;
+  description?: string;
+  /** Права в виде «Категория: значение» — так их показывает сводка установки. */
+  permissions?: string[];
+  /** У карточки есть Uninstall: плагин записан в реестре установленного,
+   *  у плагина движка записи нет — удалять его этой кнопкой запрещено. */
+  uninstallable?: boolean;
+  /** Выключен владельцем: карточка во вкладке Disabled, кнопок команд в чатах нет,
+   *  сам плагин установлен. */
+  disabled?: boolean;
 };
 
 /** Что сказал слой прав о вызове команды плагина (docs/SPEC/plugins.md,
@@ -73,6 +90,11 @@ type Bridge = {
   listPlugins(): Promise<Plugin[]>;
   /** Подключить плагин к чату: он появляется кнопками в шапке без перезапуска. */
   connectPlugin(id: string): Promise<Plugin[]>;
+  /** Отключить плагин (Enable/Disable в разделе «Плагины»): кнопки команд уходят
+   *  из всех чатов, установка не тронута; отдаёт обновлённый список. */
+  setPluginEnabled(disabled: boolean, id: string): Promise<Plugin[]>;
+  /** Удалить плагин после подтверждения: запись реестра и файл плагина уходят. */
+  uninstallPlugin(id: string): Promise<Plugin[]>;
   /** Карточки каталога «Available» — индекс с GitHub (raw, не api.github.com). */
   catalogList(): Promise<CatalogEntry[]>;
   /** Установить плагин каталога и подключить к текущему чату — «Разрешить»
@@ -120,6 +142,12 @@ const tauriBridge = (): Bridge => ({
   },
   async connectPlugin(id: string) {
     return (await invoke<Plugin[]>("plugin_connect", { id })) as Plugin[];
+  },
+  async setPluginEnabled(disabled: boolean, id: string) {
+    return (await invoke<Plugin[]>("plugin_set_enabled", { disabled, id })) as Plugin[];
+  },
+  async uninstallPlugin(id: string) {
+    return (await invoke<Plugin[]>("plugin_uninstall", { id })) as Plugin[];
   },
   async catalogList() {
     return (await invoke<CatalogEntry[]>("catalog_list")) as CatalogEntry[];
@@ -172,6 +200,13 @@ const fixtureBridge = (): Bridge => ({
   },
   async connectPlugin(id: string) {
     return connectFixture(fixturePlugins(), id);
+  },
+  async setPluginEnabled(disabled: boolean, id: string) {
+    const list = fixturePlugins();
+    return disabled ? disableFixture(list, id) : enableFixture(list, id);
+  },
+  async uninstallPlugin(id: string) {
+    return uninstallFixture(fixturePlugins(), id);
   },
   async catalogList() {
     return fixtureCatalog();

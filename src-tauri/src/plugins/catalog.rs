@@ -11,7 +11,6 @@ use serde_json::Value;
 
 use super::install::CatalogEntry;
 use super::model::{Command, Plugin, ACTIVE};
-
 /// Разделитель, которым движок отделяет имя плагина в имени команды.
 const SEPARATOR: char = ':';
 /// Символы, которые движок заменяет на `_` в именах плагина и команды: префикс
@@ -20,46 +19,102 @@ const REPLACED: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123
 
 /// Плагины проекта с их командами и пометкой «подключён к чату».
 ///
-/// `connected` — по реестру чата: подключение делаем мы, у движка его нет.
-pub fn plugins(raw: &[Value], commands: &[Value], connected: &[String]) -> Vec<Plugin> {
+/// `connected` и `disabled` — по спискам реестра: подключение делаем мы, у движка его нет.
+pub fn plugins(
+    raw: &[Value],
+    commands: &[Value],
+    connected: &[String],
+    disabled: &[String],
+) -> Vec<Plugin> {
     raw.iter()
-        .map(|entry| plugin(entry, commands, connected))
-        .filter(|plugin| !plugin.id.is_empty())
+        .filter_map(|entry| plugin(entry, commands, connected, disabled))
         .collect()
 }
 
 /// Список с реестром установленного: движок файловые плагины из своей глобальной
 /// папки в `GET /api/plugin` не перечисляет (замер 2026-10-06, opencode v2.0.23),
 /// поэтому установленные из каталога даёт наш реестр — та же форма, что у движка.
-pub fn merged(raw: &[Value], commands: &[Value], connected: &[String], installed: &[CatalogEntry]) -> Vec<Plugin> {
-    let mut list = plugins(raw, commands, connected);
-    let known: Vec<String> = list.iter().map(|one| one.id.clone()).collect();
+/// Карточные поля и выключенность тоже от реестра (docs/SPEC/plugins.md, сцена A):
+/// у движка их не спросить. Если плагин движка и реестра один — поля реестра ложатся
+/// поверх, состояние движка чище.
+pub fn merged(
+    raw: &[Value],
+    commands: &[Value],
+    connected: &[String],
+    disabled: &[String],
+    installed: &[CatalogEntry],
+) -> Vec<Plugin> {
+    let mut list = plugins(raw, commands, connected, disabled);
     for entry in installed {
-        if known.contains(&entry.id) {
-            continue;
+        let connected_flag = connected.iter().any(|known| known == &entry.id);
+        if let Some(known) = list.iter().position(|one| one.id == entry.id) {
+            let base = &mut list[known];
+            *base = card(base, connected_flag, entry);
+        } else {
+            list.push(from_entry(entry, connected_flag));
         }
-        list.push(Plugin {
-            id: entry.id.clone(),
-            state: ACTIVE.to_string(),
-            error: String::new(),
-            commands: entry
-                .commands
-                .iter()
-                .map(|command| Command {
-                    name: format!("{}{SEPARATOR}{}", sanitize(&entry.id), command.name),
-                    label: command.name.clone(),
-                    description: command.description.clone(),
-                })
-                .collect(),
-            connected: connected.iter().any(|known| known == &entry.id),
-        });
     }
     list
 }
 
+/// Карточные поля поверх строк плагина: имя, автор, версия, описание, права и
+/// отметка «выключен»; id, состояние и оставшиеся команды — у плагина движка.
+fn card(base: &mut Plugin, connected: bool, entry: &CatalogEntry) -> Plugin {
+    Plugin {
+        connected,
+        commands: base.commands.clone(),
+        state: base.state.clone(),
+        error: base.error.clone(),
+        id: base.id.clone(),
+        name: Some(entry.name.clone()),
+        author: Some(entry.author.clone()),
+        version: Some(entry.version.clone()),
+        description: Some(entry.description.clone()),
+        permissions: permissions_of(entry),
+        disabled: entry.disabled,
+    }
+}
+
+/// Строка плагина из одной записи реестра: commands собраны, как их приписывает движок.
+fn from_entry(entry: &CatalogEntry, connected: bool) -> Plugin {
+    Plugin {
+        id: entry.id.clone(),
+        state: ACTIVE.to_string(),
+        error: String::new(),
+        connected,
+        commands: entry
+            .commands
+            .iter()
+            .map(|command| Command {
+                name: format!("{}{SEPARATOR}{}", sanitize(&entry.id), command.name),
+                label: command.name.clone(),
+                description: command.description.clone(),
+            })
+            .collect(),
+        name: Some(entry.name.clone()),
+        author: Some(entry.author.clone()),
+        version: Some(entry.version.clone()),
+        description: Some(entry.description.clone()),
+        permissions: permissions_of(entry),
+        disabled: entry.disabled,
+    }
+}
+
+/// Права записи на карточку: «Категория: значение», как в сводке прав установки.
+fn permissions_of(entry: &CatalogEntry) -> Vec<String> {
+    entry
+        .permissions
+        .iter()
+        .map(|one| format!("{}: {}", one.category, one.value))
+        .collect()
+}
+
 /// Одна строка плагина: состояние — из `state.status`, команды — по префиксу имени.
-fn plugin(entry: &Value, commands: &[Value], connected: &[String]) -> Plugin {
+fn plugin(entry: &Value, commands: &[Value], connected: &[String], disabled: &[String]) -> Option<Plugin> {
     let id = text(entry.get("id"));
+    if id.is_empty() {
+        return None;
+    }
     let state = text(entry.get("state").and_then(|state| state.get("status")));
     let state = if state.is_empty() {
         ACTIVE.to_string()
@@ -67,13 +122,19 @@ fn plugin(entry: &Value, commands: &[Value], connected: &[String]) -> Plugin {
         state
     };
     let prefix = format!("{}{SEPARATOR}", sanitize(&id));
-    Plugin {
+    Some(Plugin {
         connected: connected.iter().any(|known| known == &id),
+        disabled: disabled.iter().any(|known| known == &id),
         error: text(entry.get("state").and_then(|state| state.get("error"))),
         commands: commands_of(commands, &prefix),
         id,
         state,
-    }
+        name: None,
+        author: None,
+        version: None,
+        description: None,
+        permissions: vec![],
+    })
 }
 
 /// Команды одного плагина: имя начинается с `плагин:` — это его команда.
