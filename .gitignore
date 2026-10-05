@@ -36,5 +36,8 @@ data/
 # Снимки экрана полигона (playwright, tests/ui/window_shot.mjs)
 shots/
 
+# Собранные версии для владельца (в обход git — только файлы)
+builds/
+
 # Tauri generated schemas
 src-tauri/gen/
