@@ -6,8 +6,8 @@
 Desktop AI coding client for Windows: multi-model chat over the OpenCode core, tied to your projects, with two-click plugins and per-chat security.
 <!-- studio:end pitch -->
 
-- **Now:** Stage 1 is done and accepted — the window, streaming chat over the OpenCode core, project files, plugins with first-use approval, persistence across restarts.
-- **Next:** Stage 2 — the full plugin experience: the plugin section, permissions, and automatic GitHub updates at launch.
+- **Now:** Stage 2 — the full plugin experience: the plugin section, catalog install from GitHub, permission rules, automatic updates at launch, model comparison.
+- **Next:** Stage 3 — workspaces, skills and project memory.
 <!-- studio:end status -->
 <!-- studio:begin features -->
 ## What works
