@@ -116,6 +116,7 @@
 | `EmptyChat` | `src/components/` | пустое состояние по центру ленты (заголовок 20 px) |
 | `Composer` | `src/components/` | поле ввода, чипы файлов, меню «+», отправка |
 | `AddMenu`, `PluginPicker`, `PluginButton` | `src/components/` | меню «+», список плагинов с поиском и разделами, кнопки команд в шапке |
+| `PluginApproval` | `src/components/` | окно одобрения `[Разрешить / для этого чата / Отказать]` (решение владельца, 2026-10-05) |
 | `ContextPanel`, `ContextRow` | `src/components/` | правая панель «Контекст проекта», дерево файлов, строки-данные |
 | `FileTree`, `FileChips` | `src/components/` | ленивое дерево по стрелке, чипы прикреплённых файлов |
 | `ThemeSwitch` | `src/components/` | переключатель тёмной/светлой темы |

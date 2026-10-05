@@ -126,11 +126,16 @@ workspace; реестр находит папку сам (спека Фазы 2,
 |---|---|---|
 | Спеки замысла | `docs/SPEC/plugins.md`, `docs/SPEC/phase2.md` | источник требований; код не пишется без сверки со спекой |
 | Темы (токены) | `src/styles/tokens.css` | переменные `--bg`, `--accent` и пр.; тёмная и светлая |
-| Мост к OpenCode | `src-tauri/src/opencode/` | типизированный клиент; появится пунктом 3 Этапа 1 |
+| Мост к OpenCode | `src-tauri/src/opencode/` | типизированный клиент; сессии, события, лента (пункт 3 Этапа 1) |
+| Слой прав плагинов | `src-tauri/src/plugins/` + `src/components/PluginApproval` | решает до вызова движка; окно «Разрешить / для этого чата / Отказать» (пункт 6) |
+| Состояние окна | `src-tauri/src/state.rs` (state.json) + `src/appstate.ts` | тема, чат, папка проекта переживают перезапуск (пункт 7) |
+| Полигон | `tests/checks/`, `tests/ui/`, `tests/lib/`, раннер `tools/run_checks.py` | проверка по имени, группа, полная (пункт 2) |
 
 ## Копии, которые нельзя убрать
 
 | Что | Где копии | Чем сверяются все копии |
 |---|---|---|
+| Строки вызова плагина (⧗ / ⚠ … requires approval) | `src-tauri/src/opencode/client.rs` × `src/fixtureApprovals.ts` | `src-tauri/tests/feed_lines.rs` + `tests/ui/plugins.mjs` |
+| Состояние окна (тема, чат, папка) | `src-tauri/src/state.rs` (state.json) × `src/fixtureState.ts` (зеркало страницы) | `tests/ui/full_cycle.mjs` |
 
 Пусто — копий пока нет.

@@ -6,8 +6,7 @@
 Desktop AI coding client for Windows: multi-model chat over the OpenCode core, tied to your projects, with two-click plugins and per-chat security.
 <!-- studio:end pitch -->
 
-<!-- studio:begin status -->
-- **Now:** Stage 1 — the app window opens: three columns, chat with a streaming model, project files, plugin buttons in the chat header.
+- **Now:** Stage 1 is done and accepted — the window, streaming chat over the OpenCode core, project files, plugins with first-use approval, persistence across restarts.
 - **Next:** Stage 2 — the full plugin experience: the plugin section, permissions, and automatic GitHub updates at launch.
 <!-- studio:end status -->
 <!-- studio:begin features -->
@@ -18,7 +17,9 @@ Desktop AI coding client for Windows: multi-model chat over the OpenCode core, t
   and a dropped connection show as lines, not silence.
 - Pick a project folder, browse its files in the panel and attach them to a question.
 - Plugins from chat: the plus menu offers Connect plugin, commands become
-  header buttons (running them waits for the permissions layer).
+  header buttons, and each command asks for approval on first use
+  (Allow / Allow for this chat / Deny).
+- Chat, theme and project folder survive an app restart; the engine session continues.
 - One quick check command verifies the whole product; a built copy lands in `builds/`.
 <!-- studio:end features -->
 
