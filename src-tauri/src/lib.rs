@@ -3,11 +3,14 @@
 // (docs/TESTING.md, «Здоровье кода»).
 
 pub mod opencode;
+pub mod plugins;
 pub mod project;
 
 use std::sync::Arc;
 
 use opencode::{Chat, WindowSink};
+use plugins::commands::{plugin_connect, plugin_list};
+use plugins::registry::Registry;
 use project::Project;
 
 use tauri::{AppHandle, Manager, State};
@@ -64,6 +67,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             app_version,
             chat_send,
+            plugin_connect,
+            plugin_list,
             project_pick_folder,
             project_read_tree
         ])
@@ -72,6 +77,8 @@ pub fn run() {
             app.manage(Chat::start(Arc::new(WindowSink(app.handle().clone()))));
             // Папка проекта живёт до следующего выбора: её читают дерево и отправка.
             app.manage(Project::default());
+            // Реестр плагинов чата: что владелец подключил кнопкой «+».
+            app.manage(Registry::default());
             Ok(())
         })
         .run(tauri::generate_context!())

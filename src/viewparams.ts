@@ -8,9 +8,9 @@
 
 export type Theme = "dark" | "light";
 
-/** Состояние экрана: лента пуста, с ошибкой, полна данных — или выбрана папка проекта,
- *  и тогда справа дерево файлов (`?состояние=`). */
-export type FeedState = "feed" | "empty" | "error" | "many" | "project";
+/** Состояние экрана: лента пуста, с ошибкой, полна данных; выбрана папка проекта
+ *  и справа дерево файлов; список плагинов — с ним или совсем пустой (`?состояние=`). */
+export type FeedState = "feed" | "empty" | "error" | "many" | "project" | "plugins" | "plugins-empty";
 
 export type ViewParams = {
   theme: Theme;
@@ -27,6 +27,8 @@ const FEEDS: Record<string, FeedState> = {
   ошибка: "error",
   много: "many",
   проект: "project",
+  плагины: "plugins",
+  "плагины-пусто": "plugins-empty",
 };
 
 export function viewParams(search: string): ViewParams {

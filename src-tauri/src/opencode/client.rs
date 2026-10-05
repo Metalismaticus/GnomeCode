@@ -806,4 +806,24 @@ impl<'a> Api<'a> {
     pub fn ready(&self) -> Result<(), String> {
         self.endpoint.call("GET", "/api/config", None).map(|_| ())
     }
+
+    /// Установленные плагины проекта: `GET /api/plugin`. Форму разбирает
+    /// `plugins::catalog` — здесь только список строк ответа.
+    pub fn plugins(&self) -> Result<Vec<Value>, String> {
+        self.endpoint.call("GET", "/api/plugin", None).and_then(items)
+    }
+
+    /// Команды чата: `GET /api/command` — из них кнопки шапки берут команды плагинов.
+    pub fn commands(&self) -> Result<Vec<Value>, String> {
+        self.endpoint.call("GET", "/api/command", None).and_then(items)
+    }
+}
+
+/// Данные ответа движка — список. Форма элемента остаётся на стороне Rust
+/// (ADR-0001): наружу уходят наши типы, а не строки чужого JSON.
+fn items(value: Value) -> Result<Vec<Value>, String> {
+    match value {
+        Value::Array(list) => Ok(list),
+        _ => Err("сервер вернул не список".to_string()),
+    }
 }

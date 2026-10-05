@@ -11,7 +11,7 @@ pub mod client;
 pub mod engine;
 
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
@@ -78,6 +78,9 @@ impl EngineLife for Engine {
 /// Живой чат: команда интерфейса «отправить» и отписка.
 pub struct Chat {
     tx: Sender<Cmd>,
+    /// Адрес движка для команд, которым нужен сервер, а не лента (список плагинов).
+    /// Ведёт его поток ленты: после подъёма и перезапуска адрес один и тот же.
+    endpoint: Arc<Mutex<Option<client::Endpoint>>>,
 }
 
 impl Chat {
@@ -93,7 +96,10 @@ impl Chat {
                 ));
                 let (tx, rx) = std::sync::mpsc::channel();
                 thread::spawn(move || supervise_missing(rx, sink));
-                Chat { tx }
+                Chat {
+                    tx,
+                    endpoint: Arc::new(Mutex::new(None)),
+                }
             }
         }
     }
@@ -102,8 +108,15 @@ impl Chat {
     /// вызывающий — так проверка стережёт обрыв потока, не поднимая настоящий opencode.
     pub fn with_engine(engine: Box<dyn EngineLife>, sink: Arc<dyn Sink>) -> Chat {
         let (tx, rx) = std::sync::mpsc::channel();
-        thread::spawn(move || supervise(engine, rx, sink));
-        Chat { tx }
+        let endpoint = Arc::new(Mutex::new(Some(engine.endpoint())));
+        let known = Arc::clone(&endpoint);
+        thread::spawn(move || supervise(engine, rx, sink, known));
+        Chat { tx, endpoint }
+    }
+
+    /// Адрес движка, пока он поднят: команды окна, которым нужен сервер, идут через него.
+    pub fn endpoint(&self) -> Option<client::Endpoint> {
+        self.endpoint.lock().ok().and_then(|held| held.clone())
     }
 
     /// Отправить текст в сессию: команда уходит в поток ленты, а не блокирует интерфейс.
@@ -128,8 +141,16 @@ impl Drop for Chat {
 }
 
 /// Поток ленты: сессия, поток событий, команды пользователя и перезапуск движка.
-fn supervise(mut engine: Box<dyn EngineLife>, rx: Receiver<Cmd>, sink: Arc<dyn Sink>) {
+fn supervise(
+    mut engine: Box<dyn EngineLife>,
+    rx: Receiver<Cmd>,
+    sink: Arc<dyn Sink>,
+    known: Arc<Mutex<Option<client::Endpoint>>>,
+) {
     let endpoint = engine.endpoint();
+    if let Ok(mut held) = known.lock() {
+        *held = Some(endpoint.clone());
+    }
     let api = Api::new(&endpoint);
     let mut session: Option<String> = None;
     // Счётчик строк вопроса живёт дольше одного потока: обрыв и переподключение не
@@ -149,6 +170,11 @@ fn supervise(mut engine: Box<dyn EngineLife>, rx: Receiver<Cmd>, sink: Arc<dyn S
             }
             // Движок перезапустился — сессии прошлой жизни больше нет.
             session = None;
+        }
+        // Адрес после перезапуска тот же, но окно читает его отсюда: список плагинов
+        // идёт к движку, а лента его не видит.
+        if let Ok(mut held) = known.lock() {
+            *held = Some(endpoint.clone());
         }
         let id = match session
             .clone()

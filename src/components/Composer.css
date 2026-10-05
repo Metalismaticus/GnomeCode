@@ -5,6 +5,8 @@
   padding: var(--space-4) var(--space-5);
   border-top: 1px solid var(--border);
   background: var(--bg-panel);
+  /* Меню «+» и список плагинов всплывают над полем ввода — им нужен якорь. */
+  position: relative;
 }
 
 .composer__box {

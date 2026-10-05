@@ -1,6 +1,9 @@
+import type { PluginsState } from "../features/plugins/usePlugins";
 import type { ProjectFile } from "../features/project/useProject";
+import { AddMenu } from "./AddMenu";
 import { Button } from "./Button";
 import { FileChips } from "./FileChips";
+import { PluginPicker } from "./PluginPicker";
 
 import "./Composer.css";
 
@@ -16,16 +19,46 @@ export type ComposerProps = {
   /** Файлы контекста вопроса: чипы над полем ввода, уходят вместе с текстом. */
   files: ProjectFile[];
   onDetach: (path: string) => void;
+  /** Плагины чата: меню «+» показывает, что подключено, и ведёт к списку. */
+  plugins: PluginsState;
+  /** Открыто ли меню «+» и список плагинов. */
+  addOpen: boolean;
+  pickerOpen: boolean;
+  onToggleAdd: () => void;
+  onConnectPlugins: () => void;
+  onClosePlugins: () => void;
 };
 
-/** Композер: «+», поле ввода, «↑» и подсказка под ним. Кнопка отправки выключена
- *  на пустом поле, и причина видна в её подсказке (docs/DESIGN.md, раздел 6). */
-export function Composer({ draft, sending, onDraft, onSend, files, onDetach }: ComposerProps) {
+/** Композер: «+» с меню и списком плагинов, поле ввода, «↑» и подсказка под ним.
+ *  Кнопка отправки выключена на пустом поле, и причина видна в её подсказке
+ *  (docs/DESIGN.md, раздел 6). */
+export function Composer({
+  draft,
+  sending,
+  onDraft,
+  onSend,
+  files,
+  onDetach,
+  plugins,
+  addOpen,
+  pickerOpen,
+  onToggleAdd,
+  onConnectPlugins,
+  onClosePlugins,
+}: ComposerProps) {
   return (
     <div className="composer">
       <FileChips files={files} onDetach={onDetach} />
       <div className="composer__box">
-        <Button square variant="ghost" className="composer__add" data-testid="composer-add" title="Добавить">
+        <Button
+          square
+          variant="ghost"
+          className="composer__add"
+          data-testid="composer-add"
+          title="Добавить"
+          aria-expanded={addOpen || pickerOpen}
+          onClick={onToggleAdd}
+        >
           +
         </Button>
         <textarea
@@ -55,6 +88,14 @@ export function Composer({ draft, sending, onDraft, onSend, files, onDetach }: C
         </Button>
       </div>
       <div className="composer__hint">{HINT}</div>
+      {pickerOpen ? <PluginPicker plugins={plugins} onClose={onClosePlugins} /> : null}
+      <AddMenu
+        open={addOpen && !pickerOpen}
+        onClose={onClosePlugins}
+        plugins={plugins}
+        files={files}
+        onConnect={onConnectPlugins}
+      />
     </div>
   );
 }
