@@ -55,9 +55,10 @@ const PLUGINS: Plugin[] = [
   ),
 ];
 
-/** Список установленных плагинов по состоянию страницы: с плагинами или пустой. */
+/** Список установленных плагинов по состоянию страницы: с плагинами или пустой.
+ *  Состояние «одобрение» — тот же список: слой прав не меняет, что установлено. */
 export function plugins(): Plugin[] {
-  if (params.feed !== "plugins") {
+  if (params.feed !== "plugins" && params.feed !== "approval") {
     return [];
   }
   return PLUGINS.map((one) => ({ ...one, connected: connected.has(one.id) }));

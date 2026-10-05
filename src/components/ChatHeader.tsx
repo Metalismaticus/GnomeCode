@@ -16,6 +16,7 @@ export function ChatHeader({
   panelOpen = false,
   model = "GLM-5.3 High",
   plugins = [],
+  onRunCommand,
 }: {
   title: string;
   theme: Theme;
@@ -25,6 +26,8 @@ export function ChatHeader({
   model?: string;
   /** Подключённые к чату плагины: одна кнопка на команду, рядом с бейджем. */
   plugins?: Plugin[];
+  /** Клик по кнопке команды: слой прав решает вопрос одобрения и запуск. */
+  onRunCommand: (plugin: Plugin, command: Plugin["commands"][number]) => void;
 }) {
   return (
     <header className="chat-header" data-testid="chat-header">
@@ -36,7 +39,12 @@ export function ChatHeader({
       <span className="chat-header__plugins">
         {plugins.flatMap((plugin) =>
           plugin.commands.map((command) => (
-            <PluginButton key={command.name} plugin={plugin} command={command} />
+            <PluginButton
+              key={command.name}
+              plugin={plugin}
+              command={command}
+              onRun={onRunCommand}
+            />
           )),
         )}
       </span>

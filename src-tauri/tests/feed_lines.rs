@@ -1,8 +1,24 @@
 // События движка, важные ленте. Формат OpenCode: `{"type": …, "data": {…}}`,
 // поэтому у каждого варианта своё тело — это union, а не «any» (ADR-0001).
 // Остальные события разбираются в `Other`: формат движка меняется, лента — нет.
+//
+// Слой прав вызовов плагинов (docs/SPEC/plugins.md, «Утверждённый UX одобрения»)
+// проверяется здесь же через настоящий мост (`Chat::with_engine`): строка запуска
+// «⧗ плагин · команда» и строка отказа «⚠ … requires approval» — его слова в ленте.
 
-use gnomecode_lib::opencode::client::{Feed, FeedEvent, RowKind, ServerEvent, ToolError};
+use gnomecode_lib::opencode::client::{Endpoint, Feed, FeedEvent, RowKind, ServerEvent, ToolError};
+use gnomecode_lib::opencode::{Chat, Sink};
+use gnomecode_lib::plugins::permissions::Grants;
+
+use std::io::Write;
+use std::net::TcpListener;
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
+
+mod common;
+
+use common::{ListSink, Loopback, read_request, wait_for};
 
 const SESSION: &str = "ses_fixture";
 
@@ -153,5 +169,132 @@ fn failed_tool_call_is_visible_as_a_line() {
         .message
             == "пусто",
         "тело ошибки разбирается в тип, а не теряется"
+    );
+}
+
+// Слой прав: решение видно в ленте и уходит (или не уходит) движку. Сервер —
+// свой сокет, как в проверке обрыва: мост настоящий, opencode не нужен.
+
+/// Предел ожидания строки ленты: медленный компьютер — не поломка.
+const WAIT: std::time::Duration = std::time::Duration::from_secs(10);
+
+/// Сервер проверки: сессия, поток событий и приём одобренной команды.
+/// Тело команды логируется целиком — по нему видно, что ушло движку.
+fn serve_command(port_holder: Arc<Mutex<u16>>, log: Arc<Mutex<Vec<String>>>) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("свободный порт");
+    *port_holder.lock().expect("порт") = listener.local_addr().expect("адрес").port();
+    for socket in listener.incoming() {
+        let Ok(mut socket) = socket else {
+            return;
+        };
+        let seen = Arc::clone(&log);
+        thread::spawn(move || {
+            let request = read_request(&mut socket);
+            if let Ok(mut held) = seen.lock() {
+                held.push(request.clone());
+            }
+            let first = request.lines().next().unwrap_or_default().to_string();
+            if first.starts_with("POST /api/session ") {
+                let _ = socket.write_all(common::json_head(r#"{"data":{"id":"ses_fixture"}}"#).as_bytes());
+                return;
+            }
+            if first.contains("/command") {
+                // Движок отвечает на команду пустым телом 204 (замер 2026-10-05).
+                let _ = socket.write_all(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n");
+                return;
+            }
+            let _ = socket.write_all(common::chunked_head().as_bytes());
+            // Поток держится открытым, пока идёт проверка.
+            thread::sleep(Duration::from_secs(30));
+        });
+    }
+}
+
+/// Строки вызова инструмента ленты: запуск и отказ слоя прав идут ими.
+fn tool_lines(sink: &ListSink) -> Vec<String> {
+    sink.rows()
+        .into_iter()
+        .filter_map(|row| match row {
+            FeedEvent::Row {
+                kind: RowKind::Tool,
+                text,
+                ..
+            } => Some(text),
+            _ => None,
+        })
+        .collect()
+}
+
+/// Мост с движком-подставой и логом запросов: общий вход трёх проверок слоя прав.
+fn bridge_with_log() -> (Chat, Arc<ListSink>, Arc<Mutex<Vec<String>>>) {
+    let port = Arc::new(Mutex::new(0u16));
+    let log: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+    thread::spawn({
+        let port = Arc::clone(&port);
+        let log = Arc::clone(&log);
+        move || serve_command(port, log)
+    });
+    while *port.lock().expect("порт") == 0 {
+        thread::sleep(Duration::from_millis(10));
+    }
+    let endpoint = Endpoint::local(*port.lock().expect("порт"), "test-pass".to_string());
+    let sink = Arc::new(ListSink::default());
+    let chat = Chat::with_engine(Box::new(Loopback { endpoint }), Arc::clone(&sink) as Arc<dyn Sink>);
+    (chat, sink, log)
+}
+
+#[test]
+fn granted_command_starts_with_a_feed_line_and_reaches_the_engine() {
+    let (chat, sink, log) = bridge_with_log();
+    chat.command("docs", "search", "docs:search")
+        .expect("одобренная команда ушла мосту");
+    wait_for(&sink, "⧗ docs · search", WAIT);
+    assert!(
+        tool_lines(&sink).iter().any(|line| line == "⧗ docs · search"),
+        "строка запуска — строка вызова инструмента: {:?}",
+        tool_lines(&sink)
+    );
+    let seen = log.lock().expect("лог запросов").join("\n---\n");
+    assert!(
+        seen.contains("POST /api/session/ses_fixture/command"),
+        "команда уходит движку POST-ом в сессию: {seen:?}"
+    );
+    assert!(
+        seen.contains("\"name\":\"docs:search\"") && seen.contains("\"text\":\"\""),
+        "тело команды несёт имя и обязательный пустой text: {seen:?}"
+    );
+}
+
+#[test]
+fn refusal_shows_a_line_and_does_not_call_the_engine() {
+    let (chat, sink, log) = bridge_with_log();
+    chat.refused("docs", "search")
+        .expect("отказ ушёл мосту");
+    wait_for(&sink, "requires approval", WAIT);
+    assert!(
+        tool_lines(&sink)
+            .iter()
+            .any(|line| line == "⚠ docs · search requires approval"),
+        "отказ назван строкой слоя прав: {:?}",
+        tool_lines(&sink)
+    );
+    let seen = log.lock().expect("лог запросов").join("\n---\n");
+    assert!(
+        !seen.contains("/command"),
+        "после отказа движку нечего отправлять: {seen:?}"
+    );
+}
+
+#[test]
+fn chat_rule_removes_the_question() {
+    let grants = Grants::default();
+    assert!(
+        grants.sensitive("docs:search"),
+        "без правила вызов считается чувствительным — спрашивать"
+    );
+    grants.allow("docs:search");
+    assert!(
+        !grants.sensitive("docs:search"),
+        "правило «для этого чата» сняло вопрос: тот же вызов больше не спрашивает"
     );
 }

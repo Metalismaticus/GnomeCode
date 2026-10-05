@@ -85,12 +85,16 @@ impl Endpoint {
     }
 
     /// Тело запроса: сервер кладёт ответ в `data`, без обёртки — отдаём как есть.
+    /// пустой ответ (204 у POST команды) — тоже успех: `Ok(Null)`.
     fn call(&self, method: &str, path: &str, body: Option<&Value>) -> Result<Value, String> {
         let mut reply = self.send(method, path, body, false)?;
         if reply.status == 401 {
             return Err("401 — пароль не тот: сервер не пустил GnomeCode".to_string());
         }
         let text = String::from_utf8_lossy(&reply.body.bytes(BODY_LIMIT)?).to_string();
+        if text.trim().is_empty() {
+            return Ok(Value::Null);
+        }
         let value: Value =
             serde_json::from_str(&text).map_err(|e| format!("ответ сервера не JSON: {e}"))?;
         Ok(value.get("data").cloned().unwrap_or(value))
@@ -720,6 +724,18 @@ fn tool_line(name: &str, state: ToolState, detail: &str) -> String {
     }
 }
 
+/// Строка запуска команды плагина: `⧗ docs · search` — дальше отвечает движок
+/// (docs/SPEC/plugins.md, сцена J).
+pub fn command_started(plugin: &str, label: &str) -> String {
+    format!("⧗ {plugin} · {label}")
+}
+
+/// Строка отказа слоя прав: `⚠ docs · search requires approval` — вызов не идёт
+/// (docs/SPEC/plugins.md, «Утверждённый UX одобрения»).
+pub fn command_refused(plugin: &str, label: &str) -> String {
+    format!("⚠ {plugin} · {label} requires approval")
+}
+
 /// Имя, когда движок не назвал инструмент: лучше «инструмент», чем пустая строка в ленте.
 const UNKNOWN_TOOL: &str = "инструмент";
 
@@ -799,6 +815,16 @@ impl<'a> Api<'a> {
         let path = format!("/api/session/{session}/prompt");
         self.endpoint
             .call("POST", &path, Some(&json!({ "text": text })))
+            .map(|_| ())
+    }
+
+    /// Команда плагина, одобренная слоем прав: `POST /api/session/{id}/command`.
+    /// Тело обязано нести оба ключа (`text` пуст без входа — замер 2026-10-05),
+    /// ответ 204 пустой телом.
+    pub fn command(&self, session: &str, name: &str) -> Result<(), String> {
+        let path = format!("/api/session/{session}/command");
+        self.endpoint
+            .call("POST", &path, Some(&json!({ "name": name, "text": "" })))
             .map(|_| ())
     }
 

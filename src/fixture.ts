@@ -104,7 +104,9 @@ class Fixture {
     this.emit(row("engine", "notice", DONE));
   }
 
-  private emit(event: FeedEvent): void {
+  /** Строка в ленту фикстуры. Слой прав вне окна Tauri вместо Rust-моста (opencode/client.rs)
+   *  отдаёт строки здесь: «⧗ плагин · команда» при запуске и отказ «⚠ … requires approval». */
+  emit(event: FeedEvent): void {
     for (const listener of this.listeners) {
       listener(event);
     }

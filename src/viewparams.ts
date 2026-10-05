@@ -9,8 +9,9 @@
 export type Theme = "dark" | "light";
 
 /** Состояние экрана: лента пуста, с ошибкой, полна данных; выбрана папка проекта
- *  и справа дерево файлов; список плагинов — с ним или совсем пустой (`?состояние=`). */
-export type FeedState = "feed" | "empty" | "error" | "many" | "project" | "plugins" | "plugins-empty";
+ *  и справа дерево файлов; список плагинов — с ним или совсем пустой; одобрение
+ *  вызова плагина — окно согласия вместо исполненной кнопки (`?состояние=`). */
+export type FeedState = "feed" | "empty" | "error" | "many" | "project" | "plugins" | "plugins-empty" | "approval";
 
 export type ViewParams = {
   theme: Theme;
@@ -29,6 +30,7 @@ const FEEDS: Record<string, FeedState> = {
   проект: "project",
   плагины: "plugins",
   "плагины-пусто": "plugins-empty",
+  одобрение: "approval",
 };
 
 export function viewParams(search: string): ViewParams {

@@ -34,6 +34,19 @@ const buttons = (page) =>
 /** Разделы меню «+» подряд: без них меню не то, о котором говорит пункт. */
 const sections = (page) => page.$$eval('[data-testid="add-menu"] [data-section]', (els) => els.map((el) => el.textContent.trim()));
 
+/** Строки вызова инструмента ленты: одобрение и отказ видны в них. */
+const toolRows = (page) =>
+  page.$$eval('[data-testid="feed"] .feed__row--tool', (els) => els.map((el) => el.textContent.trim()));
+
+/** Подключить плагин к чату кликами: меню «+» → Connect plugin → строка списка. */
+const connect = async (page, id) => {
+  await page.click('[data-testid="composer-add"]');
+  await page.click(CONNECT);
+  await page.waitForSelector(PICKER, { timeout: 5000 });
+  await page.click(`${PICKER} ${ROW}[data-plugin="${id}"]`);
+  await page.waitForSelector(`[data-testid="plugin-button"][data-plugin="${id}"]`, { timeout: 5000 });
+};
+
 const { url, stop, ok, port } = await startInterface();
 try {
   if (!ok) {
@@ -176,11 +189,7 @@ try {
     // к) Клик по кнопке — команда уходит в ленту строкой вызова инструмента -----------
     const page2 = await browser.newPage({ viewport: WIDE });
     await page2.goto(`${url}?состояние=плагины`, { waitUntil: "networkidle" });
-    await page2.click('[data-testid="composer-add"]');
-    await page2.click(CONNECT);
-    await page2.waitForSelector(PICKER, { timeout: 5000 });
-    await page2.click(`${PICKER} ${ROW}[data-plugin="${SOLO}"]`);
-    await page2.waitForSelector(`[data-testid="plugin-button"][data-plugin="${SOLO}"]`, { timeout: 5000 });
+    await connect(page2, SOLO);
     await page2.click(`[data-testid="plugin-button"][data-plugin="${SOLO}"]`);
     try {
       await page2.waitForFunction(
@@ -195,16 +204,100 @@ try {
       const said = await page2.$eval('[data-testid="feed"]', (el) => el.textContent.replace(/\s+/g, " ").slice(-160));
       done(
         1,
-        `клик по кнопке «${SOLO_COMMAND}» не дал строки вызова инструмента в ленте — в конце ленты «${said}». ` +
-          `Пункт ждёт ответа владельца: слоя прав в проекте нет (docs/BLOCKED.md, «Решения»), команда плагина ` +
-          `не должна уходить движку без одобрения — кусок 4 критерия не сделан намеренно`,
+        `клик по кнопке «${SOLO_COMMAND}» с выданным правилом слоя прав не дал строки вызова инструмента в ленте — в конце ленты «${said}»`,
       );
     }
     await page2.close();
 
+    // л) Слой прав спрашивает: окно одобрения с тремя ответами ---------------------
+    const asked = await browser.newPage({ viewport: WIDE });
+    await asked.goto(`${url}?состояние=одобрение`, { waitUntil: "networkidle" });
+    await connect(asked, SOLO);
+    await asked.click(`[data-testid="plugin-button"][data-plugin="${SOLO}"]`);
+    try {
+      await asked.waitForSelector('[data-testid="plugin-approval"]', { timeout: 5000 });
+    } catch {
+      done(1, "клик по кнопке без выданного правила не открыл окно одобрения — вызов прошёл без спроса или окно потерялось");
+    }
+    const answers = await asked.$$eval('[data-testid="plugin-approval"] button', (els) => els.map((el) => el.textContent.trim()));
+    for (const answer of ["Разрешить", "Разрешить для этого чата", "Отказать"]) {
+      if (!answers.includes(answer)) {
+        done(1, `в окне одобрения нет ответа «${answer}»: кнопки окна — ${answers.join(", ") || "ни одной"}`);
+      }
+    }
+
+    // м) Отказ — строка «⚠ … requires approval» в ленте, вызов не идёт -------------
+    await asked.click('text="Отказать"');
+    try {
+      await asked.waitForFunction(
+        () => {
+          const tools = document.querySelectorAll('[data-testid="feed"] .feed__row--tool');
+          return Array.from(tools).some((row) => row.textContent.includes("requires approval"));
+        },
+        undefined,
+        { timeout: 5000 },
+      );
+    } catch {
+      done(1, `после «Отказать» в ленте нет строки отказа «⚠ ${SOLO} · ${SOLO_COMMAND} requires approval»: есть ${JSON.stringify(await toolRows(asked))}`);
+    }
+    if ((await toolRows(asked)).filter((row) => row.startsWith("⧗") && row.includes(SOLO)).length) {
+      done(1, "после «Отказать» в ленте есть строка запуска команды — движку ушёл отвергнутый вызов");
+    }
+    try {
+      await asked.waitForSelector('[data-testid="plugin-approval"]', { timeout: 5000 });
+      done(1, "окно одобрения после «Отказать» осталось открытым — решение принято, окно должно уйти");
+    } catch {
+      // Окно ушло — так и должно быть.
+    }
+
+    // н) Отказ не запоминает правило: следующий клик спрашивает снова -------------
+    await asked.click(`[data-testid="plugin-button"][data-plugin="${SOLO}"]`);
+    try {
+      await asked.waitForSelector('[data-testid="plugin-approval"]', { timeout: 5000 });
+    } catch {
+      done(1, "после отказа окно одобрения не пришло на новый клик — отказ запомнился как правило, а «Отказать» правило не выдаёт");
+    }
+
+    // о) «Разрешить для этого чата» — тот же вызов исполняется ---------------------
+    await asked.click('text="Разрешить для этого чата"');
+    try {
+      await asked.waitForFunction(
+        (needle) => {
+          const tools = document.querySelectorAll('[data-testid="feed"] .feed__row--tool');
+          return Array.from(tools).some((row) => row.textContent.includes(needle));
+        },
+        `⧗ ${SOLO} ·`,
+        { timeout: 5000 },
+      );
+    } catch {
+      done(1, `после «Разрешить для этого чата» команда не исполнилась: строк запуска нет — есть ${JSON.stringify(await toolRows(asked))}`);
+    }
+
+    // п) Правило чата помнится: тот же вызов больше не спрашивает ------------------
+    await asked.click(`[data-testid="plugin-button"][data-plugin="${SOLO}"]`);
+    try {
+      await asked.waitForSelector('[data-testid="plugin-approval"]', { timeout: 5000 });
+      done(1, "одобренное «для этого чата» правило спрашивают снова — решение на чат не запомнилось");
+    } catch {
+      // Окна нет — правило выдано и действует.
+    }
+    try {
+      await asked.waitForFunction(
+        (needle) => {
+          const tools = document.querySelectorAll('[data-testid="feed"] .feed__row--tool');
+          return Array.from(tools).filter((row) => row.textContent.includes(needle)).length > 1;
+        },
+        `⧗ ${SOLO} ·`,
+        { timeout: 5000 },
+      );
+    } catch {
+      done(1, "повторный клик после одобрения «для этого чата» не дал новой строки запуска — окна не было, и команда не ушла");
+    }
+    await asked.close();
+
     done(
       0,
-      `меню «+» с разделами Files/Context/Capabilities, Connect plugin открывает список с поиском, плагин подключается кнопкой в шапке и держится после перерисовки, одна команда — одна кнопка, недавние и избранное по разделам, пустой список объяснён словами, клик по кнопке даёт строку вызова инструмента в ленте`,
+      `меню «+» с разделами Files/Context/Capabilities, Connect plugin открывает список с поиском, плагин подключается кнопкой в шапке и держится после перерисовки, одна команда — одна кнопка, недавние и избранное по разделам, пустой список объяснён словами, клик по кнопке даёт строку вызова инструмента в ленте, окно одобрения спрашивает [Разрешить/Разрешить для этого чата/Отказать], отказ — строка requires approval без вызова, «для этого чата» исполняет и больше не спрашивает`,
     );
   } finally {
     await browser.close();

@@ -9,6 +9,12 @@ import {
   connect as connectFixture,
   plugins as fixturePlugins,
 } from "./fixturePlugins";
+import {
+  granted as fixtureGranted,
+  launch as fixtureLaunch,
+  remember as fixtureRemember,
+  refuse as fixtureRefuse,
+} from "./fixtureApprovals";
 import { children as fixtureChildren, project as fixtureProject } from "./fixtureTree";
 
 export type RowKind = "user" | "assistant" | "tool" | "notice";
@@ -37,6 +43,17 @@ export type Plugin = {
   connected: boolean;
 };
 
+/** Что сказал слой прав о вызове команды плагина (docs/SPEC/plugins.md,
+ *  «Утверждённый UX одобрения»). */
+export type PluginRun =
+  /** Разрешено: команда уходит движку, строка запуска идёт в ленту. */
+  | { kind: "started" }
+  /** Вызов чувствительный: окно одобрения ждёт ответа владельца. */
+  | { kind: "approval" };
+
+/** Ответ владельца в окне одобрения: один вызов, правило на чат или отказ. */
+export type ApprovalDecision = "allow" | "chat" | "deny";
+
 type Listener = (event: FeedEvent) => void;
 
 type Bridge = {
@@ -52,6 +69,15 @@ type Bridge = {
   listPlugins(): Promise<Plugin[]>;
   /** Подключить плагин к чату: он появляется кнопками в шапке без перезапуска. */
   connectPlugin(id: string): Promise<Plugin[]>;
+  /** Клик по кнопке команды: слой прав решает, спросить владельца или исполнить. */
+  runPlugin(plugin: string, command: string, label: string): Promise<PluginRun>;
+  /** Ответ в окне одобрения: правило на чат сохраняет слой прав, не интерфейс. */
+  decidePlugin(
+    plugin: string,
+    command: string,
+    label: string,
+    decision: ApprovalDecision,
+  ): Promise<void>;
 };
 
 /** Канал Tauri, по которому лента получает строки (src-tauri/src/opencode/mod.rs). */
@@ -82,6 +108,17 @@ const tauriBridge = (): Bridge => ({
   async connectPlugin(id: string) {
     return (await invoke<Plugin[]>("plugin_connect", { id })) as Plugin[];
   },
+  async runPlugin(plugin: string, command: string, label: string) {
+    return (await invoke<PluginRun>("plugin_run", { plugin, command, label })) as PluginRun;
+  },
+  async decidePlugin(
+    plugin: string,
+    command: string,
+    label: string,
+    decision: ApprovalDecision,
+  ) {
+    await invoke("plugin_decide", { plugin, command, label, decision });
+  },
 });
 
 /** Заглушка вне окна: лента и дерево идут по фикстуре, диалога на странице нет —
@@ -107,6 +144,29 @@ const fixtureBridge = (): Bridge => ({
   },
   async connectPlugin(id: string) {
     return connectFixture(fixturePlugins(), id);
+  },
+  async runPlugin(plugin: string, command: string, label: string) {
+    const allowed = fixtureGranted(command);
+    if (allowed) {
+      fixtureLaunch(plugin, label);
+      return { kind: "started" };
+    }
+    return { kind: "approval" };
+  },
+  async decidePlugin(
+    plugin: string,
+    command: string,
+    label: string,
+    decision: ApprovalDecision,
+  ) {
+    if (decision === "deny") {
+      fixtureRefuse(plugin, label);
+      return;
+    }
+    if (decision === "chat") {
+      fixtureRemember(command);
+    }
+    fixtureLaunch(plugin, label);
   },
 });
 

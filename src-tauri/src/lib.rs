@@ -9,7 +9,8 @@ pub mod project;
 use std::sync::Arc;
 
 use opencode::{Chat, WindowSink};
-use plugins::commands::{plugin_connect, plugin_list};
+use plugins::commands::{plugin_connect, plugin_decide, plugin_list, plugin_run};
+use plugins::permissions::Grants;
 use plugins::registry::Registry;
 use project::Project;
 
@@ -68,7 +69,9 @@ pub fn run() {
             app_version,
             chat_send,
             plugin_connect,
+            plugin_decide,
             plugin_list,
+            plugin_run,
             project_pick_folder,
             project_read_tree
         ])
@@ -79,6 +82,8 @@ pub fn run() {
             app.manage(Project::default());
             // Реестр плагинов чата: что владелец подключил кнопкой «+».
             app.manage(Registry::default());
+            // Слой прав вызовов плагинов: правила этого чата, память окна.
+            app.manage(Grants::default());
             Ok(())
         })
         .run(tauri::generate_context!())

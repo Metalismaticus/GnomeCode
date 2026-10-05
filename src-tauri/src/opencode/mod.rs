@@ -47,6 +47,15 @@ enum Cmd {
     /// `shown` — строка вопроса в ленте (владелец должен видеть, что отправляет),
     /// `prompt` — текст движку, с приложенными файлами.
     Prompt { shown: String, prompt: String },
+    /// Команда плагина, одобренная слоем прав: строка запуска в ленте, POST — движку.
+    Command {
+        plugin: String,
+        label: String,
+        command: String,
+    },
+    /// Владелец отказал в одобрении: строка отказа в ленте, движку нечего
+    /// отправлять (docs/SPEC/plugins.md, «Утверждённый UX одобрения»).
+    Refused { plugin: String, label: String },
     Stop,
 }
 
@@ -132,6 +141,27 @@ impl Chat {
             })
             .map_err(|_| "лента закрыта: перезапустите приложение".to_string())
     }
+
+    /// Одобренная команда плагина: строка запуска идёт в ленту, POST — движку.
+    pub fn command(&self, plugin: &str, label: &str, command: &str) -> Result<(), String> {
+        self.tx
+            .send(Cmd::Command {
+                plugin: plugin.to_string(),
+                label: label.to_string(),
+                command: command.to_string(),
+            })
+            .map_err(|_| "лента закрыта: перезапустите приложение".to_string())
+    }
+
+    /// Отказ владельца: строка `⚠ … requires approval` в ленте, вызов не идёт.
+    pub fn refused(&self, plugin: &str, label: &str) -> Result<(), String> {
+        self.tx
+            .send(Cmd::Refused {
+                plugin: plugin.to_string(),
+                label: label.to_string(),
+            })
+            .map_err(|_| "лента закрыта: перезапустите приложение".to_string())
+    }
 }
 
 impl Drop for Chat {
@@ -157,6 +187,9 @@ fn supervise(
     // начинают нумерацию заново, иначе следующий вопрос получил бы id прошлой строки,
     // а foldFeed заменил бы её вместо новой — и вопрос владельца пропал бы из ленты.
     let mut sent = 0usize;
+    // Строки команд плагинов ведёт тот же поток: два запуска — две строки, даже
+    // если между ними был обрыв потока.
+    let mut plugin_rows = 0usize;
     loop {
         if !engine.alive() {
             sink.emit(FeedEvent::notice("engine", NOTICE_RESTART));
@@ -203,7 +236,16 @@ fn supervise(
             }
         };
         let mut feed = Feed::default();
-        if pump(&mut stream, &id, &api, &rx, &sink, &mut feed, &mut sent) {
+        if pump(
+            &mut stream,
+            &id,
+            &api,
+            &rx,
+            &sink,
+            &mut feed,
+            &mut sent,
+            &mut plugin_rows,
+        ) {
             return;
         }
         sink.emit(FeedEvent::notice("stream", NOTICE_RECONNECT));
@@ -212,6 +254,8 @@ fn supervise(
 
 /// Движка нет на месте: лента живёт и повторяет попытку, окно не падает.
 fn supervise_missing(rx: Receiver<Cmd>, sink: Arc<dyn Sink>) {
+    // Строки отказов ведёт и этот поток: два отказа — две строки, как при живом движке.
+    let mut refused = 0usize;
     loop {
         match rx.try_recv() {
             Ok(Cmd::Stop) => return,
@@ -219,6 +263,20 @@ fn supervise_missing(rx: Receiver<Cmd>, sink: Arc<dyn Sink>) {
                 "engine",
                 &format!("{NOTICE_NO_ENGINE}: поставьте opencode CLI — сообщение не отправлено"),
             )),
+            Ok(Cmd::Command { .. }) => sink.emit(FeedEvent::notice(
+                "engine",
+                &format!("{NOTICE_NO_ENGINE}: поставьте opencode CLI — команда плагина не отправлена"),
+            )),
+            // Отказ — решение владельца, оно правдиво и без движка: строка отказа
+            // всё равно появляется, вызова нет.
+            Ok(Cmd::Refused { plugin, label }) => {
+                refused += 1;
+                sink.emit(FeedEvent::Row {
+                    id: format!("refused-{refused}"),
+                    kind: client::RowKind::Tool,
+                    text: client::command_refused(&plugin, &label),
+                });
+            }
             Err(TryRecvError::Disconnected) => return,
             Err(TryRecvError::Empty) => thread::sleep(Duration::from_secs(RETRY_SECONDS)),
         }
@@ -226,6 +284,7 @@ fn supervise_missing(rx: Receiver<Cmd>, sink: Arc<dyn Sink>) {
 }
 
 /// Чтение потока до обрыва. `true` — лента закрыта по команде.
+#[allow(clippy::too_many_arguments)]
 fn pump(
     stream: &mut EventStream,
     session: &str,
@@ -235,6 +294,8 @@ fn pump(
     feed: &mut Feed,
     // Счётчик строк вопроса владельца: переживает обрыв потока, его ведёт поток ленты.
     sent: &mut usize,
+    // Строки одобренных команд плагинов: нумерация общая, id не переиспользуется.
+    plugin_rows: &mut usize,
 ) -> bool {
     loop {
         while let Ok(cmd) = rx.try_recv() {
@@ -255,6 +316,30 @@ fn pump(
                             &format!("Сообщение не ушло: {reason}"),
                         ));
                     }
+                }
+                Cmd::Command { plugin, label, command } => {
+                    *plugin_rows += 1;
+                    // Строка запуска видна сразу: движок отвечает событиями потока,
+                    // а при молчании владелец всё равно знает, что команда ушла.
+                    sink.emit(FeedEvent::Row {
+                        id: format!("plugin-{plugin_rows}"),
+                        kind: client::RowKind::Tool,
+                        text: client::command_started(&plugin, &label),
+                    });
+                    if let Err(reason) = api.command(session, &command) {
+                        sink.emit(FeedEvent::notice(
+                            "engine",
+                            &format!("Команда не ушла: {reason}"),
+                        ));
+                    }
+                }
+                Cmd::Refused { plugin, label } => {
+                    *plugin_rows += 1;
+                    sink.emit(FeedEvent::Row {
+                        id: format!("plugin-{plugin_rows}"),
+                        kind: client::RowKind::Tool,
+                        text: client::command_refused(&plugin, &label),
+                    });
                 }
             }
         }
