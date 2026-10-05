@@ -29,6 +29,7 @@ export type PluginsState = {
   error: string;
   search: (text: string) => void;
   connect: (id: string) => void;
+  install: (id: string) => void;
   favorite: (id: string) => void;
 };
 
@@ -61,6 +62,20 @@ export function usePlugins(): PluginsState {
       .catch((reason: unknown) => setError(String(reason)));
   }, []);
 
+  /** Установка из каталога по «Разрешить» сводки прав: мост ставит файл и
+   *  подключает к чату (тихий перезапуск внутри), список обновляется тем же
+   *  состоянием, что и подключение из списка — плагин сразу в кнопках шапки. */
+  const install = useCallback((id: string) => {
+    bridge()
+      .installPlugin(id)
+      .then((list) => {
+        setPlugins(list);
+        setError("");
+        setRecent((known) => [id, ...known.filter((one) => one !== id)]);
+      })
+      .catch((reason: unknown) => setError(String(reason)));
+  }, []);
+
   const favorite = useCallback((id: string) => {
     setFavorites((known) =>
       known.includes(id) ? known.filter((one) => one !== id) : [id, ...known],
@@ -78,6 +93,7 @@ export function usePlugins(): PluginsState {
     error,
     search: setQuery,
     connect,
+    install,
     favorite,
   };
 }

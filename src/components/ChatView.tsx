@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 
 import type { ApprovalDecision } from "../bridge";
+import type { CatalogEntry } from "../catalog";
 import { useFeed } from "../chat";
 import { useApproval } from "../features/plugins/useApproval";
+import { useCatalog } from "../features/plugins/useCatalog";
 import { usePlugins } from "../features/plugins/usePlugins";
 import type { ProjectState } from "../features/project/useProject";
 import type { Theme } from "../viewparams";
@@ -11,12 +13,14 @@ import { Composer } from "./Composer";
 import { EmptyChat } from "./EmptyChat";
 import { Feed } from "./Feed";
 import { PluginApproval } from "./PluginApproval";
+import { PluginSummary } from "./PluginSummary";
 
 import "./ChatView.css";
 
-/** Что открыто в композере: меню «+», список плагинов или ничего.
- *  Окно одобрения — не здесь: его открытость держит `useApproval`. */
-type Overlay = "none" | "menu" | "plugins";
+/** Что открыто в композере: меню «+», список плагинов, каталог или ничего.
+ *  Окно одобрения — не здесь: его открытость держит `useApproval`; сводку прав
+ *  установки держит `pending` — она живёт и при открытом каталоге. */
+type Overlay = "none" | "menu" | "plugins" | "catalog";
 
 /** Закрытие открытого оверлея по Esc и клику снаружи — иначе меню и список
  *  висят поверх поля ввода и перехватывают клик по «отправить». Снаружи
@@ -39,6 +43,8 @@ function useOverlayDismiss(open: boolean, close: () => void): void {
       if (
         !target?.closest(".add-menu") &&
         !target?.closest(".plugin-picker") &&
+        !target?.closest(".catalog-picker") &&
+        !target?.closest(".plugin-summary") &&
         !target?.closest(".plugin-approval") &&
         !target?.closest('[data-testid="composer-add"]')
       ) {
@@ -77,8 +83,11 @@ export function ChatView({
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [overlay, setOverlay] = useState<Overlay>("none");
+  /** Карточка, чью сводку прав открыли: решение ещё не принято. */
+  const [pending, setPending] = useState<CatalogEntry | undefined>(undefined);
   const { rows, error, send } = useFeed();
   const plugins = usePlugins();
+  const catalog = useCatalog(overlay === "catalog");
   const approval = useApproval();
 
   const ask = useCallback(
@@ -105,13 +114,34 @@ export function ChatView({
     [plugins.connect],
   );
 
+  /** Install карточки каталога: открыть сводку прав — установка без ответа не идёт. */
+  const installFromCatalog = useCallback((entry: CatalogEntry) => {
+    setPending(entry);
+  }, []);
+
+  /** «Разрешить» сводки прав: мост ставит плагин, подключает к чату и отдаёт
+   *  свежий список — каталог и сводка свою работу сделали, сценарий разговора
+   *  возвращён владельцу. */
+  const allowInstall = useCallback(
+    (entry: CatalogEntry) => {
+      setPending(undefined);
+      plugins.install(entry.id);
+      setOverlay((open) => (open === "catalog" ? "none" : open));
+    },
+    [plugins.install],
+  );
+
+  /** «Отмена» сводки: ничего не ставится, каталог остаётся открытым. */
+  const cancelInstall = useCallback(() => setPending(undefined), []);
+
   /** Esc и клик снаружи закрывают и оверлей, и окно одобрения: закрытое без
    *  ответа окно — не ответ, вызов спросит снова при следующем клике. */
   const dismissAll = useCallback(() => {
     setOverlay("none");
+    setPending(undefined);
     approval.dismiss();
   }, [approval.dismiss]);
-  useOverlayDismiss(overlay !== "none", dismissAll);
+  useOverlayDismiss(overlay !== "none" || pending !== undefined, dismissAll);
 
   /** Ответ владельца в окне одобрения: решение сохраняет слой прав; «Отказать»
    *  тоже сообщается — лента получит строку отказа. */
@@ -141,6 +171,7 @@ export function ChatView({
           onDecide={decide}
         />
       ) : null}
+      {pending ? <PluginSummary entry={pending} onAllow={allowInstall} onCancel={cancelInstall} /> : null}
       <div className="feed" data-testid="feed">
         {rows.length ? <Feed rows={rows} error={error} /> : <EmptyChat />}
       </div>
@@ -154,9 +185,13 @@ export function ChatView({
         plugins={{ ...plugins, connect: connectFromList }}
         addOpen={overlay === "menu"}
         pickerOpen={overlay === "plugins"}
+        catalogOpen={overlay === "catalog"}
+        catalog={catalog}
         onToggleAdd={() => setOverlay(overlay === "menu" ? "none" : "menu")}
         onConnectPlugins={() => setOverlay("plugins")}
+        onBrowsePlugins={() => setOverlay("catalog")}
         onClosePlugins={() => setOverlay("none")}
+        onInstallCatalog={installFromCatalog}
       />
     </main>
   );

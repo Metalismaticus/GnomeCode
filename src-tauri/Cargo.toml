@@ -17,6 +17,9 @@ tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri-plugin-dialog = "2"
+# Единственный выход в сеть — каталог плагинов на raw.githubusercontent (plugins/install.rs);
+# блокирующий клиент с rustls, чтобы не тянуть асинхронный рантайм ради двух GET.
+ureq = { version = "2", default-features = false, features = ["tls"] }
 
 [profile.dev]
 incremental = true

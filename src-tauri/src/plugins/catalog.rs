@@ -9,6 +9,7 @@
 
 use serde_json::Value;
 
+use super::install::CatalogEntry;
 use super::model::{Command, Plugin, ACTIVE};
 
 /// Разделитель, которым движок отделяет имя плагина в имени команды.
@@ -25,6 +26,35 @@ pub fn plugins(raw: &[Value], commands: &[Value], connected: &[String]) -> Vec<P
         .map(|entry| plugin(entry, commands, connected))
         .filter(|plugin| !plugin.id.is_empty())
         .collect()
+}
+
+/// Список с реестром установленного: движок файловые плагины из своей глобальной
+/// папки в `GET /api/plugin` не перечисляет (замер 2026-10-06, opencode v2.0.23),
+/// поэтому установленные из каталога даёт наш реестр — та же форма, что у движка.
+pub fn merged(raw: &[Value], commands: &[Value], connected: &[String], installed: &[CatalogEntry]) -> Vec<Plugin> {
+    let mut list = plugins(raw, commands, connected);
+    let known: Vec<String> = list.iter().map(|one| one.id.clone()).collect();
+    for entry in installed {
+        if known.contains(&entry.id) {
+            continue;
+        }
+        list.push(Plugin {
+            id: entry.id.clone(),
+            state: ACTIVE.to_string(),
+            error: String::new(),
+            commands: entry
+                .commands
+                .iter()
+                .map(|command| Command {
+                    name: format!("{}{SEPARATOR}{}", sanitize(&entry.id), command.name),
+                    label: command.name.clone(),
+                    description: command.description.clone(),
+                })
+                .collect(),
+            connected: connected.iter().any(|known| known == &entry.id),
+        });
+    }
+    list
 }
 
 /// Одна строка плагина: состояние — из `state.status`, команды — по префиксу имени.

@@ -152,3 +152,30 @@
   font-size: 11px;
   color: var(--text-faint);
 }
+
+.plugin-picker__browse {
+  margin-top: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+}
+
+.plugin-picker__browse-btn {
+  width: 100%;
+  padding: var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-dim);
+  font-size: 13px;
+  text-align: left;
+}
+
+.plugin-picker__browse-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.plugin-picker__browse-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

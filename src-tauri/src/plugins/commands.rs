@@ -4,27 +4,38 @@
 //! движку, чувствительное возвращает запрос окну, отказ — строка в ленте.
 
 use serde::Serialize;
-use tauri::State;
+use tauri::{AppHandle, Manager, State};
 
 use crate::opencode::{client::Api, Chat};
 
 use super::catalog;
+use super::install;
 use super::model::Plugin;
 use super::permissions::Grants;
 use super::registry::Registry;
 
-/// Плагины проекта с командами и отметкой «подключён к чату». Пустой список —
-/// законное состояние движка, а не ошибка: сообщения приходят через `Result`.
+/// Плагины проекта с командами и отметкой «подключён к чату»: движок и реестр
+/// установленного (`installed.json`) — движок файловые плагины не перечисляет.
 #[tauri::command]
-pub fn plugin_list(chat: State<'_, Chat>, registry: State<'_, Registry>) -> Result<Vec<Plugin>, String> {
+pub fn plugin_list(
+    app: AppHandle,
+    chat: State<'_, Chat>,
+    registry: State<'_, Registry>,
+) -> Result<Vec<Plugin>, String> {
     let endpoint = chat
         .endpoint()
         .ok_or_else(|| "Движок OpenCode не запущен: список плагинов недоступен".to_string())?;
     let api = Api::new(&endpoint);
-    Ok(catalog::plugins(
+    let fallback = app
+        .path()
+        .app_data_dir()
+        .unwrap_or_else(|_| std::env::temp_dir());
+    let installed = install::installed(&install::registry_file(fallback));
+    Ok(catalog::merged(
         &api.plugins()?,
         &api.commands()?,
         &registry.connected(),
+        &installed,
     ))
 }
 
@@ -32,12 +43,31 @@ pub fn plugin_list(chat: State<'_, Chat>, registry: State<'_, Registry>) -> Resu
 /// Запись наша — у движка подключения нет (`POST /api/plugin` не существует).
 #[tauri::command]
 pub fn plugin_connect(
+    app: AppHandle,
     chat: State<'_, Chat>,
     registry: State<'_, Registry>,
     id: String,
 ) -> Result<Vec<Plugin>, String> {
     registry.connect(&id);
-    plugin_list(chat, registry)
+    plugin_list(app, chat, registry)
+}
+
+/// Каталог «Available»: индекс доступных плагинов с GitHub владельца.
+#[tauri::command]
+pub fn catalog_list() -> Result<Vec<install::CatalogEntry>, String> {
+    install::fetch(install::CATALOG_URL)
+}
+
+/// Установить плагин из каталога: файл — в папку плагинов движка, запись — в
+/// реестр установленного, движок перезапустится тихо (читает плагины при старте).
+#[tauri::command]
+pub fn plugin_install(app: AppHandle, chat: State<'_, Chat>, id: String) -> Result<(), String> {
+    let fallback = app
+        .path()
+        .app_data_dir()
+        .unwrap_or_else(|_| std::env::temp_dir());
+    install::install_by_id(&id, &install::registry_file(fallback))?;
+    chat.restart()
 }
 
 /// Что сказал слой прав клику по кнопке команды (docs/SPEC/plugins.md).

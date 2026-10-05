@@ -58,6 +58,9 @@ enum Cmd {
     /// отправлять (docs/SPEC/plugins.md, «Утверждённый UX одобрения»).
     Refused { plugin: String, label: String },
     Stop,
+    /// Установлен плагин из каталога: движок перечитывает плагины только при
+    /// старте — лента поднимает его заново, сессия живёт в базе движка.
+    Restart,
 }
 
 /// Движок глазами ленты: жив ли он и поднять ли снова. Приложение работает с живым
@@ -181,6 +184,14 @@ impl Chat {
             })
             .map_err(|_| "лента закрыта: перезапустите приложение".to_string())
     }
+
+    /// Тихий перезапуск движка после установки плагина: сессия возвращается по
+    /// списку движка — сессии живут в его базе и перезапуск процесса переживают.
+    pub fn restart(&self) -> Result<(), String> {
+        self.tx
+            .send(Cmd::Restart)
+            .map_err(|_| "лента закрыта: перезапустите приложение".to_string())
+    }
 }
 
 impl Drop for Chat {
@@ -213,6 +224,9 @@ fn supervise(
     // Строки команд плагинов ведёт тот же поток: два запуска — две строки, даже
     // если между ними был обрыв потока.
     let mut plugin_rows = 0usize;
+    // Просьба перезапустить движок (установка плагина): поток сам поднимает
+    // его заново, не роняя ленту в строку «прерван».
+    let mut restart_asked = false;
     loop {
         if !engine.alive() {
             sink.emit(FeedEvent::notice("engine", NOTICE_RESTART));
@@ -273,8 +287,22 @@ fn supervise(
             &mut feed,
             &mut sent,
             &mut plugin_rows,
+            &mut restart_asked,
         ) {
             return;
+        }
+        if restart_asked {
+            restart_asked = false;
+            match engine.restart() {
+                Ok(()) => {}
+                Err(reason) => {
+                    sink.emit(FeedEvent::notice("engine", &reason));
+                    thread::sleep(Duration::from_secs(RETRY_SECONDS));
+                }
+            }
+            // Сессия не сбрасывается: базы движка переживают перезапуск процесса,
+            // список живых вернёт её же (opencode/session.rs).
+            continue;
         }
         sink.emit(FeedEvent::notice("stream", NOTICE_RECONNECT));
     }
@@ -305,6 +333,9 @@ fn supervise_missing(rx: Receiver<Cmd>, sink: Arc<dyn Sink>) {
                     text: client::command_refused(&plugin, &label),
                 });
             }
+            // Движка нет — перезапускать нечего: запрос установки уже исполнен,
+            // лента продолжает ждать появления движка.
+            Ok(Cmd::Restart) => {}
             Err(TryRecvError::Disconnected) => return,
             Err(TryRecvError::Empty) => thread::sleep(Duration::from_secs(RETRY_SECONDS)),
         }
@@ -324,11 +355,18 @@ fn pump(
     sent: &mut usize,
     // Строки одобренных команд плагинов: нумерация общая, id не переиспользуется.
     plugin_rows: &mut usize,
+    // Просьба тихого перезапуска: поднимается поток ленты, не владелец.
+    restart_asked: &mut bool,
 ) -> bool {
     loop {
         while let Ok(cmd) = rx.try_recv() {
             match cmd {
                 Cmd::Stop => return true,
+                Cmd::Restart => {
+                    *restart_asked = true;
+                    // Поток событий прошлой жизни движка больше не придёт.
+                    return false;
+                }
                 Cmd::Prompt { shown, prompt } => {
                     *sent += 1;
                     // Идентификатор строки вопроса не переиспользуется: два одинаковых

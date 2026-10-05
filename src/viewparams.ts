@@ -9,9 +9,10 @@
 export type Theme = "dark" | "light";
 
 /** Состояние экрана: лента пуста, с ошибкой, полна данных; выбрана папка проекта
- *  и справа дерево файлов; список плагинов — с ним или совсем пустой; одобрение
- *  вызова плагина — окно согласия вместо исполненной кнопки (`?состояние=`). */
-export type FeedState = "feed" | "empty" | "error" | "many" | "project" | "plugins" | "plugins-empty" | "approval";
+ *  и справа дерево файлов; список плагинов — с ним или совсем пустой; каталог
+ *  «Available» — то, что открывает «Browse plugins…»; одобрение вызова плагина —
+ *  окно согласия вместо исполненной кнопки (`?состояние=`). */
+export type FeedState = "feed" | "empty" | "error" | "many" | "project" | "plugins" | "plugins-empty" | "approval" | "catalog";
 
 export type ViewParams = {
   theme: Theme;
@@ -31,6 +32,7 @@ const FEEDS: Record<string, FeedState> = {
   плагины: "plugins",
   "плагины-пусто": "plugins-empty",
   одобрение: "approval",
+  каталог: "catalog",
 };
 
 export function viewParams(search: string): ViewParams {

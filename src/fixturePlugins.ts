@@ -56,9 +56,10 @@ const PLUGINS: Plugin[] = [
 ];
 
 /** Список установленных плагинов по состоянию страницы: с плагинами или пустой.
- *  Состояние «одобрение» — тот же список: слой прав не меняет, что установлено. */
+ *  Состояние «одобрение» — тот же список: слой прав не меняет, что установлено;
+ *  в состоянии «каталог» список нужен — оттуда и начинается установка. */
 export function plugins(): Plugin[] {
-  if (params.feed !== "plugins" && params.feed !== "approval") {
+  if (params.feed !== "plugins" && params.feed !== "approval" && params.feed !== "catalog") {
     return [];
   }
   return PLUGINS.map((one) => ({ ...one, connected: connected.has(one.id) }));
@@ -68,4 +69,19 @@ export function plugins(): Plugin[] {
 export function connect(list: Plugin[], id: string): Plugin[] {
   connected.add(id);
   return list.map((one) => (one.id === id ? { ...one, connected: true } : one));
+}
+
+/** Собрать плагин из карточки каталога: команды получают префикс `плагин:`,
+ *  как их приписывает движок (src-tauri/src/plugins/catalog.rs). */
+export function builder(id: string, commands: { name: string; description: string }[]): Plugin {
+  return plugin(id, commands);
+}
+
+/** Принять установленный из каталога плагин: карточка становится строкой списка
+ *  установленных и сразу подключается к чату — «Allow» сводки прав делает оба шага. */
+export function adopt(one: Plugin): void {
+  if (!PLUGINS.some((known) => known.id === one.id)) {
+    PLUGINS.push(one);
+  }
+  connected.add(one.id);
 }

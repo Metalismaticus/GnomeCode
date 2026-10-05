@@ -14,11 +14,13 @@ const EMPTY_HINT =
 
 export type PluginPickerProps = {
   plugins: PluginsState;
+  /** Клик по «Browse plugins…» внизу списка: открыть каталог «Available». */
+  onBrowse: () => void;
   onClose: () => void;
 };
 
 /** Окно списка плагинов: то, что открывает пункт «Connect plugin» меню «+». */
-export function PluginPicker({ plugins, onClose }: PluginPickerProps) {
+export function PluginPicker({ plugins, onBrowse, onClose }: PluginPickerProps) {
   return (
     <div className="plugin-picker" data-testid="plugin-picker" role="dialog" aria-label="Плагины">
       <div className="plugin-picker__head">
@@ -42,6 +44,17 @@ export function PluginPicker({ plugins, onClose }: PluginPickerProps) {
         onChange={(event) => plugins.search(event.target.value)}
       />
       {body(plugins)}
+      <div className="plugin-picker__browse">
+        <button
+          type="button"
+          className="plugin-picker__browse-btn"
+          data-testid="browse-plugins"
+          title="Открыть каталог плагинов с GitHub"
+          onClick={onBrowse}
+        >
+          Browse plugins…
+        </button>
+      </div>
     </div>
   );
 }

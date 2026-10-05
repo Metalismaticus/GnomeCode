@@ -1,7 +1,10 @@
+import type { CatalogEntry } from "../catalog";
+import type { CatalogState } from "../features/plugins/useCatalog";
 import type { PluginsState } from "../features/plugins/usePlugins";
 import type { ProjectFile } from "../features/project/useProject";
 import { AddMenu } from "./AddMenu";
 import { Button } from "./Button";
+import { CatalogPicker } from "./CatalogPicker";
 import { FileChips } from "./FileChips";
 import { PluginPicker } from "./PluginPicker";
 
@@ -21,12 +24,18 @@ export type ComposerProps = {
   onDetach: (path: string) => void;
   /** Плагины чата: меню «+» показывает, что подключено, и ведёт к списку. */
   plugins: PluginsState;
-  /** Открыто ли меню «+» и список плагинов. */
+  /** Каталог «Available» и его открытость — то, что открывает «Browse plugins…». */
+  catalog: CatalogState;
+  /** Открыто ли меню «+», список плагинов и каталог. */
   addOpen: boolean;
   pickerOpen: boolean;
+  catalogOpen: boolean;
   onToggleAdd: () => void;
   onConnectPlugins: () => void;
+  onBrowsePlugins: () => void;
   onClosePlugins: () => void;
+  /** Клик по Install карточки каталога: открыть сводку прав. */
+  onInstallCatalog: (entry: CatalogEntry) => void;
 };
 
 /** Композер: «+» с меню и списком плагинов, поле ввода, «↑» и подсказка под ним.
@@ -40,11 +49,15 @@ export function Composer({
   files,
   onDetach,
   plugins,
+  catalog,
   addOpen,
   pickerOpen,
+  catalogOpen,
   onToggleAdd,
   onConnectPlugins,
+  onBrowsePlugins,
   onClosePlugins,
+  onInstallCatalog,
 }: ComposerProps) {
   return (
     <div className="composer">
@@ -56,7 +69,7 @@ export function Composer({
           className="composer__add"
           data-testid="composer-add"
           title="Добавить"
-          aria-expanded={addOpen || pickerOpen}
+          aria-expanded={addOpen || pickerOpen || catalogOpen}
           onClick={onToggleAdd}
         >
           +
@@ -88,9 +101,14 @@ export function Composer({
         </Button>
       </div>
       <div className="composer__hint">{HINT}</div>
-      {pickerOpen ? <PluginPicker plugins={plugins} onClose={onClosePlugins} /> : null}
+      {pickerOpen ? (
+        <PluginPicker plugins={plugins} onBrowse={onBrowsePlugins} onClose={onClosePlugins} />
+      ) : null}
+      {catalogOpen ? (
+        <CatalogPicker catalog={catalog} onInstall={onInstallCatalog} onClose={onClosePlugins} />
+      ) : null}
       <AddMenu
-        open={addOpen && !pickerOpen}
+        open={addOpen && !pickerOpen && !catalogOpen}
         onClose={onClosePlugins}
         plugins={plugins}
         files={files}

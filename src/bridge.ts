@@ -6,11 +6,13 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { fixture } from "./fixture";
 import type { WindowState, WindowPatch } from "./appstate";
+import type { CatalogEntry } from "./catalog";
 import { readFixtureState, writeFixtureState } from "./fixtureState";
 import {
   connect as connectFixture,
   plugins as fixturePlugins,
 } from "./fixturePlugins";
+import { entries as fixtureCatalog, install as installFixture } from "./fixtureCatalog";
 import {
   granted as fixtureGranted,
   launch as fixtureLaunch,
@@ -71,6 +73,11 @@ type Bridge = {
   listPlugins(): Promise<Plugin[]>;
   /** Подключить плагин к чату: он появляется кнопками в шапке без перезапуска. */
   connectPlugin(id: string): Promise<Plugin[]>;
+  /** Карточки каталога «Available» — индекс с GitHub (raw, не api.github.com). */
+  catalogList(): Promise<CatalogEntry[]>;
+  /** Установить плагин каталога и подключить к текущему чату — «Разрешить»
+   *  сводки прав: установка, тихий перезапуск движка, подключение, список. */
+  installPlugin(id: string): Promise<Plugin[]>;
   /** Клик по кнопке команды: слой прав решает, спросить владельца или исполнить. */
   runPlugin(plugin: string, command: string, label: string): Promise<PluginRun>;
   /** Ответ в окне одобрения: правило на чат сохраняет слой прав, не интерфейс. */
@@ -112,6 +119,15 @@ const tauriBridge = (): Bridge => ({
     return (await invoke<Plugin[]>("plugin_list")) as Plugin[];
   },
   async connectPlugin(id: string) {
+    return (await invoke<Plugin[]>("plugin_connect", { id })) as Plugin[];
+  },
+  async catalogList() {
+    return (await invoke<CatalogEntry[]>("catalog_list")) as CatalogEntry[];
+  },
+  async installPlugin(id: string) {
+    // «Разрешить» сводки прав — два шага моста: установка (файл + реестр +
+    // тихий перезапуск) и подключение к чату, затем свежий список.
+    await invoke("plugin_install", { id });
     return (await invoke<Plugin[]>("plugin_connect", { id })) as Plugin[];
   },
   async runPlugin(plugin: string, command: string, label: string) {
@@ -156,6 +172,12 @@ const fixtureBridge = (): Bridge => ({
   },
   async connectPlugin(id: string) {
     return connectFixture(fixturePlugins(), id);
+  },
+  async catalogList() {
+    return fixtureCatalog();
+  },
+  async installPlugin(id: string) {
+    return installFixture(id);
   },
   async runPlugin(plugin: string, command: string, label: string) {
     const allowed = fixtureGranted(command);

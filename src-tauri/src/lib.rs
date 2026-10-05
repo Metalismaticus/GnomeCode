@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use opencode::{Chat, WindowSink};
-use plugins::commands::{plugin_connect, plugin_decide, plugin_list, plugin_run};
+use plugins::commands::{catalog_list, plugin_connect, plugin_decide, plugin_install, plugin_list, plugin_run};
 use plugins::permissions::Grants;
 use plugins::registry::Registry;
 use project::Project;
@@ -90,9 +90,11 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             app_version,
+            catalog_list,
             chat_send,
             plugin_connect,
             plugin_decide,
+            plugin_install,
             plugin_list,
             plugin_run,
             project_pick_folder,
