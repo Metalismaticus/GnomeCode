@@ -10,6 +10,7 @@
 
 import type { FeedEvent, RowKind } from "./bridge";
 import type { ContextSection } from "./components/ContextPanel";
+import { project } from "./fixtureTree";
 import { params } from "./viewparams";
 
 const ANSWER = "Смотрю структуру папки. Мост на месте.";
@@ -29,6 +30,14 @@ const ACTIVE_CHAT = "Разбор главного окна";
 
 /** Строка ленты: тот же вид, что отдаёт `FeedEvent::Row` в Rust. */
 const row = (id: string, kind: RowKind, text: string): FeedEvent => ({ type: "row", id, kind, text });
+
+/** Что владелец видит в строке вопроса: сам вопрос и имена приложенных файлов —
+ *  тот же вид, что собирает мост для окна (`project::request`). */
+const shown = (text: string, files: string[]): string =>
+  files.length ? `${text.trim()}\n\nФайлы: ${files.map(nameOf).join(", ")}` : text;
+
+/** Имя файла из полного пути: чипу и строке вопроса нужно имя, движку — содержимое. */
+const nameOf = (path: string): string => path.split(/[\\/]/).filter(Boolean).pop() ?? path;
 
 type Listener = (event: FeedEvent) => void;
 
@@ -74,11 +83,13 @@ class Fixture {
     return () => this.listeners.delete(listener);
   }
 
-  /** Вопрос владельца: своя строка, ответ модели дописывается по кускам. */
-  push(text: string): void {
+  /** Вопрос владельца: своя строка, ответ модели дописывается по кучкам.
+   *  Прикреплённые файлы видны в строке вопроса именами — как их показывает
+   *  `project::prompt` в ленте окна (src-tauri/src/project/prompt.rs). */
+  push(text: string, files: string[]): void {
     this.sent += 1;
     const answerId = `msg_fixture_${this.sent}`;
-    this.emit(row(`user-${this.sent}`, "user", text));
+    this.emit(row(`user-${this.sent}`, "user", shown(text, files)));
     this.emit(row(answerId, "assistant", ""));
     for (const part of ANSWER.split(/(?<= )/)) {
       this.emit({ type: "append", id: answerId, delta: part });
@@ -105,13 +116,15 @@ export type PanelData = {
   chats: { title: string; active?: boolean }[];
   sections: ContextSection[];
   engineDown: boolean;
+  /** Папка проекта, выбранная до открытия окна: пустая — выбирать ещё нечем. */
+  project: string;
 };
 
 /** Содержимое панелей по состоянию экрана: пусто, ошибка, много данных.
  *  Настоящие строки — те, что в окне бывают на самом деле (спецификация экрана). */
 export function panels(state: typeof params.feed): PanelData {
   if (state === "empty") {
-    return { projects: [], chats: [], sections: baseSections(), engineDown: false };
+    return { projects: [], chats: [], sections: baseSections(), engineDown: false, project: "" };
   }
   if (state === "many") {
     return {
@@ -128,6 +141,7 @@ export function panels(state: typeof params.feed): PanelData {
         ...baseSections().slice(1),
       ],
       engineDown: false,
+      project: "",
     };
   }
   return {
@@ -135,6 +149,7 @@ export function panels(state: typeof params.feed): PanelData {
     chats: [{ title: ACTIVE_CHAT, active: true }],
     sections: baseSections(),
     engineDown: state === "error",
+    project: project() ?? "",
   };
 }
 

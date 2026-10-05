@@ -1,10 +1,11 @@
 // Единственное место вызова Tauri: приложение и UI-сценарий идут через него и не знают,
 // что за окном. Вне окна Tauri (страница vite, снимок и сценарий) признака нет —
-// отдаём фикстуру, чтобы проверка видела ту же ленту, что продукт.
+// отдаём фикстуру, чтобы проверка видела ту же ленту и то же дерево, что продукт.
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { fixture } from "./fixture";
+import { children as fixtureChildren, project as fixtureProject } from "./fixtureTree";
 
 export type RowKind = "user" | "assistant" | "tool" | "notice";
 
@@ -15,12 +16,20 @@ export type FeedEvent =
 
 export type FeedRow = { id: string; kind: RowKind; text: string };
 
+/** Строка дерева файлов: папка или файл, полный путь — чтобы читать содержимое. */
+export type TreeNode = { name: string; path: string; kind: "dir" | "file"; loaded: boolean };
+
 type Listener = (event: FeedEvent) => void;
 
 type Bridge = {
-  send(text: string): Promise<void>;
+  /** Вопрос владельца; `files` — пути файлов, которые уйдут с ним движку. */
+  send(text: string, files: string[]): Promise<void>;
   listen(listener: Listener): Promise<() => void>;
   version(): Promise<string>;
+  /** Выбрать папку проекта системным диалогом; `null` — владелец передумал. */
+  pickFolder(): Promise<string | null>;
+  /** Содержимое одной папки: одна папка за клик по её стрелке. */
+  readTree(path: string): Promise<TreeNode[]>;
 };
 
 /** Канал Tauri, по которому лента получает строки (src-tauri/src/opencode/mod.rs). */
@@ -30,8 +39,8 @@ const inTauri = () => typeof window !== "undefined" && "__TAURI_INTERNALS__" in 
 
 /** Живой мост в окне Tauri: ответ приходит событиями ленты, а не телом команды. */
 const tauriBridge = (): Bridge => ({
-  async send(text: string) {
-    await invoke("chat_send", { text });
+  async send(text: string, files: string[]) {
+    await invoke("chat_send", { text, files });
   },
   async listen(listener: Listener) {
     return listen<FeedEvent>(FEED_CHANNEL, (event) => listener(event.payload));
@@ -39,18 +48,31 @@ const tauriBridge = (): Bridge => ({
   async version() {
     return (await invoke<string>("app_version")) as string;
   },
+  async pickFolder() {
+    return (await invoke<string | null>("project_pick_folder")) ?? null;
+  },
+  async readTree(path: string) {
+    return (await invoke<TreeNode[]>("project_read_tree", { path })) as TreeNode[];
+  },
 });
 
-/** Заглушка вне окна: лента идёт по фикстуре, отправка уходит в пустоту. */
+/** Заглушка вне окна: лента и дерево идут по фикстуре, диалога на странице нет —
+ *  папкой проекта становится та, что в фикстуре (src/fixture.ts). */
 const fixtureBridge = (): Bridge => ({
-  async send(text: string) {
-    fixture.push(text);
+  async send(text: string, files: string[]) {
+    fixture.push(text, files);
   },
   async listen(listener: Listener) {
     return fixture.play(listener);
   },
   async version() {
     return "снапшот интерфейса";
+  },
+  async pickFolder() {
+    return fixtureProject();
+  },
+  async readTree(path: string) {
+    return fixtureChildren(path);
   },
 });
 

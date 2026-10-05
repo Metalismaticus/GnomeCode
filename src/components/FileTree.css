@@ -1,0 +1,100 @@
+/* Дерево файлов: строки компактные, отступ — по вложенности, папка раскрывается стрелкой.
+   Выбранный файл помечен фоном и обводкой акцентом: акцентного градиента здесь нет —
+   на экране его ровно два пятна (главная кнопка и активный чат, tests/ui/window_look.mjs). */
+
+.context__tabs {
+  display: flex;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.context__tab {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-faint);
+  font-size: 11px;
+  padding: var(--space-1) var(--space-2);
+}
+
+.context__tab:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.context__tab--on {
+  background: var(--bg-panel-2);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.tree {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tree__later {
+  color: var(--text-faint);
+  font-size: 12px;
+  padding: var(--space-1) 0;
+}
+
+.tree__row {
+  align-items: center;
+  border-radius: var(--radius-sm);
+  display: flex;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.tree__row:hover {
+  background: var(--bg-hover);
+}
+
+.tree__row--on {
+  background: var(--badge-bg);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.tree__toggle {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  font-size: 10px;
+  line-height: 1;
+  padding: var(--space-1);
+  width: 20px;
+}
+
+.tree__toggle:hover {
+  color: var(--text);
+}
+
+.tree__pick {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  display: block;
+  flex: 1;
+  font-size: 12px;
+  min-width: 0;
+  padding: var(--space-1) 0;
+  text-align: left;
+}
+
+.tree__pick:disabled {
+  color: var(--text);
+  cursor: default;
+}
+
+.tree__pick:not(:disabled):hover {
+  color: var(--text);
+}
+
+.tree__name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

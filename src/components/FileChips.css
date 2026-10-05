@@ -1,0 +1,41 @@
+/* Прикреплённые файлы над полем ввода: приглушённые, без акцентного градиента —
+   на экране его ровно два пятна (tests/ui/window_look.mjs). */
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.chip {
+  align-items: center;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  display: inline-flex;
+  font-size: 12px;
+  gap: var(--space-1);
+  max-width: 100%;
+  padding: 0 var(--space-1) 0 var(--space-2);
+}
+
+.chip__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip__close {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  font-size: 11px;
+  line-height: 1;
+  padding: var(--space-1);
+}
+
+.chip__close:hover {
+  color: var(--text);
+}

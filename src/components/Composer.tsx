@@ -1,4 +1,6 @@
+import type { ProjectFile } from "../features/project/useProject";
 import { Button } from "./Button";
+import { FileChips } from "./FileChips";
 
 import "./Composer.css";
 
@@ -11,13 +13,17 @@ export type ComposerProps = {
   sending: boolean;
   onDraft: (text: string) => void;
   onSend: () => void;
+  /** Файлы контекста вопроса: чипы над полем ввода, уходят вместе с текстом. */
+  files: ProjectFile[];
+  onDetach: (path: string) => void;
 };
 
 /** Композер: «+», поле ввода, «↑» и подсказка под ним. Кнопка отправки выключена
  *  на пустом поле, и причина видна в её подсказке (docs/DESIGN.md, раздел 6). */
-export function Composer({ draft, sending, onDraft, onSend }: ComposerProps) {
+export function Composer({ draft, sending, onDraft, onSend, files, onDetach }: ComposerProps) {
   return (
     <div className="composer">
+      <FileChips files={files} onDetach={onDetach} />
       <div className="composer__box">
         <Button square variant="ghost" className="composer__add" data-testid="composer-add" title="Добавить">
           +

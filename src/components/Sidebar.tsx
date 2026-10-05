@@ -14,11 +14,14 @@ export function Sidebar({
   chats,
   theme,
   onToggleTheme,
+  onPickFolder,
 }: {
   projects: string[];
   chats: SidebarChat[];
   theme: Theme;
   onToggleTheme: () => void;
+  /** Выбор папки проекта системным диалогом — кнопка «+ Новый проект». */
+  onPickFolder: () => void;
 }) {
   return (
     <nav className="sidebar" data-testid="sidebar">
@@ -26,7 +29,7 @@ export function Sidebar({
         <span className="sidebar__logo-mark">G</span>
         <span className="sidebar__logo-name">GnomeCode</span>
       </div>
-      <Button variant="primary" data-testid="btn-primary">
+      <Button variant="primary" data-testid="btn-primary" onClick={onPickFolder}>
         + Новый проект
       </Button>
       <Button variant="ghost" data-testid="btn-new-chat">

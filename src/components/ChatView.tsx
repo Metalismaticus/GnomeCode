@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 
 import { useFeed } from "../chat";
+import type { ProjectState } from "../features/project/useProject";
 import type { Theme } from "../viewparams";
 import { ChatHeader } from "./ChatHeader";
 import { Composer } from "./Composer";
@@ -16,12 +17,15 @@ export function ChatView({
   onToggleTheme,
   onTogglePanel,
   panelOpen,
+  project,
 }: {
   title: string;
   theme: Theme;
   onToggleTheme: () => void;
   onTogglePanel: () => void;
   panelOpen: boolean;
+  /** Файлы контекста: уходят с вопросом, чипы живут в композере. */
+  project: ProjectState;
 }) {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -32,12 +36,12 @@ export function ChatView({
       setDraft("");
       setSending(true);
       try {
-        await send(text);
+        await send(text, project.files.map((file) => file.path));
       } finally {
         setSending(false);
       }
     },
-    [send],
+    [send, project.files],
   );
 
   return (
@@ -57,6 +61,8 @@ export function ChatView({
         sending={sending}
         onDraft={setDraft}
         onSend={() => void ask(draft)}
+        files={project.files}
+        onDetach={project.detach}
       />
     </main>
   );

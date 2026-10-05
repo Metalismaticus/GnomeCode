@@ -8,8 +8,9 @@
 
 export type Theme = "dark" | "light";
 
-/** Состояние экрана ленты: пусто, ошибка или много данных (`?состояние=`). */
-export type FeedState = "feed" | "empty" | "error" | "many";
+/** Состояние экрана: лента пуста, с ошибкой, полна данных — или выбрана папка проекта,
+ *  и тогда справа дерево файлов (`?состояние=`). */
+export type FeedState = "feed" | "empty" | "error" | "many" | "project";
 
 export type ViewParams = {
   theme: Theme;
@@ -21,7 +22,12 @@ export type ViewParams = {
 };
 
 const THEMES: Record<string, Theme> = { тёмная: "dark", темная: "dark", светлая: "light" };
-const FEEDS: Record<string, FeedState> = { пусто: "empty", ошибка: "error", много: "many" };
+const FEEDS: Record<string, FeedState> = {
+  пусто: "empty",
+  ошибка: "error",
+  много: "many",
+  проект: "project",
+};
 
 export function viewParams(search: string): ViewParams {
   const query = new URLSearchParams(search);

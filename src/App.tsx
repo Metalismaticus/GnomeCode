@@ -4,6 +4,7 @@ import { ChatView } from "./components/ChatView";
 import { ContextPanel } from "./components/ContextPanel";
 import { Sidebar } from "./components/Sidebar";
 import { panels } from "./fixture";
+import { useProject } from "./features/project/useProject";
 import { params, type Theme } from "./viewparams";
 
 import "./styles/app.css";
@@ -31,6 +32,7 @@ export default function App() {
   const [panelOpen, setPanelOpen] = useState(params.right);
   const narrow = useNarrow();
   const data = panels(params.feed);
+  const project = useProject(data.project);
   const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
 
   useEffect(() => {
@@ -70,6 +72,7 @@ export default function App() {
         chats={data.chats}
         theme={theme}
         onToggleTheme={toggleTheme}
+        onPickFolder={project.pick}
       />
       <ChatView
         title="Новый чат"
@@ -77,9 +80,10 @@ export default function App() {
         onToggleTheme={toggleTheme}
         onTogglePanel={() => setPanelOpen(!panelOpen)}
         panelOpen={panelOpen}
+        project={project}
       />
       {narrow && !panelOpen ? null : (
-        <ContextPanel sections={data.sections} engineDown={data.engineDown} />
+        <ContextPanel sections={data.sections} engineDown={data.engineDown} project={project} />
       )}
     </div>
   );

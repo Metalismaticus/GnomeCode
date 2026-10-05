@@ -26,6 +26,15 @@
   border-bottom: 1px solid var(--border);
 }
 
+/* Строка «Папка» выбирает папку проекта: тот же вид строки, курсор и подсказка. */
+.context__folder {
+  cursor: pointer;
+}
+
+.context__folder:hover .context-row__label {
+  color: var(--text);
+}
+
 .context__section-title {
   font-size: 11px;
   font-weight: 600;
