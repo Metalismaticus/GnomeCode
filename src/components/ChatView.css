@@ -1,0 +1,10 @@
+/* Центральная колонка: тянется, композер прижат к низу. Позицияrelative — оверлей
+   правой панели при ширине < 1200 px (docs/DESIGN.md, раздел 5). */
+
+.chat {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}

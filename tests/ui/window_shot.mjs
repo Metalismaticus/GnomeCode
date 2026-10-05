@@ -11,8 +11,58 @@ import { chromium } from "@playwright/test";
 import { done, startInterface, INSTALL } from "../lib/ui_lib.mjs";
 
 const OUT_DIR = "shots";
-const SIZES = [[1440, 900], [1024, 640]];
-const TEXTS = ["Новый чат", "Контекст проекта"];
+// Ракурсы из спецификации экрана, «Где снимать»: два канонических плюс состояния и тема,
+// которые иначе снять нечем — все они одной командой и одним файлом проверки.
+const SHOTS = [
+  { name: "main-window-1440x900", size: [1440, 900], query: "", texts: ["Новый чат", "Контекст проекта"] },
+  { name: "main-window-1440x900-light", size: [1440, 900], query: "?тема=светлая", wait: "theme", texts: ["Новый чат"] },
+  { name: "main-window-1440x900-empty", size: [1440, 900], query: "?состояние=пусто", wait: "empty", texts: ["Прототипировать идея"] },
+  { name: "main-window-1440x900-error", size: [1440, 900], query: "?состояние=ошибка", text: "Сервер OpenCode недоступен", texts: ["Не отвечает"] },
+  { name: "main-window-1440x900-long", size: [1440, 900], query: "?состояние=много", wait: "rows:100", texts: ["Открыть проект из Documents"] },
+  { name: "main-window-1024x640", size: [1024, 640], query: "", texts: ["Новый чат"] },
+  { name: "main-window-1024x640-panel", size: [1024, 640], query: "?правая=открыта", wait: "panel", texts: ["Контекст проекта"] },
+];
+
+const WAITED = { theme: 15000, empty: 15000, panel: 15000 };
+
+/** Чего ждём на странице перед снимком: иначе светлая тема снимется тёмной,
+ *  а пустое состояние — лентой. Ошибка здесь называет ракурс и признак. */
+const settled = async (page, shot) => {
+  if (shot.wait === "theme") {
+    await page.waitForFunction(() => document.documentElement.dataset.theme === "light", undefined, {
+      timeout: WAITED.theme,
+    });
+    return;
+  }
+  if (shot.wait === "empty") {
+    await page.waitForFunction(() => Boolean(document.querySelector('[data-testid="empty"]')), undefined, {
+      timeout: WAITED.empty,
+    });
+    return;
+  }
+  if (shot.wait === "panel") {
+    await page.waitForFunction(() => Boolean(document.querySelector('[data-testid="context-panel"]')), undefined, {
+      timeout: WAITED.panel,
+    });
+    return;
+  }
+  if (shot.wait?.startsWith("rows:")) {
+    const wanted = Number(shot.wait.slice("rows:".length));
+    await page.waitForFunction(
+      (n) => document.querySelectorAll('[data-testid="feed"] > .feed__row').length >= n,
+      wanted,
+      { timeout: 15000 },
+    );
+    return;
+  }
+  if (shot.text) {
+    await page.waitForFunction(
+      (needle) => document.querySelector('[data-testid="feed"]')?.innerText.includes(needle),
+      shot.text,
+      { timeout: 15000 },
+    );
+  }
+};
 
 const { url, stop, ok, port } = await startInterface();
 try {
@@ -22,23 +72,33 @@ try {
   await mkdir(OUT_DIR, { recursive: true });
   const browser = await chromium.launch();
   try {
-    for (const [width, height] of SIZES) {
+    for (const shot of SHOTS) {
+      const [width, height] = shot.size;
       const page = await browser.newPage({ viewport: { width, height } });
-      await page.goto(url, { waitUntil: "networkidle" });
-      const body = await page.innerText("body");
-      const missing = TEXTS.filter((text) => !body.includes(text));
-      if (missing.length) {
-        done(1, `нет текста на экране при ${width}×${height}: ${missing.map((t) => `«${t}»`).join(", ")}`);
+      await page.goto(`${url}${shot.query}`, { waitUntil: "networkidle" });
+      try {
+        await settled(page, shot);
+      } catch {
+        const seen = await page.innerText('[data-testid="feed"]').catch(() => "");
+        done(
+          1,
+          `ракурс ${shot.name} снят, но страница не отдала признак (${shot.wait || shot.text || "строка ленты"}): ${seen.replace(/\s+/g, " ").slice(0, 120)}`,
+        );
       }
-      const file = `${OUT_DIR}/main-window-${width}x${height}.png`;
+      const body = await page.innerText("body");
+      const missing = shot.texts.filter((text) => !body.includes(text));
+      if (missing.length) {
+        done(1, `нет текста на экране в ракурсе ${shot.name}: ${missing.map((t) => `«${t}»`).join(", ")}`);
+      }
+      const file = `${OUT_DIR}/${shot.name}.png`;
       await page.screenshot({ path: file });
-      console.log(`снимок ${file}: ${width}×${height}`);
+      console.log(`снимок ${file}: ${width}×${height}${shot.query}`);
       await page.close();
     }
   } finally {
     await browser.close();
   }
-  done(0, `снимки окна сняты в ${OUT_DIR}/: ${SIZES.map(([w, h]) => `${w}×${h}`).join(", ")}`);
+  done(0, `снимки окна сняты в ${OUT_DIR}/: ${SHOTS.length} ракурсов — ${SHOTS.map((s) => s.name).join(", ")}`);
 } catch (error) {
   const text = String(error);
   done(1, /Executable doesn't exist|playwright install/i.test(text)

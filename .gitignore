@@ -33,7 +33,7 @@ docs/refs/**/ref-*
 *.local.sqlite
 data/
 
-# Снимки экрана полигона (playwright, tests/checks/window_shot.py)
+# Снимки экрана полигона (playwright, tests/ui/window_shot.mjs)
 shots/
 
 # Tauri generated schemas

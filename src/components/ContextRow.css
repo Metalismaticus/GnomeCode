@@ -1,0 +1,37 @@
+/* Строка «метка — значение»: метка переносится, значение не переносится,
+   при нехватке места значение уходит под метку. */
+
+.context-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-1) 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-dim);
+}
+
+.context-row__label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.context-row__value {
+  margin-left: auto;
+  max-width: 100%;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.context-row__value--off,
+.context-row__value--danger {
+  color: var(--danger);
+}
+
+.context-row__value--mono {
+  font-family: var(--font-mono);
+}

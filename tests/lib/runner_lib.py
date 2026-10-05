@@ -13,8 +13,9 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 FOLDERS = (("tests/checks", ".py"), ("tests/ui", ".mjs"))  # папка, расширение: UI-сценарии — Playwright
-LIMITS = {"quick_build": 150, "harness": 180, "window_shot": 300, "opencode_client": 600,
-          "opencode_engine": 180, "chat_stream": 300}  # секунды: замер × 3, одно место
+LIMITS = {"quick_build": 150, "harness": 180, "window_shot": 600, "opencode_client": 600,
+          "opencode_engine": 180, "chat_stream": 300, "window_look": 300,
+          "no_raw_colors": 30}  # секунды: замер × 3, одно место
 DEFAULT_LIMIT = 60
 
 

@@ -1,19 +1,34 @@
-// Фикстура ленты для страницы вне окна Tauri: та же беседа, что в tests/fixtures/chat-stream.jsonl,
-// но уже свёрнутая в строки ленты. Формат движка интерфейсу не известен и знать его не должен —
-// он живёт только в Rust (ADR-0001).
+// Фикстура для страницы вне окна Tauri: лента и содержимое панелей, которые продукт
+// ещё не знает (пункт «Проект и файлы»). Формат движка интерфейсу не известен и знать
+// его не должен — он живёт только в Rust (ADR-0001).
 //
-// Сценарий проверки и снимок окна видят ту же ленту, что продукт, но не трогают данные владельца.
+// Что показывать — по адресу страницы (`src/viewparams.ts`): `?состояние=`, `?обрыв=`.
+// В окне Tauri адреса нет, поэтому там пустые панели и тёмная тема.
+//
+// Сценарий проверки и снимок окна видят те же данные, что продукт, но не трогают
+// данные владельца.
 
 import type { FeedEvent, RowKind } from "./bridge";
+import type { ContextSection } from "./components/ContextPanel";
+import { params } from "./viewparams";
 
 const ANSWER = "Смотрю структуру папки. Мост на месте.";
 
-/** Строка ленты: тот же вид, что отдаёт `FeedEvent::Row` в Rust. */
-const row = (id: string, kind: RowKind, text: string): FeedEvent => ({ type: "row", id, kind, text });
+/** Абзац без единого пробела: переносится по словам, а при неразрывном слове —
+ *  `overflow-wrap: anywhere` (docs/specs/2026-10-05-4-glavnoe-okno.md, «Настоящие данные»). */
+const LONG_TEXT = `Длинное${"о".repeat(400)}`;
 
-/** Обрыв потока виден строкой, а не пустотой — так же, как в живом мосте. */
+const UNAVAILABLE = "Сервер OpenCode недоступен, перезапускаю…";
+const RECOVERED = "Сервер OpenCode снова отвечает";
 const RECONNECT = "Поток прерван, переподключаюсь…";
 const DONE = "Ответ модели получен";
+
+const LONG_PROJECT = "Открыть проект из Documents без переименования 2026";
+const LONG_PATH = "C:\\Users\\Metalismatic\\Documents\\GnomeCode.wt\\shots\\2026-10-04-p2-r1";
+const ACTIVE_CHAT = "Разбор главного окна";
+
+/** Строка ленты: тот же вид, что отдаёт `FeedEvent::Row` в Rust. */
+const row = (id: string, kind: RowKind, text: string): FeedEvent => ({ type: "row", id, kind, text });
 
 type Listener = (event: FeedEvent) => void;
 
@@ -23,16 +38,39 @@ class Fixture {
    *  обрыв потока не начинает нумерацию заново — иначе следующий вопрос занял бы id
    *  прошлой строки и лента заменила бы её вместо новой. */
   private sent = 0;
-  /** Обрыв по требованию сценария: `?обрыв=1` в адресе страницы.
-   * Браузер отдаёт поиск в процентной кодировке, поэтому ищем по раскодированному:
-   * иначе `includes("обрыв")` никогда не сойдётся и обрыв не будет виден. */
-  private readonly breaks =
-    typeof location !== "undefined" && decodeURIComponent(location.search).includes("обрыв");
+
+  /** Много данных: сто строк ленты и сто чатов — длинный чат не должен тормозить. */
+  private static many(): FeedEvent[] {
+    const events: FeedEvent[] = [];
+    for (let i = 1; i < 100; i += 1) {
+      events.push(row(`user-${i}`, "user", `Вопрос ${i}: проверь пункт ${i}`));
+      events.push(row(`answer-${i}`, "assistant", "Ответ модели получен"));
+    }
+    events.push(row("long", "assistant", LONG_TEXT));
+    events.push(row("last", "notice", DONE));
+    return events;
+  }
+
+  /** Что лента отдаёт при подписке — по состоянию экрана. */
+  private opening(): FeedEvent[] {
+    if (params.feed === "empty") {
+      return [];
+    }
+    if (params.feed === "error") {
+      return [row("engine_down", "notice", UNAVAILABLE)];
+    }
+    if (params.feed === "many") {
+      return Fixture.many();
+    }
+    // Лента не пустает при открытии: строка вызова инструмента видна сразу.
+    return [row("call_1", "tool", "⧗ read")];
+  }
 
   play(listener: Listener): () => void {
     this.listeners.add(listener);
-    // Лента не пустает при открытии: строка вызова инструмента видна сразу.
-    this.emit(row("call_1", "tool", "⧗ read"));
+    for (const event of this.opening()) {
+      this.emit(event);
+    }
     return () => this.listeners.delete(listener);
   }
 
@@ -45,7 +83,10 @@ class Fixture {
     for (const part of ANSWER.split(/(?<= )/)) {
       this.emit({ type: "append", id: answerId, delta: part });
     }
-    if (this.breaks) {
+    if (params.feed === "error") {
+      this.emit(row("engine_back", "notice", RECOVERED));
+    }
+    if (params.breaks) {
       this.emit(row("stream", "notice", RECONNECT));
     }
     this.emit(row("call_1", "tool", "✓ read · src/bridge.ts"));
@@ -57,6 +98,64 @@ class Fixture {
       listener(event);
     }
   }
+}
+
+export type PanelData = {
+  projects: string[];
+  chats: { title: string; active?: boolean }[];
+  sections: ContextSection[];
+  engineDown: boolean;
+};
+
+/** Содержимое панелей по состоянию экрана: пусто, ошибка, много данных.
+ *  Настоящие строки — те, что в окне бывают на самом деле (спецификация экрана). */
+export function panels(state: typeof params.feed): PanelData {
+  if (state === "empty") {
+    return { projects: [], chats: [], sections: baseSections(), engineDown: false };
+  }
+  if (state === "many") {
+    return {
+      projects: [LONG_PROJECT],
+      chats: [...Array.from({ length: 99 }, (_, i) => ({ title: `Вопрос ${i + 1}` })), { title: ACTIVE_CHAT, active: true }],
+      sections: [
+        {
+          title: "Проект",
+          rows: [
+            { label: "Папка", value: LONG_PATH, tone: "mono" },
+            { label: "Файлов", value: "1 284 файла", tone: "mono" },
+          ],
+        },
+        ...baseSections().slice(1),
+      ],
+      engineDown: false,
+    };
+  }
+  return {
+    projects: ["GnomeCode"],
+    chats: [{ title: ACTIVE_CHAT, active: true }],
+    sections: baseSections(),
+    engineDown: state === "error",
+  };
+}
+
+function baseSections(): ContextSection[] {
+  return [
+    { title: "Проект", rows: [{ label: "Папка не выбрана", value: "—" }] },
+    {
+      title: "Инструменты",
+      rows: [
+        { label: "Терминал", value: "позже" },
+        { label: "Файловый менеджер", value: "позже" },
+      ],
+    },
+    {
+      title: "Безопасность этого чата",
+      rows: [
+        { label: "Доступ к файловой системе", value: "Выключен", tone: "off" },
+        { label: "Интернет", value: "Выключен", tone: "off" },
+      ],
+    },
+  ];
 }
 
 export const fixture = new Fixture();

@@ -1,0 +1,63 @@
+/* Композер: главное действие окна, поэтому он на виду (docs/specs/2026-10-05-4-glavnoe-okno.md,
+   «Иерархия»). «+» приглушён, «↑» с текстом — акцентный, на пустом поле выключен. */
+
+.composer {
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+
+.composer__box {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  background: var(--bg-input);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: var(--space-2) var(--space-3);
+}
+
+.composer__box:focus-within {
+  border-color: var(--accent);
+}
+
+.composer__input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  color: var(--text);
+  resize: none;
+  font-size: 14px;
+  line-height: 1.4;
+  max-height: 160px;
+  padding: var(--space-2) 0;
+}
+
+.composer__send--ready {
+  background: var(--accent-gradient);
+  color: var(--on-accent);
+  border-color: transparent;
+}
+
+.composer__send--ready:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+
+.composer__send--ready:active:not(:disabled) {
+  filter: brightness(1.04);
+}
+
+.composer__hint {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: var(--space-2);
+  text-align: center;
+}
+
+/* Место действия важнее подсказки: на низком окне она скрывается. */
+@media (max-height: 559px) {
+  .composer__hint {
+    display: none;
+  }
+}

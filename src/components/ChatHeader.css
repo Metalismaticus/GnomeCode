@@ -1,0 +1,70 @@
+/* Шапка чата: не ниже 48 px, чтобы строки шапки и правой панели совпали по горизонтали. */
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 48px;
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+
+.chat-header__title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-header__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--badge-bg);
+  border: 1px solid var(--badge-border);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 40%;
+}
+
+/* Кнопка правой панели: призрачная, 32×32. При ширине ≥ 1200 px не рисуется вовсе —
+   панель и так на месте, и причина видна в подсказке самой панели. */
+.chat-header__panel {
+  display: none;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.chat-header__panel:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.chat-header__panel[aria-pressed="true"] {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+@media (max-width: 1199px) {
+  .chat-header__panel {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}

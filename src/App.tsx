@@ -1,158 +1,86 @@
 import { useEffect, useState } from "react";
 
-import { useFeed } from "./chat";
-import type { FeedRow } from "./bridge";
+import { ChatView } from "./components/ChatView";
+import { ContextPanel } from "./components/ContextPanel";
+import { Sidebar } from "./components/Sidebar";
+import { panels } from "./fixture";
+import { params, type Theme } from "./viewparams";
 
-type Theme = "dark" | "light";
+import "./styles/app.css";
 
-/** Каркас трёх колонок по референсам: сайдбар · чат · правая панель.
- *  Содержимое — заготовки Этапа 1; живые системы приходят пунктами очереди. */
+/** Ширина, ниже которой правая панель складывается в кнопку `☰` (docs/DESIGN.md, раздел 5). */
+const NARROW = "(max-width: 1199px)";
+
+/** Узкое ли окно: этим же условием панель уезжает в оверлей, а кнопка `☰` появляется. */
+function useNarrow(): boolean {
+  const [narrow, setNarrow] = useState(
+    () => typeof window !== "undefined" && window.matchMedia(NARROW).matches,
+  );
+  useEffect(() => {
+    const query = window.matchMedia(NARROW);
+    const change = () => setNarrow(query.matches);
+    query.addEventListener("change", change);
+    return () => query.removeEventListener("change", change);
+  }, []);
+  return narrow;
+}
+
+/** Главное окно: корень только собирает три колонки, держит тему и оверлей панели. */
 export default function App() {
-  const [theme, setTheme] = useState<Theme>("dark");
+  const [theme, setTheme] = useState<Theme>(params.theme);
+  const [panelOpen, setPanelOpen] = useState(params.right);
+  const narrow = useNarrow();
+  const data = panels(params.feed);
+  const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
+  // Оверлей правой панели закрывается по Esc и клику снаружи; клик по самой `☰`
+  // остаётся за кнопкой — иначе открытие тут же закрылось бы.
+  useEffect(() => {
+    if (!narrow || !panelOpen) {
+      return;
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setPanelOpen(false);
+      }
+    };
+    const onClick = (event: MouseEvent) => {
+      const target = event.target as Element | null;
+      if (target?.closest(".context") || target?.closest('[data-testid="panel-toggle"]')) {
+        return;
+      }
+      setPanelOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("click", onClick);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("click", onClick);
+    };
+  }, [narrow, panelOpen]);
+
   return (
     <div className="app">
-      <Sidebar />
-      <ChatView theme={theme} onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")} />
-      <ContextPanel />
+      <Sidebar
+        projects={data.projects}
+        chats={data.chats}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+      />
+      <ChatView
+        title="Новый чат"
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        onTogglePanel={() => setPanelOpen(!panelOpen)}
+        panelOpen={panelOpen}
+      />
+      {narrow && !panelOpen ? null : (
+        <ContextPanel sections={data.sections} engineDown={data.engineDown} />
+      )}
     </div>
-  );
-}
-
-function Sidebar() {
-  return (
-    <nav className="sidebar">
-      <div className="sidebar__logo">
-        <span className="sidebar__logo-mark">G</span>
-        GnomeCode
-      </div>
-      <button className="btn btn--primary">+ Новый проект</button>
-      <button className="btn btn--ghost">Новый чат</button>
-      <div>
-        <div className="sidebar__section-title">Проекты</div>
-        <button className="sidebar__item">Пока нет проектов</button>
-        <div className="sidebar__section-title">Чаты</div>
-        <button className="sidebar__item">Пока нет чатов</button>
-      </div>
-      <div className="sidebar__footer">
-        <span className="sidebar__avatar">Г</span>
-        Владелец
-      </div>
-    </nav>
-  );
-}
-
-function ChatView({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: () => void }) {
-  const [draft, setDraft] = useState("");
-  const { rows, error, send } = useFeed();
-
-  const ask = (text: string) => {
-    setDraft("");
-    void send(text);
-  };
-
-  return (
-    <main className="chat">
-      <header className="chat__header">
-        <span className="chat__title">Новый чат</span>
-        {/* Кнопки подключённых плагинов — слова владельца: «выводятся над чатом».
-            Живое подключение — пункт «Плагины из чата» Этапа 1. */}
-        <span className="badge">GLM-5.3 High</span>
-        <button className="btn btn--ghost" onClick={onToggleTheme}>
-          {theme === "dark" ? "☀ Светлая" : "☾ Тёмная"}
-        </button>
-      </header>
-      <div className="chat__messages" data-testid="feed">
-        {rows.length ? (
-          <Feed rows={rows} />
-        ) : (
-          <div className="empty">
-            <div className="empty__title">Новый чат</div>
-            <div className="empty__subtitle">
-              Опишите задачу, приложите файл или выберите сценарий
-            </div>
-            <div className="empty__cards">
-              <button className="empty__card">Прототипировать идею</button>
-              <button className="empty__card">Проверить код</button>
-              <button className="empty__card">Открыть проект</button>
-            </div>
-          </div>
-        )}
-        {error ? <div className="feed__notice">{error}</div> : null}
-      </div>
-      <div className="composer">
-        <div className="composer__box">
-          <button className="composer__add" title="Добавить">+</button>
-          <textarea
-            className="composer__input"
-            data-testid="composer"
-            placeholder="Напишите сообщение… (Ctrl + Enter — отправить)"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && e.ctrlKey) {
-                ask(draft);
-              }
-            }}
-          />
-          <button className="composer__send" data-testid="send" title="Отправить" onClick={() => ask(draft)}>↑</button>
-        </div>
-        <div className="composer__hint">Enter — перенос строки · Ctrl + Enter — отправить</div>
-      </div>
-    </main>
-  );
-}
-
-/** Лента: строки по порядку, вид строки — по её роли в разговоре. */
-function Feed({ rows }: { rows: FeedRow[] }) {
-  return (
-    <>
-      {rows.map((row) => (
-        <div key={row.id} className={`feed__row feed__row--${row.kind}`} data-kind={row.kind}>
-          {row.text || "…"}
-        </div>
-      ))}
-    </>
-  );
-}
-
-function ContextPanel() {
-  return (
-    <aside className="context">
-      <div className="context__header">Контекст проекта</div>
-      <div className="context__section">
-        <div className="context__section-title">Проект</div>
-        <div className="context__row">
-          <span>Папка не выбрана</span>
-          <span className="context__row-value">—</span>
-        </div>
-      </div>
-      <div className="context__section">
-        <div className="context__section-title">Инструменты</div>
-        <div className="context__row">
-          <span>Терминал</span>
-          <span className="context__row-value">позже</span>
-        </div>
-        <div className="context__row">
-          <span>Файловый менеджер</span>
-          <span className="context__row-value">позже</span>
-        </div>
-      </div>
-      <div className="context__section">
-        <div className="context__section-title">Безопасность этого чата</div>
-        <div className="context__row">
-          <span>Доступ к файловой системе</span>
-          <span className="context__row-value context__row-value--off">Выключен</span>
-        </div>
-        <div className="context__row">
-          <span>Интернет</span>
-          <span className="context__row-value context__row-value--off">Выключен</span>
-        </div>
-      </div>
-    </aside>
   );
 }

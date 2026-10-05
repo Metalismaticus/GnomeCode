@@ -1,0 +1,41 @@
+/* Пустое состояние чата: заголовок 20 px — наибольший размер, близкий к заголовку
+   окна (docs/DESIGN.md, раздел 3, таблица; привести документ при /studio/done). */
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: var(--space-3);
+  padding: var(--space-5) 0;
+  /* По центру ленты по обеим осям: auto-отступы по вертикали, свой по горизонтали —
+     блок по содержимому, иначе центрировать нечего. */
+  align-self: center;
+  margin: auto 0;
+}
+
+.empty__title {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.empty__subtitle {
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+.empty__cards {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+/* При ширине < 1200 px карточки в одну колонку: места по высоте мало. */
+@media (max-width: 1199px) {
+  .empty__cards {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
