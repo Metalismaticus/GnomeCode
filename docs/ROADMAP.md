@@ -65,7 +65,7 @@
 ### Этап 3. Среда: Workspaces, Skills, домены [потом] · размер: большой
 Зачем: из чата — в персистентную рабочую среду (Фаза 2)
 Что увидит игрок: Workspace с задачами и артефактами → Context Packs → AI сам находит и применяет Skill → «Save as Skill» после удачного воркфлоу
-Системы: С-09, С-10, С-11, С-12, С-13, С-14, С-15
+Системы: С-09, С-10, С-11, С-12, С-13, С-14, С-15, С-23
 Зависит от: Этап 2
 Главный риск: механизм retrieval знаний → первый пункт этапа — проба
 Вопросы к этапу: механизм retrieval — в «Решениях» BLOCKED.md
@@ -114,6 +114,7 @@
 | С-20 | Smart Context Compression: Working State, предпросмотр, история версий с восстановлением, «что удалено», Context Lock, меню сообщений, свежесть решений, приоритеты сборки контекста | Контекст | «Keep working for months, but pay context costs as if the conversation were much younger»; «Do not preserve contradictory obsolete decisions as equally valid facts» — context.md | С-01 | 4 | впереди |
 | С-21 | Continue in new chat: перенос Working State, знаний, задач, Skills, файлов и ограничений в свежий чат с предпросмотром; старый — в Archive | Контекст | «The new chat should feel like a continuation of the same work, not a new conversation where the user must explain everything again» — context.md | С-20, С-10, С-14 | 4 | впереди |
 | С-22 | Pinned Context: закрепление важного, защита от сжатия, «Move to Project Knowledge», подсказка о reusable-решениях без автосохранения | Контекст | «Pinned information must be protected from automatic compression»; «Do not save automatically» — context.md | С-20, С-10 | 4 | впереди |
+| С-23 | Панель «Сравнение моделей»: оценки, бенчмарки, стоимость — данные opencode.ai/ru/data/compare | Ядро | «это сравнение моделей, я думал мы оттуда будем у себя отображать» — opencode.ai/ru/data/compare (2026-10-05) | С-01 | 3 | впереди |
 
 ## Очередь
 
