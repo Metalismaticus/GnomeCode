@@ -23,7 +23,10 @@ try {
   const browser = await chromium.launch();
   try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
-    await page.goto(url, { waitUntil: "networkidle" });
+    // domcontentloaded, а не networkidle, и запас времени: в составе группы на
+    // занятом компьютере goto с дефолтными 30 с не дожидался — проверка падала
+    // ложно (docs/TESTING.md, «Нестабильные проверки»); элементы дальше ждут себя сами.
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 90_000 });
     await page.fill('[data-testid="composer"]', QUESTION);
     await page.click('[data-testid="send"]');
     try {
@@ -45,7 +48,7 @@ try {
 
     // Обрыв потока: та же страница, но с признаком разрыва — лента говорит о нём строкой.
     const broken = await browser.newPage({ viewport: { width: 1280, height: 800 } });
-    await broken.goto(`${url}?обрыв=1`, { waitUntil: "networkidle" });
+    await broken.goto(`${url}?обрыв=1`, { waitUntil: "domcontentloaded", timeout: 90_000 });
     await broken.fill('[data-testid="composer"]', QUESTION);
     await broken.click('[data-testid="send"]');
     try {
