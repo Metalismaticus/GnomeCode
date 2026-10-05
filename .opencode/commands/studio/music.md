@@ -3,8 +3,8 @@ description: Нужен музыкальный трек — короткая ф�
 agent: studio
 ---
 
-Нужен трек: **$ARGUMENTS**
+Need a track: **$ARGUMENTS**
 
-Это короткая форма `/studio/order music <трек>`. Прочитать `.opencode/commands/studio/order.md` и выполнить его целиком с видом `music`
-и описанием выше. Рядом с промтом в заказе записать строку тегов для
-генератора — см. `docs/orders/music.md`, «Постоянная часть промта».
+This is a short form of `/studio/order music <track>`. Read `.opencode/commands/studio/order.md` and execute it in full with the kind `music`
+and the description above. Next to the prompt in the order, record the tag line for
+the generator — see `docs/orders/music.md`, «Постоянная часть промта».

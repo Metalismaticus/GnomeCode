@@ -148,7 +148,27 @@ def check_config(results):
               and "session.usage.updated" in wrapper and "studio-usage.jsonl" in wrapper
               and "usage-seen" in wrapper and "flushUsage" in wrapper
               and os.path.isfile(GUARD) and os.path.isfile(CONTEXT))
-        got = "подключены" if ok else "не так"
+        # YAML-мины: ': ' внутри значения description ломает файл агента
+        # («Agent X cannot run as a subagent») — проверяем всех агентов
+        agents_dir = os.path.join(HERE, "..", "agents")
+        mines = []
+        for fn in sorted(os.listdir(agents_dir)):
+            if not fn.endswith(".md"):
+                continue
+            with open(os.path.join(agents_dir, fn), encoding="utf-8") as af:
+                head = af.read(4000)
+            if not head.startswith("---"):
+                continue
+            for line in head.splitlines()[1:60]:
+                if line.startswith("---"):
+                    break
+                if line.startswith("description:") and ": " in line[len("description:"):]:
+                    mines.append(fn)
+                    break
+        if mines:
+            ok = False
+        got = ("YAML-мина в description: " + ", ".join(mines)) if mines else (
+            "подключены" if ok else "не так")
     except Exception as e:  # noqa: BLE001 — любая поломка файла = провал
         ok, got = False, f"ошибка: {e}"
     results.append(("studio.ts", "оба хука + телеметрия, python -X utf8", "подключены", got, ok))

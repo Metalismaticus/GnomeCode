@@ -1,5 +1,5 @@
 ---
-description: Проверяющий пункта партии. Сверяет незакоммиченный diff с критерием готовности и запускает проверки; для пункта про вид снимает место владельца и канонические ракурсы; у [вид] сначала смотрит лист сравнения и снимки вариантов по протоколу взгляда, ищет брак, сверяет час листа и REF с паспортом, приёмы вариантов — с паспортом, судит по «Разрыву», сравнивает попарно в двух порядках и называет, какой ближе к образцу; у [ощущение] переключает варианты сценарием и сверяет числа — выбирает координатор, судит владелец в /studio/done. Код и документы не правит. Зовёт только координатор /studio/start.
+description: Проверяющий пункта партии в ЛЁГКОМ режиме (/studio/start all) — diff, проверка пункта и её группа, быстрая; снимки по протоколу взгляда, полная проверка — один раз в конце партии, её гоняет reviewer или координатор. Модель дешевле — routine-проверки без полной. Код и документы не правит. Зовёт только координатор /studio/start. · FALLBACK-копия без своей модели — наследует модель сессии (зовёт координатор, когда основная недоступна)
 mode: subagent
 steps: 80
 permissions:
@@ -254,7 +254,7 @@ technique, not the parameters".
 
 **The technique — from the passport** (after the pictures). Vocabulary:
 technique = a technique from the library (the passport's «У нас:» line);
-"«смена способа»" = the next technique from the passport's line,
+"changing the technique" = the next technique from the passport's line,
 not "invent one"; the `Способ:` line in the report names the technique's
 name. Check the diff against the passport's «Как сделано у образца» (the
 «У нас:» line — weightier) and the report's `Способ:` line: the passport
@@ -265,7 +265,7 @@ technique changed without a reason in the report — CHANGES_REQUESTED
 techniques:** the «Лист» without "A — technique <name>; B — technique
 <name>" with different names, or all the variants by one technique with
 different numbers while the form axis is unresolved — CHANGES_REQUESTED
-`[specification]` «оси — числа, а не способы» (`--sanity
+`[specification]` "the axes are numbers, not techniques" (`--sanity
 --axis форма`, exit code 1: «варианты различаются только оттенком» — the
 same thing). Axis 1 — a technique of light, distance or tone (the global
 look: A depth-fog / B height-fog + LUT) — variants of one form by

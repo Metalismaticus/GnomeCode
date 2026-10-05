@@ -3,238 +3,263 @@ description: Разложить весь замысел на этапы от «�
 agent: studio
 ---
 
-Что делаем с картой: **$ARGUMENTS**
+What we do with the map: **$ARGUMENTS**
 
-(Пусто или без подстановки — из сообщения владельца. Первое слово — режим:
-`следующий`, `пересмотр`, `прогноз` — разделы ниже; нет его — сборка.
-Остальной текст (или заметка, переданная из `/studio/idea`) — **заметка
-владельца**: это тоже замысел, её системы — в список шага 2 со «Словами
-владельца» дословно. `docs/refs/` (образцы, бриф и ТЗ концепта стиля,
-«Правила стиля») — не замысел и не заметка: систем, «Одной строкой» и «Слов
-владельца» оттуда не брать. «Этапы» уже есть — сборка идёт как `пересмотр`:
-номера, имена и даты этапов `сделан` не менять, новые этапы — только после
-последнего `сделан`.)
+(Empty or left unsubstituted — from the owner's message. The first word is
+the mode: `следующий`, `пересмотр`, `прогноз` — the sections below; without
+it — assembly. The rest of the text (or the note passed from `/studio/idea`)
+is the **owner's note**: it is concept material too, its systems go into the
+step 2 list with «Слова владельца» verbatim. `docs/refs/` (references, the
+brief, and the style concept's spec, «Правила стиля») — neither concept nor
+note: no systems, «Одной строкой», or «Слова владельца» from there. «Этапы»
+already exists — the assembly proceeds as `пересмотр`: the numbers, names,
+and dates of `сделан` stages are not changed, new stages — only after the
+last `сделан`.)
 
-**Главное:**
+**Key points:**
 
-- Чат замысла: кода не писать, продукт и проверки не запускать; читать код
-  можно — так узнаётся, что уже `работает`. `tools/roadmap_check.py` — не
-  продукт. Позвали в чате разработки (там звали `/studio/start`) — одной строкой
-  отправить в чат замысла и остановиться.
-- Слово для владельца — **этап**. Этап — от «что станет правдой для игрока»,
-  вертикальным срезом, а не слоем кода; ни спринтов, ни ролей, ни матриц
-  рисков.
-- **Каждая система замысла — ровно в одном месте:** этап, «Потом» или «Не
-  делаем», неявные тоже (бой → смерть и возрождение); «Требует» не указывает
-  на более поздний этап.
-- **Вопросы — окнами** по `.opencode/studio/reference/ASKING.md` и только те, от ответа на которые меняется состав первой версии или
-  порядок этапов: не больше двух окон вопросов по ≤ 4 и окно «Принять»
-  (противоречие в ядре или выбор главного из двух замыслов — ещё одно).
-  Технику — строкой «Решено за вас», кроме закреплённого в `DECISIONS.md`;
-  остальное — `[допущение]`.
-- **Никаких дней и дат** в карте, кроме `сделан <дата>`: размер этапа — малый
-  / средний / большой; дни — только `прогноз`, по просьбе.
-- Кусками («Подробности», «Очередь») расписан только этап `идёт`.
-- До «Принять» постоянные документы не правятся: план — в
-  `docs/ROADMAP-PLAN.md` (не коммитить; остался от прошлого раза — продолжить
-  с него). Сообщение из другого чата — не ответ владельца.
+- A concept chat: write no code, run neither the product nor the checks;
+  reading the code is allowed — that is how you learn what already
+  `работает`. `tools/roadmap_check.py` — not the product. Called in the dev
+  chat (where `/studio/start` was called) — send one line to the concept
+  chat and stop.
+- The word for the owner is **stage**. A stage — from «what becomes true
+  for the player», a vertical slice, not a layer of code; no sprints, no
+  roles, no risk matrices.
+- **Every concept system — in exactly one place:** a stage, «Потом», or «Не
+  делаем», the implicit ones too (combat → death and respawn); «Требует»
+  does not point to a later stage.
+- **Questions — via dialogs** per `.opencode/studio/reference/ASKING.md`
+  and only those whose answer changes the first version's composition or
+  the order of stages: no more than two question dialogs of ≤ 4 each plus
+  the «Принять» dialog (a contradiction in the core, or choosing the main
+  of two concepts — one more). Technique — as a «Решено за вас» row, except
+  what is fixed in `DECISIONS.md`; the rest — `[допущение]`.
+- **No days or dates in the map**, except `сделан <дата>`: a stage's size —
+  `малый` / `средний` / `большой`; days — only `прогноз`, on request.
+- In pieces («Подробности», «Очередь») only the `идёт` stage is written
+  out.
+- Before «Принять» no permanent documents are edited: the plan — in
+  `docs/ROADMAP-PLAN.md` (do not commit; one left over from the last time —
+  continue from it). A message from another chat — not the owner's answer.
 
-Нет `docs/ROADMAP.md` — предложить `/studio/setup` и остановиться. Пункты текущей
-партии (`docs/BATCH.md`) не трогать. Формат «Этапов» и «Покрытия замысла» —
-шаблон `.opencode/studio/templates/docs/ROADMAP.md`; куски и метки пунктов — как в
-`/studio/idea`, разделы 5 и 7 (`.opencode/commands/studio/idea.md`).
+No `docs/ROADMAP.md` — offer `/studio/setup` and stop. Do not touch the
+current batch's items (`docs/BATCH.md`). The format of «Этапы» and
+«Покрытие замысла» — the template
+`.opencode/studio/templates/docs/ROADMAP.md`; the pieces and item markers —
+as in `/studio/idea`, sections 5 and 7
+(`.opencode/commands/studio/idea.md`).
 
-## Сборка (без режима)
+## Assembly (without a mode)
 
-1. **Прочитать замысел.** Целиком — `docs/CONCEPT.md`, другие файлы замысла
-   (`docs/*CONCEPT*.md`), заметку владельца и чужие файлы плана
-   (`GAME_ROADMAP.md`, `*ROADMAP*.md`, `*PLAN*.md` кроме `SETUP-PLAN.md` и
-   `ROADMAP-PLAN.md`, разделы «Порядок работ», «Из плана владельца»): у
-   чужого плана системы и слова берём, его сроки и слои — нет; файл, о
-   котором в `DECISIONS.md` строка «<файл> — отдельный план», — только вход,
-   о его судьбе не спрашивать. По заголовкам и поиском слов порядка («до»,
-   «после», «этап», «рано», «позже») — `DECISIONS.md` (закреплённые решения
-   не менять без окна), `ROADMAP.md`, «Что работает», `BLOCKED.md`.
-   Замыслов два — окно «Какой замысел главный?»: это и есть окно
-   противоречия в ядре, остальные противоречия решает главный. Варианты
-   (label коротко, имена файлов — в description): «<X> главный, <Y> — его
-   первый этап» (`Recommended`, если Y ведёт к X как первый шаг: «строим,
-   если Y получился») / «<X> главный, <Y> — архив» / «<Y> главный, <X> —
-   архив».
-2. **Список систем** `С-01…` из каждого раздела `##` и подраздела `###`
-   замысла с решением владельца (кроме «Первая версия» и «Порядок сборки»),
-   «Слова владельца» — дословно. Система — то, что игрок назовёт одним
-   словом (торговля, болезни, приваты); механики внутри неё — в
-   «Подробности», когда начнётся её этап; большой замысел — 20–50 систем.
-   **Неявные** — по жанровым связкам, с пометкой `[выведено из С-xx]`: враги
-   (разбойники, хищники, драконы, данжи) → бой → здоровье, урон, смерть и
-   возрождение; предметы (торговля, еда, ремесло, добыча) → инвентарь;
-   ремесло → рецепты, верстак; мультиплеер → вход, сохранения,
-   синхронизация, защита от читов; экономика → предметы, цены, стоки;
-   открытый мир → сохранение мира, загрузка кусками; прогресс → опыт,
-   открытия, баланс; всё → меню, настройки, пауза, сохранение, звук,
-   обучение. Что уже есть в коде — `работает` (проверить по коду).
-   «Требует» — без чего система не работает (у врагов — бой, у предметов —
-   инвентарь), и решения `DECISIONS.md` о порядке («A до B», «B кладётся на
-   A»): у B — номер A со ссылкой на решение (`С-04 (DECISIONS, <дата>)`), так
-   их стережёт скрипт. Раздел без своей системы (цель, вид, открытые
-   вопросы) — через запятую в «Разделе замысла» той, к которой относится:
+1. **Read the concept.** In full — `docs/CONCEPT.md`, the other concept
+   files (`docs/*CONCEPT*.md`), the owner's note, and foreign plan files
+   (`GAME_ROADMAP.md`, `*ROADMAP*.md`, `*PLAN*.md` except `SETUP-PLAN.md`
+   and `ROADMAP-PLAN.md`, the sections «Порядок работ», «Из плана
+   владельца»): from a foreign plan we take the systems and the words, not
+   its deadlines and layers; a file with a `DECISIONS.md` row «<файл> —
+   отдельный план» — input only, do not ask about its fate. By headings and
+   by searching for order words («до», «после», «этап», «рано», «позже») —
+   `DECISIONS.md` (fixed decisions are not changed without a dialog),
+   `ROADMAP.md`, «Что работает», `BLOCKED.md`. Two concepts — the dialog
+   «Какой замысел главный?»: this is the core-contradiction dialog, the
+   remaining contradictions are settled by the main one. Options (label
+   short, file names — in the description): «<X> главный, <Y> — его первый
+   этап» (`Recommended`, if Y leads to X as a first step: «строим, если Y
+   получился») / «<X> главный, <Y> — архив» / «<Y> главный, <X> — архив».
+2. **The list of systems** `С-01…` from every `##` section and `###`
+   subsection of the concept with the owner's decision (except «Первая
+   версия» and «Порядок сборки»), «Слова владельца» — verbatim. A system —
+   what the player names in one word (trading, diseases, private lots); the
+   mechanics inside it — into «Подробности» when its stage starts; a large
+   concept — 20–50 systems. **Implicit** — by genre links, with the
+   `[выведено из С-xx]` marker: enemies (bandits, predators, dragons,
+   dungeons) → combat → health, damage, death and respawn; items (trading,
+   food, crafting, mining) → inventory; crafting → recipes, workbench;
+   multiplayer → login, saves, sync, cheat protection; economy → items,
+   prices, sinks; open world → world saving, chunk loading; progression →
+   experience, unlocks, balance; everything → menu, settings, pause,
+   saving, sound, tutorial. What already exists in the code — `работает`
+   (check against the code). «Требует» — what the system cannot work
+   without (for enemies — combat, for items — inventory), and
+   `DECISIONS.md` decisions about order («A до B», «B кладётся на A»): B
+   gets A's number with a reference to the decision
+   (`С-04 (DECISIONS, <дата>)`), that is how the script guards them. A
+   section without its own system (goal, look, open questions) —
+   comma-separated into the «Раздел замысла» of the system it belongs to:
    `Ядро, Одной строкой`.
-3. **Пробелы и противоречия** по категориям: цикл ядра; цель и провал; первая
-   версия; мультиплеер и платформа; прогресс; экономика; содержимое; вид и
-   звук; «чего не делаем». У каждой — ясно / частично / нет; противоречие —
-   поимённо: раздел, решение, работающее.
-4. **Окна.** Порядок важности: состав > что увидеть первым > противоречия >
-   вкус.
-   - Противоречие в ядре или «Какой замысел главный?» (шаг 1) — своё окно,
-     первым; такое окно одно.
-   - Окно 1 «Первая играбельная»: «Что игрок делает в первой играбельной
-     версии, чтобы вы сказали „это моя игра“?» (`multiSelect`, 3–4 глагола
-     ядра из замысла) и «Для кого первая версия?» — «Для себя: проверить,
-     весело ли (Recommended)» / «Друзьям-тестерам» / «Сразу публично»;
-     свободные места — самым важным пробелам.
-   - Окно 2 «Первый выпуск» — только категории систем (цикл ядра, цель и
-     провал, мультиплеер, прогресс, экономика, содержимое, вид и звук) с
-     оценкой «частично» или «нет»: «Что обязательно в первом выпуске:
-     <категория>?» (`multiSelect`; варианты — 2–4 самые крупные системы или
-     группы категории, остальные её системы — `[допущение]`; неотмеченное →
-     «Потом», пустой выбор — ответ «ничего»; «Не делаем» — через «Другое»).
-     Есть готовое предложение состава выпуска (таблица «в бете / потом»
-     чужого плана) — варианты из него, отмеченное там — в description;
-     «пока не знаю» — `[допущение]` по нему.
+3. **Gaps and contradictions** by categories: core loop; goal and failure;
+   first version; multiplayer and platform; progression; economy; content;
+   look and sound; «чего не делаем». For each — clear / partial / none; a
+   contradiction — by name: section, decision, a working one.
+4. **Dialogs.** Order of importance: composition > what is seen first >
+   contradictions > taste.
+   - A contradiction in the core, or «Какой замысел главный?» (step 1) —
+     its own dialog, first; such a dialog is one.
+   - Dialog 1 «Первая играбельная»: «Что игрок делает в первой играбельной
+     версии, чтобы вы сказали „это моя игра“?» (`multiSelect`, 3–4 core
+     verbs from the concept) and «Для кого первая версия?» — «Для себя:
+     проверить, весело ли (Recommended)» / «Друзьям-тестерам» / «Сразу
+     публично»; the free slots — the most important gaps.
+   - Dialog 2 «Первый выпуск» — only system categories (core loop, goal and
+     failure, multiplayer, progression, economy, content, look and sound)
+     rated partial or none: «Что обязательно в первом выпуске:
+     <категория>?» (`multiSelect`; options — the 2–4 largest systems or
+     groups of the category, the category's remaining systems —
+     `[допущение]`; unmarked → «Потом», an empty selection — the answer
+     "nothing"; «Не делаем» — via «Другое»). With a ready release-composition
+     proposal (a foreign plan's «в бете / потом» table) — the options from
+     it, what is marked there — into the description; «пока не знаю» —
+     `[допущение]` by it.
 
-   После ответа — «Понял: …». Не спрошенное — `[допущение]`; открытое — в
-   «Решения» `BLOCKED.md` или «Вопросы к этапу».
-5. **Этапы — от «что увидит игрок»**, вертикальными срезами: техническая
-   основа — не отдельный этап, а первые пункты того этапа, где игрок её
-   увидит («двое видят друг друга в одном мире», «сотня ботов бегает, игра
-   не тормозит»); проба риска — первый пункт этапа, кроме пробы рендера или
-   дорогой возможности, судимой парой кадров («Готово, когда: пара кадров»):
-   она — после принятого света, `[вид]` на неё не ссылаются. Среди `[вид]`
-   первым — глобальный облик (свет, дымка, тон, палитра; 2D — палитра и свет
-   сцены): он не ждёт пробы рендера и теней, остальные `[вид]` — `[ждёт
-   света]` до `принят кадр` света (проект без темы света — без метки, первым
-   — тема по зависимостям паспортов). Подсказка-лестница для
-   игры (не обязательна): первое играбельное → первый полный цикл → срез
-   фишки → содержимое → выпуск. Малый замысел (≤ 7 систем) — один этап
-   «Первая версия» и «Потом». Этап — не больше экрана; больше ~15 пунктов
-   или ~3 партий — разрезать по видимому («сотня заглушек ходит по миру» →
-   «двое строят»). Видимых этапов ≤ 7 (`сделан` не в счёт), дальние — одной
-   строкой «Потом: …», их системы в «Покрытии» — «Потом».
-   Первый — `идёт`, следующий — `следом`, остальные — `потом`. Начатая
-   работа очереди, ведущая к «Что увидит игрок» первого играбельного, — его
-   часть; не ведущая — свой этап `идёт` («Довести начатое», размер по числу
-   пунктов), а первое играбельное — `следом`; оно дальше второго этапа — в
-   плане строкой, почему. Уже работающее — `работает` в том этапе, который
-   на него опирается, или целый этап `сделан <дата>`. Игровое время — «3
-   игровых дня», «пережить 3 дня» или в «…»: иначе скрипт примет его за срок.
-6. **Покрытие:** каждая система — ровно в одном этапе, «Потом» или «Не
-   делаем»; «Требует» не указывает на более поздний этап. Прогнать `python -X
-   utf8 tools/roadmap_check.py --plan docs/ROADMAP-PLAN.md` (скрипта в проекте
-   нет — тот же из `.opencode/studio/templates/tools/` с `--root <папка проекта>`;
-   разложит его `/studio/setup обновить`), найденное — исправить до показа.
-7. **План на согласие** — `docs/ROADMAP-PLAN.md`: «было → станет» (если карта
-   была: таблица «старый этап K → Этап N / Потом», куда ушли пункты очереди,
-   чужой карты и каждая запись «Из плана владельца»), `## Этапы` с `###
-   Покрытие замысла` по формату шаблона (их читает скрипт), допущения, что
-   ушло в «Потом» и «Не делаем», вопросы, отложенные к этапам, «Решено за
-   вас». В чат — путь и 3–5 строк сути (этапы, что увидит игрок в первом,
-   итог скрипта), затем окно «Принять (Recommended) / Поправить этапы /
-   Поправить состав / Ещё поговорить»; есть чужой файл плана — вторым
-   вопросом того же окна «<файл>: что с ним?» — «Оставить как архив со
-   ссылкой (Recommended)» / «Удалить» (только если на файл не ссылаются
-   другие документы; ссылаются — вопроса нет, архив). «Поправить …» —
-   выслушать, поправить план, прогнать скрипт, спросить снова; «Ещё
-   поговорить» — окно о том, что назовёт владелец.
-8. **Записать** после «Принять» (сначала `git status` и `git log` этих
-   файлов: чужие незакоммиченные правки — остановиться и назвать):
-   - `ROADMAP.md` — «Этапы» и «Покрытие» из плана (раздела нет — вставить из
-     шаблона между «Текущая партия» и «Очередь»), системы этапа `идёт` — `в
-     работе` (кроме `работает`); куски этапа `идёт` — в «Подробности
-     ближайших пунктов», его пункты с `[этап N]` — в «Очередь» по приоритету
-     из `AGENTS.md`. Нынешние пункты не терять: работа этапа `идёт` и баги —
-     с `[этап N]`; пункт позднего этапа — из «Очереди» убрать, подробности
-     оставить с `[этап N]` в заголовке; пункты `Уборка:` — как есть, без
-     `[этап N]` (этап от них не зависит). «Из плана владельца» — записи
-     дословно в «Задумано, но не сделано» главного замысла (в начале записи
-     — `[этап N]` или `[Потом]` и С-xx), в «Покрытии» и в ссылках других
-     документов на раздел — ссылка на неё; потом раздел убрать;
-   - главный замысел (`CONCEPT.md` или выбранный в шаге 1) — «Первая версия»
-     (для кого, глаголы окна 1; заголовок «Первая версия (MVP)» — так же),
-     «Чего не делаем»; свой список в «Порядке сборки» или «Порядке работ» —
-     ссылкой на «Этапы» `ROADMAP.md` (старое — в «было → станет»); заметка
-     владельца — дословно в подходящий раздел `##` или в «Задумано, но не
-     сделано» с С-xx: «Раздел замысла» её систем — этот заголовок. Второй
-     замысел — только строка в начале «главный замысел — <файл>, <дата>»;
-     его «Чего не делаем» не править (оно о его этапе);
+   After the answer — «Понял: …». What was not asked — `[допущение]`; what
+   is open — into «Решения» of `BLOCKED.md` or «Вопросы к этапу».
+5. **Stages — from «what the player will see»**, vertical slices: a
+   technical base — not a separate stage, but the first items of the stage
+   where the player sees it («двое видят друг друга в одном мире», «сотня
+   ботов бегает, игра не тормозит»); a risk probe — the first item of the
+   stage, except a render probe or an expensive feature judged by a pair
+   of frames («Готово, когда: пара кадров»): it goes after the accepted
+   light, `[вид]` does not reference it. Among `[вид]` the first — the
+   global look (light, haze, tone, palette; 2D — palette and scene light):
+   it does not wait for a render or shadow probe, the remaining `[вид]` —
+   `[ждёт света]` until the light's `принят кадр` (a project without a
+   light theme — without the marker, first — the theme by passport
+   dependencies). A hint ladder for the game (not mandatory): first
+   playable → first full loop → feature slice → content → release. A small
+   concept (≤ 7 systems) — one stage «Первая версия» and «Потом». A stage
+   — no more than a screen; over ~15 items or ~3 batches — cut by what is
+   visible («сотня заглушек ходит по миру» → «двое строят»). Visible
+   stages ≤ 7 (`сделан` not counted), the far ones — one line «Потом: …»,
+   their systems in «Покрытии» — «Потом». The first — `идёт`, the next —
+   `следом`, the rest — `потом`. Started queue work leading to the first
+   playable's «Что увидит игрок» — its part; not leading — its own `идёт`
+   stage («Довести начатое», size by the number of items), and the first
+   playable — `следом`; it beyond the second stage — as a line in the plan,
+   with why. What already works — `работает` in the stage that leans on
+   it, or a whole stage `сделан <дата>`. In-game time — «3 игровых дня»,
+   «пережить 3 дня», or in «…»: otherwise the script will take it for a
+   deadline.
+6. **Coverage:** every system — in exactly one stage, «Потом», or «Не
+   делаем»; «Требует» does not point to a later stage. Run `python -X utf8
+   tools/roadmap_check.py --plan docs/ROADMAP-PLAN.md` (no script in the
+   project — the same one from `.opencode/studio/templates/tools/` with
+   `--root <папка проекта>`; `/studio/setup обновить` will lay it down),
+   fix what it found before showing.
+7. **The plan for consent** — `docs/ROADMAP-PLAN.md`: «было → станет» (if a
+   map existed: the table «старый этап K → Этап N / Потом», where the queue
+   items, the foreign map's ones, and every «Из плана владельца» entry
+   went), `## Этапы` with `### Покрытие замысла` in the template's format
+   (the script reads them), the assumptions, what went into «Потом» and «Не
+   делаем», the questions deferred to stages, «Решено за вас». Into the
+   chat — the path and 3–5 lines of the gist (the stages, what the player
+   sees in the first, the script's verdict), then the dialog «Принять
+   (Recommended) / Поправить этапы / Поправить состав / Ещё поговорить»;
+   with a foreign plan file — as the second question of the same dialog
+   «<файл>: что с ним?» — «Оставить как архив со ссылкой (Recommended)» /
+   «Удалить» (only if no other document references the file; they do — no
+   question, an archive). «Поправить …» — listen, fix the plan, run the
+   script, ask again; «Ещё поговорить» — a dialog about what the owner
+   names.
+8. **Record after «Принять»** (first `git status` and `git log` of these
+   files: foreign uncommitted edits — stop and name them):
+   - `ROADMAP.md` — «Этапы» and «Покрытие» from the plan (a section missing
+     — insert from the template between «Текущая партия» and «Очередь»),
+     the `идёт` stage's systems — `в работе` (except `работает`); the
+     `идёт` stage's pieces — into «Подробности ближайших пунктов», its
+     items with `[этап N]` — into «Очередь» by the priority from
+     `AGENTS.md`. Do not lose the current items: the `идёт` stage's work
+     and bugs — with `[этап N]`; a later stage's item — removed from
+     «Очередь», the details kept with `[этап N]` in the heading; `Уборка:`
+     items — as is, without `[этап N]` (a stage does not depend on them).
+     «Из плана владельца» — entries verbatim into «Задумано, но не
+     сделано» of the main concept (at the start of the entry — `[этап N]`
+     or `[Потом]` and С-xx), into «Покрытии» and in the other documents'
+     references to the section — a reference to it; the section itself then
+     removed;
+   - the main concept (`CONCEPT.md` or the one chosen in step 1) — «Первая
+     версия» (for whom, dialog 1's verbs; the heading «Первая версия
+     (MVP)» — likewise), «Чего не делаем»; its own list in «Порядок
+     сборки» or «Порядке работ» — a reference to «Этапы» of `ROADMAP.md`
+     (the old one — into «было → станет»); the owner's note — verbatim
+     into the fitting `##` section or into «Задумано, но не сделано» with
+     С-xx: the «Раздел замысла» of its systems — that heading. The second
+     concept — only a row at the start «главный замысел — <файл>,
+     <дата>»; its «Чего не делаем» is not edited (it is about its stage);
    - `DECISIONS.md`, «Как ведётся работа» — «<дата>: карта собрана
-     `/studio/roadmap` — N этапов, покрытие X/Y; главный замысел — <файл>, <второй>
-     — первый этап | архив», выбранное в окнах дословно и таблица «старый
-     этап → новый»;
-   - `BLOCKED.md`, «Решения» — открытые решения;
-   - `README.md` и `README.ru.md` — блоки `status` и `pitch` (при смене
-     «Одной строкой»); About в «Git» `AGENTS.md` — пересобрать, если
-     сменилась «Одной строкой» (всё — по `.opencode/studio/reference/COMMITS.md`);
-   - ссылки на чужой файл плана и его номера этапов (`AGENTS.md`, «Какой
-     документ когда»; замысел, `BLOCKED.md`, `TESTING.md`) — на «Этапы»
-     `ROADMAP.md` и новые номера по таблице.
+     `/studio/roadmap` — N этапов, покрытие X/Y; главный замысел —
+     <файл>, <второй> — первый этап | архив», what was chosen in the
+     dialogs verbatim, and the table «старый этап → новый»;
+   - `BLOCKED.md`, «Решения» — the open decisions;
+   - `README.md` and `README.ru.md` — the `status` and `pitch` blocks (when
+     «Одной строкой» changes); About in `AGENTS.md`'s «Git» — rebuild if
+     «Одной строкой» changed (everything — per
+     `.opencode/studio/reference/COMMITS.md`);
+   - references to the foreign plan file and its stage numbers
+     (`AGENTS.md`, «Какой документ когда»; the concept, `BLOCKED.md`,
+     `TESTING.md`) — to `ROADMAP.md`'s «Этапы» and the new numbers by the
+     table.
 
-   Скрипт — ещё раз, без `--plan`. Чужой файл плана — по ответу шага 7:
-   архив — строка в начале «перенесено в `ROADMAP.md`, «Этапы», <дата>»;
-   «Удалить» — в тот же коммит. Документальный коммит `Roadmap:` / `Карта:`
-   («Roadmap: Plan six stages from first playable to release» / «Карта:
-   шесть этапов от первой игры до выпуска»), файлы поимённо; отправить, если
-   в `AGENTS.md` коммиты отправляются; план удалить. Отчёт: что увидит игрок
-   в первом этапе, этапы одной строкой, покрытие, что ушло в «Потом» и «Не
-   делаем»; About изменился и есть удалённый на GitHub — две строки по
-   «About» `COMMITS.md`; дальше — `/studio/start` в чате разработки.
+   The script — once more, without `--plan`. The foreign plan file — per
+   step 7's answer: an archive — the row at the start «перенесено в
+   `ROADMAP.md`, «Этапы», <дата>»; «Удалить» — into the same commit. The
+   documentation commit `Roadmap:` / `Карта:` («Roadmap: Plan six stages
+   from first playable to release» / «Карта: шесть этапов от первой игры
+   до выпуска»), files by name; push, if in `AGENTS.md` commits are
+   pushed; delete the plan. The report: what the player sees in the first
+   stage, the stages in one line, the coverage, what went into «Потом» and
+   «Не делаем»; About changed and one deleted on GitHub — two rows per
+   «About» of `COMMITS.md`; then — `/studio/start` in the dev chat.
 
 ## `следующий`
 
-Этап `следом` → `идёт`. Нет «Этапов» — сборка; нет `следом` — предложить
-`пересмотр`. Этап `идёт` ещё есть: его пункты в «Очереди» или в партии
-(`docs/BATCH.md`) — «Этап N ещё идёт: его закрывает `/studio/done` после последнего
-пункта» и остановиться; пунктов нет — окно «Этап N — закрыт? (по «Закрыт,
-когда»: …)» — `Да (Recommended)` / `Нет, ещё: …`. «Да» — как в `/studio/done`
-(`сделан <дата>`, его системы — `работает`), дальше шаги 1–4; «Нет» —
-заметку разобрать как `/studio/idea` (пункты `[этап N]` в «Очередь») и
-остановиться.
+The `следом` stage → `идёт`. No «Этапы» — assembly; no `следом` — offer
+`пересмотр`. An `идёт` stage still exists: its items in «Очереди» or in the
+batch (`docs/BATCH.md`) — «Этап N ещё идёт: его закрывает `/studio/done`
+после последнего пункта» and stop; no items — the dialog «Этап N — закрыт?
+(по «Закрыт, когда»: …)» — `Да (Recommended)` / `Нет, ещё: …`. «Да» — as in
+`/studio/done` (`сделан <дата>`, its systems — `работает`), then steps 1–4;
+«Нет» — take the note apart as `/studio/idea` (the items `[этап N]` into
+«Очередь») and stop.
 
-1. Прочитать этап, его системы в «Покрытии», их разделы замысла и записи
-   «Задумано, но не сделано» с `[этап N]`; по коду — что уже работает.
-2. Окно «Вопросы к этапу» (≤ 4) — из его строки и того, что изменилось;
-   вопросов нет — без окна. Ответ — дословно в `DECISIONS.md`; «пока не
-   знаю» — в «Решения» `BLOCKED.md`, пункт `[ждёт …]`.
-3. Куски — в «Подробности», пункты `[этап N]` — в «Очередь» (проба риска —
-   первой, проба по паре кадров — после принятого света; `[вид]` — свет
-   первым, остальные `[ждёт света]`, шаг 5 сборки; подробности с `[этап N]`,
-   оставленные раньше, — взять); системы
-   этапа — `в работе` (кроме `работает`); этап `потом` за ним — `следом`;
-   строку «Сейчас: …» поправить; README и About — как в шаге 8 сборки.
-4. Скрипт, документальный коммит `Roadmap:` / `Карта:` поимённо; отчёт: что
-   увидит игрок, первые пункты, строка про About (шаг 8), дальше — `/studio/start`
-   в чате разработки.
+1. Read the stage, its systems in «Покрытии», their concept sections, and
+   the «Задумано, но не сделано» entries with `[этап N]`; against the code —
+   what already works.
+2. The dialog «Вопросы к этапу» (≤ 4) — from its row and from what changed;
+   no questions — without a dialog. The answer — verbatim into
+   `DECISIONS.md`; «пока не знаю» — into «Решения» of `BLOCKED.md`, the item
+   `[ждёт …]`.
+3. The pieces — into «Подробности», the items `[этап N]` — into «Очередь»
+   (a risk probe — first, a pair-of-frames probe — after the accepted
+   light; `[вид]` — light first, the rest `[ждёт света]`, assembly step 5;
+   details with `[этап N]` left earlier — take them); the stage's systems —
+   `в работе` (except `работает`); the `потом` stage after it — `следом`;
+   fix the «Сейчас: …» row; README and About — as in assembly step 8.
+4. The script, the documentation commit `Roadmap:` / `Карта:` by name; the
+   report: what the player will see, the first items, the About line
+   (step 8), then — `/studio/start` in the dev chat.
 
 ## `пересмотр`
 
-Замысел сменился, пришла заметка владельца или скрипт нашёл разделы без
-систем. Шаги 1–3 сборки — сверить список систем с нынешним замыслом и
-заметкой; новое — в карту по шагам 4–6; устаревшее — в «Не делаем» с
-причиной (и в `DECISIONS.md`) отдельным списком плана: владелец видит его до
-«Принять»; система с записью в «Задумано, но не сделано» устаревшей не
-считается. Номера, имена и даты этапов `сделан` не менять. «Было → станет» —
-в `docs/ROADMAP-PLAN.md`; перемены у этапа `идёт` — отдельной строкой. Окно
-шага 7, запись — шаг 8.
+The concept changed, an owner's note arrived, or the script found sections
+without systems. Assembly steps 1–3 — check the system list against the
+current concept and the note; the new — into the map by steps 4–6; the
+outdated — into «Не делаем» with a reason (and in `DECISIONS.md`) as a
+separate list of the plan: the owner sees it before «Принять»; a system
+with a «Задумано, но не сделано» entry is not counted as outdated. The
+numbers, names, and dates of `сделан` stages are not changed. «Было →
+станет» — in `docs/ROADMAP-PLAN.md`; changes of an `идёт` stage — as a
+separate row. The dialog of step 7, the record — step 8.
 
 ## `прогноз`
 
-Только по закрытым этапам (`сделан <дата>`): строки темпа `/studio/retro` в
-«Прогноз» `DECISIONS.md`; нет их — счёт по истории `docs/BATCH.md` (снятия
-«Снята …» с пунктами `[этап N]`). Сколько партий занял этап каждого размера,
-сколько дней шла партия; оставшиеся этапы — диапазоном «N–M партий (~дней по
-вашему темпу)», с оговоркой «на стадии замысла ошибка до 4× в обе стороны;
-уточнится после этапа K» (K — этап `идёт`). Строка — в `DECISIONS.md`,
-«Прогноз» (нет раздела — завести по шаблону), документальный коммит
-`Roadmap:` / `Карта:`.
-Закрытых этапов нет — так и сказать, без выдуманных чисел. В «Этапы» дни не
-писать.
+Only by closed stages (`сделан <дата>`): the pace rows of `/studio/retro`
+in `DECISIONS.md`'s «Прогноз»; none — a count by the history of
+`docs/BATCH.md` (the «Снята …» removals with `[этап N]` items). How many
+batches a stage of each size took, how many days a batch ran; the remaining
+stages — as a range «N–M партий (~дней по вашему темпу)», with the caveat
+«на стадии замысла ошибка до 4× в обе стороны; уточнится после этапа K»
+(K — the `идёт` stage). The row — into `DECISIONS.md`, «Прогноз» (no
+section — start one by the template), the documentation commit `Roadmap:` /
+`Карта:`. No closed stages — say so, without invented numbers. Into
+«Этапы» write no days.

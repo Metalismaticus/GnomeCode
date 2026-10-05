@@ -1,52 +1,57 @@
 ---
-name: studio — замеры
-description: Протокол замеров производительности в конце запуска /studio/start (группа «замеры», занятый компьютер, шапка BATCH, коммит «Партия: замеры») и пары кадров пробы рендера. Загружать, завершая запуск со строкой «замеры» не «нет», или для пункта с «Готово, когда: пара кадров».
+name: studio — measurements
+description: Protocol of performance measurements at the end of a /studio/start run (the «замеры» group, a busy computer, the BATCH header, the measurements commit, and probe frame pairs. Load when finishing a run whose «замеры» line is not «нет», or for an item with «Готово, когда» — a probe frame pair.
 ---
 
-Ссылки «раздел N» — протокол `/studio/start`; «Бюджет производительности» и «Как мерить» — `docs/TESTING.md` проекта.
+“Section N” references mean the `/studio/start` protocol; «Бюджет
+производительности» and «Как мерить» — the project's `docs/TESTING.md`.
 
-**Замеры** — строка «замеры» «Команд проверки» `docs/TESTING.md` (нет строки
-— «нет»), в обоих случаях последней: если она не «нет» и партия меняла не
-только `docs/`, `tests/`, `tools/`, или замеры ждут с прошлого раза
-(«Замеры: отложены» в шапке, «замеры … не сняты» в «Принято без полной
-проверки» `docs/TESTING.md`); иначе строка «замеры не нужны». Владельца не
-ждать и не спрашивать — окна нет, замеры идут всегда:
+**Measurements** — the «замеры» line of the «Команды проверки» in
+`docs/TESTING.md` (no line — «нет»), in both cases the last one: if it is
+not «нет» and the batch changed more than only `docs/`, `tests/`, `tools/`,
+or measurements wait from last time («Замеры: отложены» in the header,
+“замеры … не сняты” in «Принято без полной проверки» of `docs/TESTING.md`);
+otherwise the line “замеры не нужны”. Do not wait for the owner and do not
+ask — no dialog, measurements always run:
 
-1. **Компьютер занят?** — предпроверка «Как мерить — группа „замеры“»
-   («Бюджет производительности» `docs/TESTING.md`): процессор, видеокарта,
-   другой процесс движка; занят — чем (у видеокарты — процесс по `pid_<N>`).
-   Это пометка, не остановка.
-2. **Прогон** — группу в основной папке, одну (занят — с `--занят`), в
-   контекст — итоговые строки. Код 3 (предпроверка не прошла) — «замер не
-   состоялся: <причина>», не красное, окно не открывать. Ошибка скрипта,
-   пустой вывод, другой код — «замеры: проверка сломана — <первая ошибка>», в
-   «Найдено по ходу», а не «хуже базы». Красное (повтор уже сделан по
-   «Регрессиям» «Бюджета производительности») — продукт вслепую не чинить и
-   пункты не откатывать: свежий `reviewer` по итогу называет, какой пункт
-   партии мог сдвинуть время кадра (CPU или GPU, пресет); строка «замер
-   <имя>, <пресет>: хуже базы на X% — вероятно пункт N» — в «Найдено по
-   ходу» и в отчёт.
-3. **Занят** — в отчёт «замеры сняты на занятом компьютере (<чем>) — числа
-   могут быть хуже настоящих»; базу не снимать и не менять; «хуже базы» —
-   не красное и не поиск виновника: «замер <имя>, <пресет>: хуже базы на X%
-   на занятом — перепроверить при следующем замере» в «Найдено по ходу».
-4. Партия остановлена — «Замеры: отложены <дата> — партия остановлена».
+1. **Is the computer busy?** — the pre-check “«Как мерить — группа
+   „замеры“»” («Бюджет производительности» of `docs/TESTING.md`): the CPU,
+   the GPU, another engine process; if busy — with what (for the GPU — the
+   process by `pid_<N>`). This is a note, not a stop.
+2. **The run** — the group in the main folder, once (busy — with `--занят`),
+   the result lines into the context. Code 3 (the pre-check failed) —
+   “замер не состоялся: <причина>”, not red, do not open a dialog. A script
+   error, empty output, another code — “замеры: проверка сломана — <первая
+   ошибка>”, into «Найдено по ходу», not “хуже базы”. Red (the retry
+   already done per the «Регрессии» of «Бюджет производительности») — do
+   not fix the product blind and do not revert items: a fresh `reviewer`,
+   from the result, names which batch item could have shifted the frame
+   time (CPU or GPU, preset); the line “замер <имя>, <пресет>: хуже базы
+   на X% — вероятно пункт N” — into «Найдено по ходу» and the report.
+3. **Busy** — into the report “замеры сняты на занятом компьютере (<чем>) —
+   числа могут быть хуже настоящих”; do not take and do not change the
+   baseline; “хуже базы” — not red and not a culprit hunt: “замер <имя>,
+   <пресет>: хуже базы на X% на занятом — перепроверить при следующем
+   замере” into «Найдено по ходу».
+4. The batch stopped — «Замеры: отложены <дата> — партия остановлена».
 
 
-После замера — строка шапки «Замеры:
-<зелёных>/<красных> на <хеш> [· на занятом: <чем>] | отложены … | не
-состоялись: <причина> | проверка сломана | не нужны» своим коммитом
-`Партия: замеры` вместе с базами `tests/perf/baselines/…`, которые прогон
-снял или переснял. 
-**Пара кадров пробы** — `[код]`-пункт с «Готово, когда: пара кадров» (смена
-рендера, дорогая возможность; после принятого света, 3б п. 1): те же кадры
-паспорта света на нынешнем и новом — «было / стало», один час, без мерок,
-пути — в «Как увидеть»; замер — как «Замеры», на экспортированной сборке
-после прогрева шейдеров; к пункту — «на вашем ПК тянет / не тянет (по
-замеру); на слабых — неизвестно», `DECISIONS:` — в «В документы при
-`/studio/done`», таблица чисел — в отчёт. Окна нет: пару на весь экран покажет
-`/studio/done`; принят — новый остаётся (строка о слабых ПК в `AGENTS.md` → минимум
-по замеру — строкой «Решил сам», о железе не спрашивать), отказ — откат к
-нынешнему. В отчёт — сломавшиеся шейдеры, частицы, первые секунды после
-загрузки. Проба ничего не блокирует: `[вид]` на неё не ссылаются.
+After the measurement — the header line «Замеры: <зелёных>/<красных> на
+<хеш> [· на занятом: <чем>] | отложены … | не состоялись: <причина> |
+проверка сломана | не нужны» with its own commit `Партия: замеры` together
+with the baselines `tests/perf/baselines/…` that the run took or retook.
 
+**The probe frame pair** — a `[код]` item with «Готово, когда: пара
+кадров» (a renderer change, an expensive capability; after accepted light,
+section 3b step 1): the light passport's same frames on the current and
+the new one — «было / стало», one hour, without measurements, the paths —
+in «Как увидеть»; the measurement — like «Замеры», on an exported build
+after shader warm-up; to the item — “на вашем ПК тянет / не тянет (по
+замеру); на слабых — неизвестно”, `DECISIONS:` — in «В документы при
+`/studio/done`», the numbers table — into the report. No dialog:
+`/studio/done` shows the pair full screen; accepted — the new one stays
+(the line about weak PCs in `AGENTS.md` → the minimum per measurement —
+with a «Решил сам» line, do not ask about hardware), rejected — revert to
+the current one. Into the report — broken shaders, particles, the first
+seconds after loading. The probe blocks nothing: `[вид]` items do not
+reference it.

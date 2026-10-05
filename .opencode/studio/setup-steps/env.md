@@ -1,103 +1,109 @@
-# Шаг 3 — проверка компьютера
+# Step 3 — checking the computer
 
-Железо, версии и что установлено — факты: узнать, не спрашивать и не брать
-из памяти. Владельцу пересказывать только то, что влияет на его решение.
+Hardware, versions, and what is installed — facts: find out, do not ask, do
+not take from memory. Report to the owner only what affects his decision.
 
-## 1. Снять факты
+## 1. Collect the facts
 
 ```
 powershell -NoProfile -ExecutionPolicy Bypass -File ".opencode/studio/env_check.ps1"
 ```
 
-Только чтение, вывод — JSON: ОС, процессор, видеокарта и видеопамять,
-память, частота монитора, питание, место на диске; git (`core.autocrlf`,
-git-lfs), python (Pillow), dotnet, ffmpeg, Blender, gh, winget; движки
-Godot, Unity, Unreal и шаблоны экспорта Godot; у ставимых — `winget_id`.
-«не удалось определить» — не «нет»: поискать ещё (`where`, известные папки)
-или дать владельцу «Покажу, где лежит». Скрипта нет или упал — те же факты командами по одной (`git
---version`, `python --version` …), неузнанное — «не удалось определить».
+Read-only, the output — JSON: OS, CPU, GPU and VRAM, RAM, monitor refresh
+rate, power, disk space; git (`core.autocrlf`, git-lfs), python (Pillow),
+dotnet, ffmpeg, Blender, gh, winget; the engines Godot, Unity, Unreal and
+Godot export templates; for the installable ones — `winget_id`. «не удалось
+определить» — not "no": search more (`where`, known folders) or give the owner
+«Покажу, где лежит». The script is missing or failed — the same facts with
+commands one at a time (`git --version`, `python --version` …), the
+unrecognized — «не удалось определить».
 
-## 2. Что нужно для выбранного пути
+## 2. What the chosen path needs
 
-| Нужно | Когда |
+| Needed | When |
 |---|---|
-| git | всегда |
-| python | всегда: на нём страж коммитов (нужен в PATH) и `tools/` |
-| Pillow | есть образцы или мир, который судят глазом (`tools/look_sheet.py`), или заказы картинок (`tools/asset_check.py`) |
-| движок | игра на движке — версия, которую выберет раунд (г) |
-| git-lfs | 3D или много звука, если владелец не против LFS |
-| gh | есть удалённый репозиторий на GitHub — узнать видимость |
-| ffmpeg, Blender | только если путь их требует (кадры из видео, правка моделей; ffmpeg — и музыка или звук из генераторов: MP3 в формат паспорта) |
+| git | always |
+| python | always: the commit guard runs on it (must be in PATH) and `tools/` |
+| Pillow | there are references or a world judged by eye (`tools/look_sheet.py`), or image orders (`tools/asset_check.py`) |
+| engine | a game on an engine — the version round (g) will choose |
+| git-lfs | 3D or a lot of audio, if the owner is not against LFS |
+| gh | there is a remote GitHub repository — to learn its visibility |
+| ffmpeg, Blender | only if the path requires them (frames from video, model editing; ffmpeg — also music or sound from generators: MP3 into the passport's format) |
 
-Стек ещё не ясен — окна про движок после раунда (г), остальное — сейчас.
+The stack is not yet clear — the engine dialogs after round (g), the rest —
+now.
 
-## 3. Недостающее — окном
+## 3. What is missing — via a dialog
 
-Вопрос на программу, до 4 в окне: «<Программа> не найдена — она нужна, чтобы
-<зачем словами продукта>. Поставить?» (header — имя программы):
+One question per program, up to 4 in a dialog: «<Программа> не найдена — она
+нужна, чтобы <зачем словами продукта>. Поставить?» (header — the program's
+name):
 
 - «Поставить через winget (Recommended)» — description: id `<winget_id>`,
-  размер, если известен; установка принимает лицензию программы;
-- «Покажу, где лежит» — владелец называет путь, проверить `--version`;
-- «Пропустить» — что тогда не заработает.
+  size if known; the installation accepts the program's license;
+- «Покажу, где лежит» — the owner names the path, verify with `--version`;
+- «Пропустить» — what will not work then.
 
-Только после «да», по одной программе, с пределом времени 600000 мс (или в
-фоне с ожиданием): `winget install --id <winget_id> -e
---accept-package-agreements --accept-source-agreements`; Windows может
-спросить подтверждение — это ожидаемо. Оборвалось по времени — снова
-`env_check.ps1`, вслепую не повторять. Pillow — тем же окном, варианты
-«Поставить (Recommended)» / «Пропустить», команда `python -m pip install
-pillow` (скрипты без неё выходят с кодом 2 и строкой «нужна Pillow: …»). Нет winget — вместо первого варианта ссылка на
-официальную страницу загрузки.
+Only after a "yes", one program at a time, with a time limit of 600000 ms (or
+in the background, waiting): `winget install --id <winget_id> -e
+--accept-package-agreements --accept-source-agreements`; Windows may ask for
+confirmation — that is expected. Timed out — run `env_check.ps1` again, do not
+retry blind. Pillow — the same dialog, the options «Поставить
+(Recommended)» / «Пропустить», the command `python -m pip install pillow`
+(without it the scripts exit with code 2 and the line «нужна Pillow: …»). No
+winget — a link to the official download page instead of the first option.
 
-После установки — снова `env_check.ps1`: новая программа может быть не видна
-этому чату до перезапуска (PATH), её ищут и в
-`%LOCALAPPDATA%\Microsoft\WinGet\Links`; путь писать полный. «Пропустить» и
-неудачу — строкой в «Окружение», не скрывать.
+After installation — `env_check.ps1` again: a new program may be invisible to
+this chat until a restart (PATH); it is also looked up in
+`%LOCALAPPDATA%\Microsoft\WinGet\Links`; write the path in full. «Пропустить»
+and a failure — as a line into «Окружение», do not hide.
 
-## 4. Движок и его версия
+## 4. The engine and its version
 
-- Версия — из `--version` установленного, не из памяти. Несколько версий —
-  рекомендовать в раунде (г) самую новую стабильную из найденных.
-- Версия новее твоих знаний (не уверен, что знаешь её изменения) — субагент
-  с поиском в сети, в фоне, собирает `docs/engine-notes.md` из официального
-  журнала изменений: что изменилось в API, настройках и импорте против
-  известной тебе версии, со ссылками; итог ≤ 15 строк. Исполнитель читает
-  файл перед работой.
-- Та же причина или стек тебе малознаком — вопрос (header «Context7»): «<Движок
-  или библиотека> <версия> новее того, что я знаю. Подключить Context7 —
-  документацию ровно этой версии?»: «Подключу сам (Recommended)» — в
-  приложении это **коннектор, а не плагин**: Customize → Connectors → поиск
-  «Context7» → Connect (есть инструмент показа коннекторов — показать им
-  кнопку), потом новый чат; исполнитель сверяет незнакомый API с этой версией
-  / «Не нужно» — хватит `docs/engine-notes.md` и официального сайта.
-  Подключает только владелец. Есть ли он — в этом чате есть инструменты
-  `resolve-library-id` и `query-docs` (у коннектора имя сервера — набор цифр
-  и букв) или с `context7` в имени; подключён, но не виден — «проверить в
-  следующем чате».
-- Godot: шаблоны экспорта в `%APPDATA%\Godot\export_templates\<версия>`
-  должны совпасть с версией движка точь-в-точь. Нет или не та — строкой в
-  «Окружение» и «Ловушки стека»; ставить — когда дойдёт до сборки.
+- The version — from the installed one's `--version`, not from memory.
+  Several versions — recommend the newest stable one found in round (g).
+- The version is newer than your knowledge (not sure you know its changes) —
+  a subagent with web search, in the background, assembles
+  `docs/engine-notes.md` from the official changelog: what changed in API,
+  settings, and import compared to the version you know, with links; the
+  result ≤ 15 lines. The executor reads the file before working.
+- The same reason, or a stack you barely know — the question (header
+  «Context7»): «<Движок или библиотека> <версия> новее того, что я знаю.
+  Подключить Context7 — документацию ровно этой версии?»: «Подключу сам
+  (Recommended)» — in the app this is **a connector, not a plugin**: Customize
+  → Connectors → search «Context7» → Connect (there is a tool that shows
+  connectors — show the button with it), then a new chat; the executor checks
+  an unfamiliar API against this version / «Не нужно» — `docs/engine-notes.md`
+  and the official site will do. Only the owner connects it. Whether it is
+  there — this chat has the `resolve-library-id` and `query-docs` tools (the
+  connector's server name is digits and letters) or with `context7` in the
+  name; connected but not visible — «проверить в следующем чате».
+- Godot: the export templates in
+  `%APPDATA%\Godot\export_templates\<версия>` must match the engine version
+  exactly. Missing or wrong — a line into «Окружение» and «Ловушки стека»;
+  install — when it reaches the build.
 
-## 5. Репозиторий
+## 5. The repository
 
-- Есть `gh` и удалённый репозиторий — `gh repo view --json visibility`;
-  удалённый есть, а `gh` нет — вопрос раунда (д). Публичный — чужие кадры в
-  `.gitignore`, в паспорте — ссылка на источник (`plan.md`, файлы).
-- Удалённого нет — не спрашивать: в `INDEX.md` «Репозиторий: только на этом
-  компьютере — образцы в git; публикуя на GitHub, выберите «Private» или
-  скажите, чтобы `ref-*` ушли в `.gitignore`».
-- `core.autocrlf=true` — `.gitattributes` обязателен (шаг 8).
+- There are `gh` and a remote repository — `gh repo view --json visibility`;
+  there is a remote but no `gh` — the question of round (d). Public — other
+  people's frames into `.gitignore`, in the passport a link to the source
+  (`plan.md`, files).
+- No remote — do not ask: into `INDEX.md` the line «Репозиторий: только на
+  этом компьютере — образцы в git; публикуя на GitHub, выберите «Private»
+  или скажите, чтобы `ref-*` ушли в `.gitignore`».
+- `core.autocrlf=true` — `.gitattributes` is mandatory (step 8).
 
-## Итог
+## Result
 
-До шага 8 — в `docs/SETUP-PLAN.md`; на шаге 8 — `## Окружение` в
-`docs/TESTING.md` (таблица инструментов и версий, путь к движку, что
-поставлено и когда: дата, «через winget» / «указал владелец»), путь к
-движку — одной строкой в `AGENTS.md`, «Стек»; Context7 — есть / нет / не
-нужен. Видеокарта, память и частота монитора — для рекомендации стека (г) и
-бюджетов (`3d.md`); у игры отпечаток машины (процессор и ядра, видеокарта и
-видеопамять, драйвер, ОС, экран и частота, питание) — строкой в «Машинах
-замера» «Бюджета производительности» `docs/TESTING.md`, коэффициенты — из
-`tools/perf_ref.json` с пометкой «оценка»; машины нет в таблице — строка по
-PassMark с URL и датой, «оценка» (`match_rule` таблицы).
+Before step 8 — into `docs/SETUP-PLAN.md`; at step 8 — `## Окружение` in
+`docs/TESTING.md` (a table of tools and versions, the engine path, what was
+installed and when: date, «через winget» / «указал владелец»), the engine path
+— as one line in `AGENTS.md`, «Стек»; Context7 — yes / no / not needed. The
+GPU, RAM, and monitor refresh rate — for the stack recommendation (round (g))
+and budgets (`3d.md`); for a game the machine's fingerprint (CPU and cores,
+GPU and VRAM, driver, OS, screen and refresh rate, power) — as a line into
+«Машины замера» of «Бюджет производительности» in `docs/TESTING.md`, the
+coefficients — from `tools/perf_ref.json` with the note «оценка»; a machine
+not in the table — a row from PassMark with a URL and date, «оценка» (the
+table's `match_rule`).

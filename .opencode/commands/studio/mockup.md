@@ -3,8 +3,8 @@ description: Нужен макет экрана — короткая форма 
 agent: studio
 ---
 
-Нужен макет экрана: **$ARGUMENTS**
+Need a screen mockup: **$ARGUMENTS**
 
-Это короткая форма `/studio/order design <экран>`. Прочитать `.opencode/commands/studio/order.md` и выполнить его целиком с видом
-`design` и описанием выше. Бриф собирать с **настоящими данными**: самый
-короткий и самый длинный текст, ноль и сто элементов — а не с заглушками.
+This is a short form of `/studio/order design <screen>`. Read `.opencode/commands/studio/order.md` and execute it in full with the kind
+`design` and the description above. Build the brief with **real data**: the shortest
+and the longest text, zero and a hundred items — not with stubs.

@@ -3,147 +3,172 @@ description: Развернуть в папке проекта процесс st
 agent: studio
 ---
 
-Что разворачиваем: **$ARGUMENTS**
+What we are setting up: **$ARGUMENTS**
 
-(Если строка выше пуста или осталась без подстановки — взять из сообщения
-владельца; нет и там — начать с шага 1. «Обновить» — `.opencode/studio/setup-steps/update.md`.)
+(If the line above is empty or left unsubstituted — take it from the owner's
+message; not there either — start from step 1. «Обновить» —
+`.opencode/studio/setup-steps/update.md`.)
 
-Всё нужное — в папке плагина studio (в корне проекта):
+Everything needed is in the studio plugin folder (in the project root):
 
-- `.opencode/studio/setup-steps/<шаг>.md` — подробности шага. **Прочитать файл шага, дойдя до
-  него**, а не действовать по памяти; после сжатия контекста — перечитать.
-- `.opencode/studio/templates/` — шаблоны документов и `tools/`. `{{…}}` — место для
-  содержимого: в готовом документе не остаётся ни одной `{{`.
-- `.opencode/studio/reference/ASKING.md` — как спрашивать; `.opencode/studio/reference/COMMITS.md` —
-  коммиты, README и About; `.opencode/studio/env_check.ps1` — проверка компьютера;
-  `.opencode/studio/hooks/selftest.py` — самопроверка стража.
+- `.opencode/studio/setup-steps/<шаг>.md` — the step's details. **Read the step
+  file upon reaching it**, not act from memory; after a context squeeze — reread.
+- `.opencode/studio/templates/` — document templates and `tools/`. `{{…}}` — a
+  place for content: a finished document keeps not a single `{{`.
+- `.opencode/studio/reference/ASKING.md` — how to ask; `.opencode/studio/reference/COMMITS.md` —
+  commits, README, and About; `.opencode/studio/env_check.ps1` — the computer
+  check; `.opencode/studio/hooks/selftest.py` — the guard's self-test.
 
-## Главное
+## Key points
 
-- **Вопросы — окнами** по `ASKING.md`, только о решениях владельца. Железо,
-  версии, что установлено, где движок — **факты**: узнать `env_check.ps1`, не
-  спрашивать и не брать из памяти. Сказанное с оговоркой («наверное») —
-  пометка `[предварительно]`, а не решение владельца.
-- **Показывать, а не описывать.** Образцы владельца (игры, скрины, ссылки) до
-  вопросов разбирает агент `reference` в `docs/refs/`; картинку — путём к файлу, потом окно.
-- **Программы ставить только после «да»** — вопрос на каждую программу.
-- **Ничего существующего не перезаписывать** (кроме процессных разделов в
-  «обновить» после согласия). До «Принять» на шаге 7 пишутся только
-  `docs/SETUP-PLAN.md`, `docs/refs/`, `docs/engine-notes.md` и `tools/` из
-  шаблонов.
-- **Кода продукта не писать.** Каркас проекта движка на шаге 10 —
-  инфраструктура; дальше код — только через очередь.
-- **Журнал старта:** каждое решение и допущение — строкой (до шага 8 — в
-  `docs/SETUP-PLAN.md`, потом в `docs/DECISIONS.md`, `## Старт`). Повторный
-  `/studio/setup` читает журнал и показывает, что меняется, а не переписывает
-  документы.
-- **Git** — файлы поимённо, никогда `git add -A` или `git add .`; отправлять —
-  только если владелец сказал, и в тот репозиторий, который он назвал.
-  Сообщения коммитов — по `COMMITS.md`, пометка `Process:` / `Процесс:`.
-- Отчёты и вопросы — словами продукта.
+- Questions — via dialogs per `ASKING.md`, only about the owner's decisions.
+  Hardware, versions, what is installed, where the engine is — **facts**: find
+  out via `env_check.ps1`, do not ask and do not take from memory. Something
+  said with a hedge («наверное») — the `[предварительно]` tag, not an owner
+  decision.
+- **Show, do not describe.** The owner's references (games, screenshots, links)
+  are analyzed by the `reference` agent in `docs/refs/` before the questions;
+  an image — by the file path, then the dialog.
+- **Install programs only after a "yes"** — one question per program.
+- **Do not overwrite anything existing** (except the process sections in
+  «обновить» after consent). Before «Принять» at step 7, only
+  `docs/SETUP-PLAN.md`, `docs/refs/`, `docs/engine-notes.md`, and `tools/` from
+  the templates are written.
+- **Do not write product code — and setup follows the role of the chat it
+  runs in.** The concept chat never builds the skeleton and never opens
+  the product, not even during setup: its setup is steps 1–9 (questions,
+  env check, documents, references, the queue) plus their document
+  commit; then stop — "steps 10–12 (the scaffold and the live window) —
+  in the dev chat: run `/studio/setup` there" (the plan waits in
+  `docs/SETUP-PLAN.md`; the next setup resumes from the first unfinished
+  step). The dev chat runs every step, including step 10: the project
+  scaffold (infrastructure, not features) and the window — announce it in
+  one line **before** starting. Beyond that, code — only through the
+  queue.
+- **Setup log:** every decision and assumption — as a row (before step 8 — in
+  `docs/SETUP-PLAN.md`, then in `docs/DECISIONS.md`, `## Старт`). A repeat
+  `/studio/setup` reads the log and shows what changes, it does not rewrite the
+  documents.
+- **Git** — files by name, never `git add -A` or `git add .`; push — only if
+  the owner said so, and to the repository he named. Commit messages — per
+  `COMMITS.md`, the `Process:` / `Процесс:` marker.
+- Reports and questions — in product words.
 
-## 0. Где мы
+## 0. Where we are
 
-| Что в папке (сверху вниз) | Режим |
+| What is in the folder (top to bottom) | Mode |
 |---|---|
-| есть `docs/SETUP-PLAN.md` | **прерванный старт** — прочитать план и `docs/refs/`, продолжить с первого несделанного шага: по журналу плана и файлам (есть `{{` в документах — шаг 8; нет очереди — 9; нет `docs/refs/setup/first-frame.png` и строки «Первый запуск окна» — 10; нет коммита — 12). План «было → станет» — прерванный пересмотр, `.opencode/studio/setup-steps/update.md` |
-| есть `docs/ROADMAP.md` | **развёрнут** — `.opencode/studio/setup-steps/update.md` |
-| есть код | **существующий** — сначала `.opencode/studio/setup-steps/existing.md`, дальше шаги 1–12 с его поправками |
-| пусто или только заметки | **новый проект** — шаги 1–12 |
+| has `docs/SETUP-PLAN.md` | **interrupted setup** — read the plan and `docs/refs/`, continue from the first undone step: by the plan's log and the files (`{{` in the documents — step 8; no queue — 9; no `docs/refs/setup/first-frame.png` and no «Первый запуск окна» row — 10; no commit — 12). A «было → станет» plan — an interrupted revision, `.opencode/studio/setup-steps/update.md` |
+| has `docs/ROADMAP.md` | **deployed** — `.opencode/studio/setup-steps/update.md` |
+| has code | **existing** — first `.opencode/studio/setup-steps/existing.md`, then steps 1–12 with its adjustments |
+| empty or notes only | **new project** — steps 1–12 |
 
-Свой `AGENTS.md` без метки studio — не заменять: окно «Вставить разделы
-процесса (Recommended) / Показать разницу / Не трогать», разница — во
-временный файл вне проекта.
+An own `AGENTS.md` without the studio marker — do not replace: the dialog
+«Вставить разделы процесса (Recommended) / Показать разницу / Не трогать», the
+difference — into a temporary file outside the project.
 
-## Шаги
+## Steps
 
-1. **Окно из двух вопросов** — `.opencode/studio/setup-steps/talk.md`: «Где вы сейчас?» (Идеи нет /
-   Идея смутная / Идея ясная / Уже есть наработки) и «Как стартуем?»
-   (Быстрый старт (Recommended) / Подробно).
-2. **Одна просьба текстом**, не окном: «Расскажите своими словами и принесите
-   всё, что есть: игры, на которые похоже, скрины (можно вставить в чат),
-   ссылки, заметки». Ответ — дословно в `docs/SETUP-PLAN.md`.
-3. **Проверка компьютера** — `.opencode/studio/setup-steps/env.md`: `env_check.ps1`; недостающее для
-   выбранного пути — окно «Поставить через winget (Recommended) / Покажу, где
-   лежит / Пропустить». Версия движка — из установленного; новее твоих знаний
-   или стек незнаком — `docs/engine-notes.md` и окно про Context7 (коннектор;
-   подключает владелец). Итог — `## Окружение` в `docs/TESTING.md`, путь к движку —
-   строкой в `AGENTS.md`; у игры отпечаток машины — в «Машины замера»
-   «Бюджета производительности» там же.
-4. **Разбор до вопросов** — `.opencode/studio/setup-steps/refs.md`: на каждый названный образец
-   (≤ 3) агент `reference`, параллельно, и общий исследователь ловушек жанра
-   и движка этой версии — в фоне, пока идут раунды (а) и (б).
-5. **Раунды окон** — `.opencode/studio/setup-steps/talk.md`: (а) жанр, камера, платформы, размер;
-   (б) 30-секундный цикл; (в) образцы; (г) стек и компьютеры игроков (игра);
-   (д) заказы, параллельность и git — язык коммитов, README, приватность. В
-   окне ≤ 4 вопроса; быстрый старт — ≤ 4 раундов, подробный — ≤ 7. После (г)
-   — установка движка, `.opencode/studio/setup-steps/env.md` п. 3–4.
-6. **3D** — `.opencode/studio/setup-steps/3d.md`: «Правила проекта» масштаба, осей и импорта; виды
-   заказов `model3d` (glTF `.glb`, метры, Y вверх, опорная точка внизу по
-   центру, «вперёд» +Z; проверка пришедшего — `tools/model_check.py`),
-   `texture`; пункт «Настройки графики».
-7. **Пересказ** — `.opencode/studio/setup-steps/plan.md` (проверки продумать до него —
-   `.opencode/studio/setup-steps/testing.md`): `docs/SETUP-PLAN.md`, путь владельцу, окно «Принять
+1. **A dialog of two questions** — `.opencode/studio/setup-steps/talk.md`:
+   «Где вы сейчас?» (Идеи нет / Идея смутная / Идея ясная / Уже есть наработки)
+   and «Как стартуем?» (Быстрый старт (Recommended) / Подробно).
+2. **One request as text**, not a dialog: «Расскажите своими словами и
+   принесите всё, что есть: игры, на которые похоже, скрины (можно вставить в
+   чат), ссылки, заметки». The answer — verbatim into `docs/SETUP-PLAN.md`.
+3. **Computer check** — `.opencode/studio/setup-steps/env.md`:
+   `env_check.ps1`; what is missing for the chosen path — the dialog «Поставить
+   через winget (Recommended) / Покажу, где лежит / Пропустить». The engine
+   version — from what is installed; newer than your knowledge or an unfamiliar
+   stack — `docs/engine-notes.md` and a dialog about Context7 (a connector; the
+   owner connects it). The result — `## Окружение` in `docs/TESTING.md`, the
+   engine path — as a row in `AGENTS.md`; for a game, the machine fingerprint —
+   in the «Машины замера» of the «Бюджет производительности» there too.
+4. **Analysis before questions** — `.opencode/studio/setup-steps/refs.md`: for
+   every named reference (≤ 3) the `reference` agent, in parallel, and one
+   shared investigator of the genre's and this engine version's traps — in the
+   background, while rounds (a) and (b) run.
+5. **Dialog rounds** — `.opencode/studio/setup-steps/talk.md`: (a) genre,
+   camera, platforms, size; (b) the 30-second loop; (c) references; (d) the
+   stack and the players' computers (game); (e) orders, parallelism, and git —
+   the commit language, README, privacy. A dialog has ≤ 4 questions; quick
+   start — ≤ 4 rounds, detailed — ≤ 7. After (d) — engine installation,
+   `.opencode/studio/setup-steps/env.md` p. 3–4.
+6. **3D** — `.opencode/studio/setup-steps/3d.md`: the «Правила проекта» for
+   scale, axes, and import; the order kinds `model3d` (glTF `.glb`, meters, Y
+   up, the pivot at the bottom center, «вперёд» +Z; checking what arrives —
+   `tools/model_check.py`), `texture`; the «Настройки графики» item.
+7. **Recap** — `.opencode/studio/setup-steps/plan.md` (think the checks through
+   before it — `.opencode/studio/setup-steps/testing.md`):
+   `docs/SETUP-PLAN.md`, the path for the owner, the dialog «Принять
    (Recommended) / Поправить понимание / Поправить очередь / Ещё поговорить».
-   Кроме «Принять» — поправить и спросить снова. Подробный старт или больше 7
-   систем — затем окно про `/studio/roadmap`.
-8. **Файлы** — `.opencode/studio/setup-steps/plan.md`: документы из шаблонов, `docs/refs/` (мир
-   судят глазом — и `docs/refs/TECHNIQUES.md`, «Свои приёмы» к библиотеке
-   `.opencode/studio/reference/LOOK_TECHNIQUES.md`), `.gitattributes`, `.gitignore`,
-   README по ответу раунда (д), «Git» в
-   `AGENTS.md`; у игры — `tools/perf_ref.json`, «Бюджет производительности»
-   и «Как открывается окно» в `docs/TESTING.md` (`.opencode/studio/setup-steps/testing.md`); есть
-   код — `tools/code_check.py` (у Godot и `tools/load_all.gd`); быстрый
-   старт — одностраничный бриф в `CONCEPT.md`, остальное — заготовками.
-9. **Этап 1 — вертикальный срез** — `.opencode/studio/setup-steps/plan.md`: «Этап 1. Первое
-   играбельное», пункты `[этап 1]` от пробы стека и каркаса через серую
-   коробку и первый кадр по образцу до полного цикла на 3–5 минут; остальные
-   системы — «Покрытие замысла», «Потом».
-10. **Каркас и живое окно** — `.opencode/studio/setup-steps/finale.md`: проект движка его же
-    инструментами, типы уровнем «ошибка», запуск окна, снимок
-    `docs/refs/setup/first-frame.png`, окно «Видите окно игры?».
-11. **Журнал старта** — `.opencode/studio/setup-steps/plan.md`: `docs/DECISIONS.md`, `## Старт` —
-    каждое решение и допущение плана и итог шага 10, по строке.
-12. **Коммит, страж, отчёт** — ниже.
+   Anything but «Принять» — adjust and ask again. A detailed start or more than
+   7 systems — then a dialog about `/studio/roadmap`.
+8. **Files** — `.opencode/studio/setup-steps/plan.md`: documents from
+   templates, `docs/refs/` (the world is judged by eye — so also
+   `docs/refs/TECHNIQUES.md`, «Свои приёмы» toward the
+   `.opencode/studio/reference/LOOK_TECHNIQUES.md` library), `.gitattributes`,
+   `.gitignore`, README per round (d)'s answer, «Git» in `AGENTS.md`; for a
+   game — `tools/perf_ref.json`, «Бюджет производительности» and «Как
+   открывается окно» in `docs/TESTING.md`
+   (`.opencode/studio/setup-steps/testing.md`); code exists —
+   `tools/code_check.py` (for Godot also `tools/load_all.gd`); quick start — a
+   one-page brief in `CONCEPT.md`, the rest as stubs.
+9. **Stage 1 — the vertical slice** — `.opencode/studio/setup-steps/plan.md`:
+   «Этап 1. Первое играбельное», the `[этап 1]` items from the stack and
+   scaffold trial through the grey box and the first frame per the reference to
+   a full 3–5 minute loop; the other systems — «Покрытие замысла», «Потом».
+10. **Scaffold and a live window** — `.opencode/studio/setup-steps/finale.md`:
+    the engine project with its own tools, types at the "error" level, a
+    window launch, the screenshot `docs/refs/setup/first-frame.png`, the dialog
+    «Видите окно игры?».
+11. **Setup log** — `.opencode/studio/setup-steps/plan.md`:
+    `docs/DECISIONS.md`, `## Старт` — every decision and assumption of the plan
+    and the outcome of step 10, one row each.
+12. **Commit, guard, report** — below.
 
-## 12. Коммит, страж, отчёт
+## 12. Commit, guard, report
 
-Нет репозитория — создать на ветке `main` без окна, строкой «Решено за вас»:
-без истории не работают контрольные коммиты и откат `/studio/done`. Есть
-`tools/code_check.py`, а базы нет — после репозитория (без git мерить нечем:
-код 2) и до коммита `python -X utf8 tools/code_check.py --baseline`: база —
-нынешний код, `tools/code_baseline.json` — в коммит; затем замер времени
-строки «здоровье кода» — в «Команды проверки» `docs/TESTING.md`. Фоновый сбор
-`docs/engine-notes.md` (шаг 3) — дождаться до коммита. Первый коммит — файлы
-**поимённо**, пометка `Process:` / `Процесс:` («Process: Set up the studio
-workflow and the Stage 1 queue» / «Процесс: развёрнут процесс studio и
-очередь Этапа 1»); в существующем проекте — только созданные `/studio/setup`.
-`docs/SETUP-PLAN.md` не коммитить: после коммита удалить, его содержимое уже в
-документах. Отправлять — только по слову владельца.
+No repository — create one on the `main` branch without a dialog, with the
+«Решено за вас» row: without history, checkpoint commits and the `/studio/done`
+revert do not work. `tools/code_check.py` exists but the baseline does not —
+after the repository (without git there is nothing to measure with: code 2) and
+before the commit, `python -X utf8 tools/code_check.py --baseline`: the
+baseline is the current code, `tools/code_baseline.json` — into the commit;
+then the timing measurement of the «здоровье кода» row — into the «Команды
+проверки» of `docs/TESTING.md`. The background collection of
+`docs/engine-notes.md` (step 3) — wait for it before the commit. The first
+commit — files **by name**, the `Process:` / `Процесс:` marker ("Process: Set
+up the studio workflow and the Stage 1 queue" / «Процесс: развёрнут процесс
+studio и очередь Этапа 1»); in an existing project — only what `/studio/setup`
+created. Do not commit `docs/SETUP-PLAN.md`: delete it after the commit, its
+content is already in the documents. Push — only by the owner's word.
 
-Самопроверка хуков: `python -X utf8 ".opencode/studio/hooks/selftest.py"`,
-в контекст только итог. Код 0 — «страж коммитов: работает». В итоге «хуки НЕ
-работают» или нет `python` — «страж коммитов: молчит» и первая строка
-провала: в папке двух чатов ничто не остановит `git add -A` и `git stash`;
-«проверка карты НЕ работает» и «проверка кода НЕ работает» — строкой в отчёт
-(«проверка кода сломана: <что неверно>»).
+Hooks self-test: `python -X utf8 ".opencode/studio/hooks/selftest.py"`, only the
+result into the context. Code 0 — «страж коммитов: работает». The result says
+«хуки НЕ работают» or there is no `python` — «страж коммитов: молчит» and the
+first line of the failure: in a two-chat folder nothing will stop `git add -A`
+and `git stash`; «проверка карты НЕ работает» and «проверка кода НЕ работает» —
+as a row into the report («проверка кода сломана: <что неверно>»).
 
-Отчёт:
+Report:
 
-- что создано и что намеренно не тронуто;
-- окружение: что стоит, что поставлено сейчас, чего нет и что без этого не
-  заработает;
-- что запущено: окно игры и путь снимка — или прямо «не запустилось:
-  <почему>, <что дальше>»;
-- как теперь проверяется продукт и что работает уже сегодня;
-- строка «страж коммитов: работает | молчит»;
-- есть удалённый репозиторий на GitHub — две строки About (Description и
-  Topics) по «About» `COMMITS.md`, из «Git» `AGENTS.md`; сам плагин на
-  GitHub ничего не меняет;
-- открытые решения — списком, как в `/studio/need`;
-- как работать дальше: **два чата в этой папке** — назвать их «<Проект> ·
-  замысел» (`/studio/idea`, `/studio/roadmap`, `/studio/fault`, `/studio/order`, `/studio/need`) и «<Проект> ·
-  разработка» (`/studio/start`, `/studio/done`, `/studio/add`, `/studio/check`, `/studio/parallel`, `/studio/retro`,
-  `/studio/release`); `/studio/board` — в любом. Первый шаг: в чате разработки `/studio/start` —
-  он возьмёт первый пункт Этапа 1. Окно шага 7 про `/studio/roadmap`: «сейчас» — он
-  здесь же после отчёта, «позже» — строка «весь замысел на этапы — `/studio/roadmap`».
+- what was created and what was deliberately left untouched;
+- the environment: what is installed, what was installed now, what is missing,
+  and what will not work without it;
+- what was launched: the game window and the screenshot path — or straight up
+  «не запустилось: <почему>, <что дальше>»;
+- how the product is checked now and what already works today;
+- the row «страж коммитов: работает | молчит»;
+- there is a remote repository on GitHub — two About lines (Description and
+  Topics) per the "About" section of `COMMITS.md`, from the «Git» section of
+  `AGENTS.md`; the plugin itself changes nothing on GitHub;
+- open decisions — as a list, as in `/studio/need`;
+- how to work next: **two chats in this folder** — name them «<Проект> ·
+  замысел» (`/studio/idea`, `/studio/roadmap`, `/studio/fault`,
+  `/studio/order`, `/studio/need`) and «<Проект> · разработка»
+  (`/studio/start`, `/studio/done`, `/studio/add`, `/studio/check`,
+  `/studio/parallel`, `/studio/retro`, `/studio/release`); `/studio/board` —
+  in either. First step: in the dev chat `/studio/start` — it will take
+  Stage 1's first item. The step 7 dialog about `/studio/roadmap`: «сейчас» —
+  it happens right here after the report, «позже» — the row «весь замысел на
+  этапы — `/studio/roadmap`».

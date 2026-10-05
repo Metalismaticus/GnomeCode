@@ -14,9 +14,14 @@
  * нет) и на первом промпте сессии — дельта-запись использования в
  * ../<проект>.wt/usage/studio-usage.jsonl: строка на каждый ответ модели
  * студии — {t, sid, parent, agent, model, in, out, cacheRead, cacheWrite,
- * reasoning, cost}. Дедуп — по id сообщений в ctx.storage; чужие проекты
- * — мимо (фильтр по projectID — поток событий общий на сервер). Тишина
- * важнее полноты: любая ошибка телеметрии не ломает работу.
+ * reasoning, cost}. Агенты — основные и запасные «-any» (запасной
+ * наследует модель чата и работает, пока основная недоступна — его
+ * ответы не должны выпадать из журнала). Досмотр — от свежих сообщений
+ * к старым с остановкой на первом записанном (не перечитывать всю
+ * сессию на каждый шаг); известные id — последние 400 на сессию. Дедуп —
+ * по id сообщений в ctx.storage; чужие проекты — мимо (фильтр по
+ * projectID — поток событий общий на сервер). Тишина важнее полноты:
+ * любая ошибка телеметрии не ломает работу.
  */
 import { spawn } from "node:child_process"
 import * as fs from "node:fs"
@@ -28,6 +33,13 @@ const STUDIO_AGENTS = new Set([
   "studio", "executor-prep", "executor-code", "executor-finish",
   "reviewer", "reviewer-fast", "designer", "scout", "assets", "reference",
 ])
+
+/** Агент студии: основной или запасной «-any» (наследует модель чата). */
+function isStudioAgent(name) {
+  return typeof name === "string" &&
+    (STUDIO_AGENTS.has(name) ||
+     (name.endsWith("-any") && STUDIO_AGENTS.has(name.slice(0, -4))))
+}
 
 function pluginData(ctx) {
   return `${ctx.location.directory}/.opencode/studio`
@@ -129,9 +141,10 @@ export default {
             if (String(ev?.type ?? "") !== "session.usage.updated") continue
             const sid = ev?.data?.sessionID ?? ev?.sessionID
             if (typeof sid !== "string") continue
-            // не чаще раза в 2 с на сессию: событие идёт на каждый шаг
+            // не чаще раза в 10 с на сессию: событие идёт на каждый шаг,
+            // а досмотр — не бесплатный (контекст сессии целиком)
             const now = Date.now()
-            if ((throttle.get(sid) ?? 0) > now - 2000) continue
+            if ((throttle.get(sid) ?? 0) > now - 10_000) continue
             throttle.set(sid, now)
             void flushUsage(ctx, sid)
           } catch {}
@@ -153,10 +166,14 @@ async function flushUsage(ctx, sid) {
     const seenMap = (await ctx.storage.get("usage-seen")) ?? {}
     const known = new Set(Array.isArray(seenMap[sid]) ? seenMap[sid] : [])
     const fresh = []
-    for (const m of messages ?? []) {
-      if (m?.type !== "assistant" || !m?.tokens || !STUDIO_AGENTS.has(m?.agent)) continue
-      if (known.has(m.id)) continue
+    const freshIds = []
+    // от свежих к старым: за записанным ответы уже учтены — дальше не идём
+    for (let i = (messages ?? []).length - 1; i >= 0; i--) {
+      const m = messages[i]
+      if (m?.type !== "assistant" || !m?.tokens || !isStudioAgent(m?.agent)) continue
+      if (known.has(m.id)) break
       known.add(m.id)
+      freshIds.push(m.id)
       const t = m.tokens ?? {}
       fresh.push({
         t: isoTime(m.time?.completed ?? m.time?.created),
@@ -173,7 +190,10 @@ async function flushUsage(ctx, sid) {
       })
     }
     if (!fresh.length) return
-    seenMap[sid] = [...known]
+    fresh.reverse() // хронология: старые раньше
+    // известные id — только последние: список не растёт вечно
+    const prev = Array.isArray(seenMap[sid]) ? seenMap[sid] : []
+    seenMap[sid] = [...freshIds.slice().reverse(), ...prev].slice(0, 400)
     const keys = Object.keys(seenMap)
     if (keys.length > 100) {
       for (const k of keys.slice(0, keys.length - 100)) delete seenMap[k]

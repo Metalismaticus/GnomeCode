@@ -3,80 +3,86 @@ description: Прогнать проверки проекта по docs/TESTING.
 agent: studio
 ---
 
-Что проверяем: **$ARGUMENTS**
+What we are testing: **$ARGUMENTS**
 
-(Если строка выше пуста или осталась без подстановки — взять из сообщения
-владельца.) Пусто — гоним полную проверку. Имя — только её или её группу.
-Команды и точный список проверок читать из `docs/TESTING.md` и из самого
-набора проверок: не полагаться на число из памяти. Вопросы — окнами по
-`.opencode/studio/reference/ASKING.md`.
+(If the line above is empty or was left unsubstituted — take it from the
+owner's message.) Empty — run the full run. A name — only that test or its
+group. Read the commands and the exact test list from `docs/TESTING.md` and
+from the test suite itself: do not trust a count from memory. Questions — via
+the `question` dialog per `.opencode/studio/reference/ASKING.md`.
 
-Состояние полигона в `docs/TESTING.md` — «нет»: выполнить то, что названо в
-«Что проверяется уже сейчас», и сказать прямо, чего это **не** проверяет. Пункт
-о постройке проверок стоит в очереди — назвать его место.
+The testbed state in `docs/TESTING.md` — «нет»: do what the section «Что
+проверяется уже сейчас» names, and say plainly what this does **not** test. If
+the item on building tests stands in the queue — name its place.
 
-## 1. Прогнать
+## 1. Run
 
-Команда — из таблицы `docs/TESTING.md`; вердикт читать так, как сказано в
-столбце «Как читать вердикт», и по «Правилам каркаса» («Полигон»): пустой
-вывод, ненайденный движок, зависание (код 124), проверка без утверждений —
-красное, а не «ничего не упало». Коду возврата верить только там, где он назван
-честным.
+The command — from the table in `docs/TESTING.md`; read the verdict the way
+the column «Как читать вердикт» says, and per the «Правила каркаса»
+(«Полигон»): empty output, engine not found, a hang (exit code 124), a test
+without assertions — red, not "nothing fell over". Trust the exit code only
+where it is declared honest.
 
-Ошибки разбора и загрузки самих проверок разбирать **прежде** провалов:
-сломанная проверка не провал продукта, а отсутствие проверки — итог не
-зелёный.
+Parse and load errors of the tests themselves — handle **before** failures:
+a broken test is not a product failure, and a missing test means the result
+is not green.
 
-**Красное — повторить.** Упала быстрая — прогнать её ещё дважды; в полной или
-группе — покрасневшие проверки по имени ещё дважды. Красная все три раза —
-провал, разбирать дальше. Красная 1–2 из 3 — **нестабильная**: продукт по ней
-вслепую не чинить, строку «<проверка> — <дата>, красная K из 3, <первая
-ошибка>» внести в `docs/TESTING.md`, «Нестабильные проверки», документальным
-коммитом, файл поимённо, пометка `Process:` / `Процесс:` по
-`.opencode/studio/reference/COMMITS.md` («Process: Mark the save test as flaky» /
-«Процесс: проверка сохранения — нестабильная»). Идёт партия (`docs/BATCH.md` не «Пусто.») — вместо
-этого в `docs/BATCH.md`, «Найдено по ходу»: остальные документы правит `/studio/done`.
+**Red — repeat.** A quick run failed — run it twice more; in a full run or a
+group — the tests that turned red, by name, twice more. Red all three times
+— a failure, analyze further. Red 1–2 of 3 — **flaky**: do not fix the
+product blind on its account; enter the line «<проверка> — <дата>, красная K
+из 3, <первая ошибка>» into `docs/TESTING.md`, «Нестабильные проверки», as a
+documentation commit, the file by name, the note `Process:` / `Процесс:` per
+`.opencode/studio/reference/COMMITS.md` («Process: Mark the save test as
+flaky» / «Процесс: проверка сохранения — нестабильная»). A batch is running
+(`docs/BATCH.md` is not «Пусто.») — instead, into `docs/BATCH.md`,
+«Найдено по ходу»: the other documents are edited by `/studio/done`.
 
-**Группа «замеры»** (`/studio/check замеры`: владелец назвал её сам — это его «да»
-на окно игры) — в основной папке, одна; трижды не повторять: повтор и
-вердикт — по «Регрессиям» «Бюджета производительности» `docs/TESTING.md`;
-код 3 — «замер не состоялся: <причина>», не красное. `/studio/check замеры
-пересъём` — снять базу заново при том же отпечатке (сменился — прогон
-снимает её сам). Удачный прогон снимает записи «замеры … не сняты» в
-«Принято без полной проверки» — коммит `Процесс:` вместе с новыми базами;
-идёт партия — строка «Замеры: …» в шапку `docs/BATCH.md`, коммит `Партия:
-замеры`, записи снимет `/studio/done`.
+**The «замеры» group** (`/studio/check замеры`: the owner named it himself —
+that is his "yes" to the game dialog) — in the main folder, one; do not
+repeat it three times: repetition and verdict — per «Регрессии» of the
+«Бюджет производительности» of `docs/TESTING.md`; exit code 3 — «замер не
+состоялся: <причина>», not red. `/studio/check замеры пересъём` — retake the
+baseline at the same fingerprint (if it changed — the run retakes it
+itself). A successful run clears the records «замеры … не сняты» in
+«Принято без полной проверки» — a `Процесс:` commit together with the new
+baselines; a batch is running — the line «Замеры: …» into the header of
+`docs/BATCH.md`, commit `Партия: замеры`, the records are cleared by
+`/studio/done`.
 
-## 2. Разобрать провалы
+## 2. Analyze failures
 
-По каждому провалу: что ждали и что получили. Прежде чем чинить код, ответить:
-**сломался продукт или сломалась проверка?**
+Per failure: what was expected and what was received. Before fixing the
+code, answer: **did the product break, or did the test break?**
 
-Признак сломанной проверки: число выглядит круглым и предельным — ноль, пусто,
-всё сразу. Признак сломанного продукта: число правдоподобное, но не то.
+The sign of a broken test: the number looks round and extreme — zero, empty,
+everything at once. The sign of a broken product: the number is plausible,
+but wrong.
 
-## 3. Что делать с найденным
+## 3. What to do with findings
 
-- **Сломался продукт, причина понятна** — описать починку словами продукта и
-  спросить окном: починить / записать через `/studio/fault` / оставить. Не чинить
-  молча: провал может быть намеренным (см. ниже).
-- **Сломался продукт, причина неясна** — предложить завести запись через
-  `/studio/fault` в чате замысла.
-- **Сломалась проверка** — чинить проверку сразу, это оснастка, а не продукт.
-- **Нестабильная** — продукт по ней не чинить. Причина неустойчивости видна —
-  чинить проверку, как сломанную; не видна — строкой в `docs/BATCH.md`,
-  «Найдено по ходу»: очередь ставит чат замысла.
+- **Product broke, cause clear** — describe the fix in product words and ask
+  via the `question` dialog: починить / записать через `/studio/fault` /
+  оставить. Do not fix silently: the failure may be intentional (see below).
+- **Product broke, cause unclear** — offer to open an entry via
+  `/studio/fault` in the concept chat.
+- **Test broke** — fix the test at once; it is tooling, not the product.
+- **Flaky** — do not fix the product on its account. The cause of the
+  flakiness is visible — fix the test as broken; not visible — a line into
+  `docs/BATCH.md`, «Найдено по ходу»: the concept chat places it in the
+  queue.
 
-## 4. Красное бывает правильным
+## 4. Red can be correct
 
-Проверку заводят и на открытый баг — тогда она красная намеренно и стережёт
-починку. Прежде чем «чинить красное», сверить с `docs/BUGS.md`.
+A test is also written for an open bug — then it is red on purpose and guards
+the fix. Before "fixing the red", check against `docs/BUGS.md`.
 
-Такую проверку нельзя убирать или ослаблять, чтобы получить зелёный итог. Если
-провал мешает, о нём говорят вслух, а не гасят.
+Such a test must not be removed or weakened to get a green result. If the
+failure gets in the way, it is spoken about out loud, not silenced.
 
-## 5. Чего проверки не видят
+## 5. What tests do not see
 
-Прочитать одноимённый раздел `docs/TESTING.md`. Обычно это вид: если правка
-касалась интерфейса, графики или мира, зелёный прогон ничего про неё не
-говорит — нужен снимок экрана того места, где смотрит владелец.
+Read the section of the same name in `docs/TESTING.md`. Usually it is the
+look: if the change touched the interface, graphics, or the world, a green
+run says nothing about it — a screenshot of the place the owner looks at is
+needed.

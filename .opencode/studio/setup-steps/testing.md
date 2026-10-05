@@ -1,89 +1,96 @@
-# Как проверять продукт — к шагам 7–9
+# How to check the product — for steps 7–9
 
-Это работа `/studio/setup`, а не вопрос владельцу. Подумать об **этом** продукте и
-**этом** стеке и записать ответы в `docs/TESTING.md`:
+This is `/studio/setup`'s work, not a question for the owner. Think about
+**this** product and **this** stack and write the answers into
+`docs/TESTING.md`:
 
-1. **Быстрая проверка** — за секунды узнать, что продукт запускается без
-   ошибок: запуск без окна, сборка, импорт, линтер. Заработать должна
-   сегодня, до всякого полигона.
-2. **Честный вердикт** — верен ли код возврата у каждого способа запуска?
-   Стек возвращает 0 при ошибках в логе — записать, по каким словам вывода
-   выносится вердикт, и заложить в полигон свой честный код возврата.
-3. **Полигон** — поведение, а не строки кода: проверки запускают настоящий
-   продукт (или его настоящие системы) и сверяют числа и состояния. Где
-   живёт, как зовутся проверка и группа, сколько идёт полный прогон, что
-   уходит в «долгие». Игра — детерминизм: seed, фиксированный шаг, прогон без
-   окна, и **сценарии игрока через ввод** (`## Сценарии игрока` шаблона:
-   нажимают действия и кнопки по тексту, утверждают по именам объектов) —
-   чем стек умеет подать ввод и где лежат `tests/scenarios/`; не игра —
-   строка «не нужен: <почему>». Сервис — поднятие с тестовыми данными;
-   интерфейс — снимки в заданном месте и на канонических ракурсах.
-4. **Замеры** — чем снять число с работающего продукта: время кадра,
-   память, время ответа, размер сборки — то, что названо в ограничениях.
-   Мир в реальном времени — раздел «Бюджет производительности» по шаблону:
-   «Цели для игроков» — ответы раунда (г) с датой и источником; «Машины
-   замера» — `env.md`, «Итог»; «Бюджет систем» — системы этого ядра
-   (подгрузка мира, толпы …).
-   Кадры меряются временем кадра, а не счётчиком кадров в секунду — как
-   мерить, «Как мерить — группа „замеры“» шаблона. Другая машина владельца
-   (ноутбук) — строка «Не блокер» `BLOCKED.md` о калибровке («Машины
-   замера»).
-5. **Чего проверки не увидят** — вёрстка, звук, реальные устройства, сеть.
-6. **Данные пользователя** — сохранения, профили, базы вне папки проекта:
-   где лежат, как снять копию, как гонять проверки на отдельных.
-7. **Параллельная работа** — подразделы «Параллельной работы» шаблона:
-   подготовка свежей копии (всё, что она кладёт, — в `.gitignore`: копии
-   переиспользуются), отдельные данные, общие узлы, нельзя одновременно.
-   `пишут` — из раунда (д), по умолчанию 2; `тяжёлых проверок` — 1.
-   Существующий проект с проверками — **проверить на деле**: копия,
-   подготовка, быстрая проверка, данные легли отдельно, копию удалить.
-   Вышло — «проверено · пишут: 2 · тяжёлых проверок: 1»; нет — «не проверено»
-   и почему; отделить данные нельзя — «невозможно» (всё по одному, это не
-   ошибка).
-8. **Стенд** — раздел `## Стенд` шаблона, у частей своё состояние: «вид» —
-   если мир судят глазом (свет и небо, вода, растительность, местность,
-   постройки, персонажи, эффекты, анимация), `нет`, строит пункт очереди
-   «Стенд вида»; «ощущение» — если у игры есть управление или камера, `нет`,
-   строит первый шаг первого пункта `[ощущение]`. Ненужная часть — «не
-   нужна: <почему>».
-9. **Сборка и выпуск** — строки «сборка» (у Godot — `--headless
-   --export-release "<пресет>" <путь>`, шаблоны экспорта ровно под версию из
-   «Окружения») и «проверка сборки» (собранный exe на N кадров или сценарий
-   игрока на сборке, с честным вердиктом) и раздел `## Выпуск`: пресеты, куда
-   складывается (папку — в `.gitignore`), площадки. Чего ещё нет — «нет — до
-   первого выпуска»: собирает и выкладывает `/studio/release`. Продукт без сборки
-   для игроков — «не нужен: <почему>».
-10. **Как открывается окно** — строку шаблона заполнить флагами этого
-    движка, проверенными запуском на 1 кадр установленной версии (не по
-    `--help`): проверки логики — без окна; снимки и стенд у агентов (с
-    `--quit-after N`) — окном за краем экрана (Godot — входной скрипт первым
-    делом `window_set_position(Vector2i(-6000, -6000))`; `--position` и
-    свёрнутое окно не годятся), без фокуса, звука и не поверх всех; замеры —
-    на экране; окно владельцу (стенд ощущения без N, первое окно шага 10) —
-    обычное, с фокусом и звуком; движок не умеет рисовать без фокуса — так и
-    записать.
-11. **Здоровье кода** — раздел шаблона: из блоков «Типы» — блоки своего
-    стека (Godot с C# — оба), строка «Типы движка» — `включены` (новый
-    проект, у стека есть проверка типов; нет — «не включены — <чем
-    поставить>»); порогов числами не писать. Строки «здоровье кода» и «типы»
-    — в «Команды проверки»; время замером, но позже: «типы» — в шаге 10
-    (`finale.md`, после каркаса), «здоровье кода» — в шаге 12, после
-    репозитория и базы (до них скрипт отвечает кодом 2); до замера в
-    столбце — «замер — шаг 10» / «замер — шаг 12». Прочий стек без
-    проверки типов — ставить её только по «да» окном (`env.md`), до того
-    «типы: нет — <чем поставить>».
-    Существующий проект — предупреждения движка молча не включать
-    (`existing.md`).
+1. **Quick run** — learn in seconds that the product launches without
+   errors: a headless launch, a build, an import, a linter. It must work
+   today, before any testbed.
+2. **Honest verdict** — is the exit code honest for every launch method? The
+   stack returns 0 with errors in the log — write down by which output words
+   the verdict is made, and build your own honest exit code into the
+   testbed.
+3. **Testbed** — behavior, not lines of code: the checks launch the real
+   product (or its real systems) and compare numbers and states. Where it
+   lives, what the check and the group are called, how long a full run takes,
+   what goes into «долгие». A game — determinism: seed, a fixed step, a
+   headless run, and **player scenarios via input** (`## Сценарии игрока` of
+   the template: they press actions and buttons by text, assert by object
+   names) — with what the stack can deliver input and where `tests/scenarios/`
+   lives; not a game — the line «не нужен: <почему>». A service — bringing it
+   up with test data; an interface — screenshots in the set place and from
+   canonical angles.
+4. **«Замеры»** — with what to take a number from the running product: frame
+   time, memory, response time, build size — what the constraints name. A
+   real-time world — the section «Бюджет производительности» per the
+   template: «Цели для игроков» — round (d)'s answers with a date and source;
+   «Машины замера» — `env.md`, Result; «Бюджет систем» — this core's systems
+   (world streaming, crowds …). Frames are measured by frame time, not a
+   frames-per-second counter — how to measure, «Как мерить — группа
+   „замеры“» of the template. The owner's other machine (a laptop) — the
+   line «Не блокер» in `BLOCKED.md` about calibration («Машины замера»).
+5. **What the checks will not see** — layout, sound, real devices, the
+   network.
+6. **«Данные пользователя»** — saves, profiles, databases outside the project
+   folder: where they live, how to copy them, how to run checks on separate
+   ones.
+7. **«Параллельная работа»** — the subsections of the template's
+   «Параллельная работа»: preparing a fresh worktree copy (everything it
+   puts down — into `.gitignore`: the copies are reused), separate data,
+   shared hubs, no simultaneous runs. `пишут` — from round (e), default 2;
+   `тяжёлых проверок` — 1. An existing project with checks — **verify for
+   real**: a copy, preparation, a quick run, the data landed separately,
+   delete the copy. Worked — «проверено · пишут: 2 · тяжёлых проверок: 1»;
+   not — «не проверено» and why; the data cannot be separated —
+   «невозможно» (everything one at a time, this is not an error).
+8. **«Стенд»** — the `## Стенд` section of the template, the parts have their
+   own state: «вид» — if the world is judged by eye (light and sky, water,
+   vegetation, terrain, buildings, characters, effects, animation), `нет`,
+   built by the queue item «Стенд вида»; «ощущение» — if the game has
+   controls or a camera, `нет`, built by the first step of the first item
+   `[ощущение]`. An unneeded part — «не нужна: <почему>».
+9. **Build and release** — the lines «сборка» (in Godot — `--headless
+   --export-release "<пресет>" <путь>`, export templates exactly matching
+   the version from «Окружение») and «проверка сборки» (a built exe for N
+   frames or a player scenario on the build, with an honest verdict) and the
+   section `## Выпуск`: presets, where it is put (the folder — into
+   `.gitignore`), platforms. What does not exist yet — «нет — до первого
+   выпуска»: `/studio/release` builds and publishes. A product without a
+   player build — «не нужен: <почему>».
+10. **«Как открывается окно»** — fill the template's line with this engine's
+    flags, verified by a 1-frame launch of the installed version (not by
+    `--help`): logic checks — without a window; agents' screenshots and the
+    stand (with `--quit-after N`) — a window beyond the screen edge (Godot —
+    the startup script does `window_set_position(Vector2i(-6000, -6000))`
+    first; `--position` and a minimized window do not fit), without focus,
+    sound, and not on top of everything; measurements — on screen; the
+    owner's window (the feel stand without N, step 10's first window) —
+    ordinary, with focus and sound; the engine cannot draw without focus —
+    write exactly that.
+11. **«Здоровье кода»** — the template's section: of the «Типы» blocks — the
+    own stack's blocks (Godot with C# — both); the line «Типы движка» —
+    `включены` (a new project, the stack has a type check; no — «не
+    включены — <чем поставить>»); do not write thresholds as numbers. The
+    lines «здоровье кода» and «типы» — into «Команды проверки»; time it by
+    measurement, but later: «типы» — at step 10 (`finale.md`, after the
+    skeleton), «здоровье кода» — at step 12, after the repository and the
+    baseline (before them the script answers with code 2); before the
+    measurement in the column — «замер — шаг 10» / «замер — шаг 12». Another
+    stack without a type check — install it only by a "yes" via a dialog
+    (`env.md`); until then «типы: нет — <чем поставить>». An existing
+    project — do not silently enable the engine's warnings (`existing.md`).
 
-Состояние полигона: `нет` — проверок нет; `есть` — существуют и вердикту
-можно верить; `строится` — между. «Что проверяется уже сейчас» — только
-**запущенное и сработавшее** при `/studio/setup` (импорт и `load_all.gd` шага 10,
-если прошли); в новом проекте без кода — честное «ничего: продукта ещё нет».
+The testbed's state: `нет` — no checks; `есть` — they exist and the verdict
+can be trusted; `строится` — in between. «Что проверяется уже сейчас» — only
+**launched and worked** during `/studio/setup` (step 10's import and
+`load_all.gd`, if they passed); in a new project without code — the honest
+«ничего: продукта ещё нет».
 
-## Пункт «Построить проверки продукта»
+## The «Построить проверки продукта» item
 
-Состояние не `есть` — пункт в очереди (в новом проекте — вторым, после
-«Каркаса и быстрой проверки»; в существующем — первым):
+The state is not `есть` — the item into the queue (in a new project — second,
+after «Каркас и быстрая проверка»; in an existing one — first):
 
 ```
 - **[можно] [код] Построить проверки продукта.** Без них `reviewer` одобряет
@@ -91,54 +98,57 @@
   следующий; подробности ниже, «Подробности ближайших пунктов».
 ```
 
-Куски — под этот стек, например:
+The pieces — for this stack, for example:
 
-1. каркас полигона по «Правилам каркаса» `docs/TESTING.md`: все проверки,
-   одна по имени, группа; код возврата 0 / 1 / 2 (зелено / провал / нет
-   такой проверки); итог «зелёных / провалов» с каждым провалом поимённо;
-   **каждая проверка — свой файл** (`tests/checks/<имя>.*`), общие
-   помощники — `tests/lib/`, раннер находит проверки сам, без общего списка:
-   иначе каждый пункт правит один файл, и параллельные пункты сталкиваются
-   (так было в одном проекте: 64 проверки в одном `runner.gd`, партия из 20
-   пунктов шла по одному); проверки с порогом кадров или времени — в группе
-   «замеры», раннер умеет её пропускать с явной строкой («Нельзя
-   одновременно» `docs/TESTING.md`); предел времени у каждой команды; окна
-   — по «Как открывается окно»;
-2. первая настоящая проверка главной системы ядра — красная, если систему
-   намеренно сломать;
-3. для игры — раннер сценариев игрока (`## Сценарии игрока`, коды 0 / 1 / 2)
-   и **сценарий главного действия ядра через ввод: краснеет, если сломать
-   управление**. В новом проекте действия ещё нет — здесь сценарий на
-   каркасе (сцена загрузилась, капсула стоит на полу), а сценарий главного
-   действия — кусок «Серой коробки». Полная и группа `сценарии` прогоняют
-   все сценарии папки, провалы — поимённо: иначе сценарий ядра не стережёт
-   управление от следующих пунктов;
-4. снимок экрана одной командой в заданном месте (экран, seed, координаты) и
-   на канонических ракурсах — если у продукта есть экран;
-5. раздел «Как добавить проверку» с образцом (у игры — и сценария);
-   состояние полигона — `есть`;
-6. у продукта с миром в реальном времени — **замеры по бюджету**: группа
-   «замеры» по «Как мерить — группа „замеры“» («Бюджет производительности»
-   `docs/TESTING.md`) — сценарий по кадрам во время подгрузки, свой прогон
-   на каждый пресет, предпроверка («замер не состоялся», а не красное),
-   `--занят` (занятость — пометка, без базы и красного), пробный режим; первую базу машины снимает первый прогон группы в конце
-   запуска `/studio/start` («Замеры»);
-7. параллельная копия: подготовка и отдельные данные записаны, быстрая
-   проверка в свежей копии зелёная, данные копии не попали в основную —
+1. the testbed's skeleton per «Правила каркаса» of `docs/TESTING.md`: all the
+   checks, one by name, the group; exit code 0 / 1 / 2 (green / failure / no
+   such check); the result «зелёных / провалов» with every failure by name;
+   **every check — its own file** (`tests/checks/<имя>.*`), shared helpers —
+   `tests/lib/`, the runner finds the checks itself, without a shared list:
+   otherwise every item edits one file and parallel items collide (it
+   happened in one project: 64 checks in one `runner.gd`, a batch of 20
+   items went one at a time); checks with a frame or time threshold — in the
+   group «замеры», the runner can skip it with an explicit line («Нельзя
+   одновременно» of `docs/TESTING.md`); a time limit on every command;
+   windows — per «Как открывается окно»;
+2. the first real check of the core's main system — red if the system is
+   broken on purpose;
+3. for a game — the player scenario runner (`## Сценарии игрока`, codes 0 / 1
+   / 2) and **a scenario of the core's main action via input: goes red if
+   the controls are broken**. In a new project there is no action yet — here
+   a scenario on the skeleton (the scene loaded, the capsule stands on the
+   floor), and the main-action scenario — a piece of «Серая коробка». The
+   full run and the `сценарии` group run every scenario in the folder, the
+   failures — by name: otherwise the core scenario does not guard the
+   controls from the following items;
+4. a screenshot with one command in the set place (screen, seed,
+   coordinates) and from canonical angles — if the product has a screen;
+5. the section «Как добавить проверку» with an example (for a game — a
+   scenario too); the testbed's state — `есть`;
+6. a product with a real-time world — **measurements per the budget**: the
+   group «замеры» per «Как мерить — группа „замеры“» («Бюджет
+   производительности» of `docs/TESTING.md`) — a scenario over frames during
+   streaming, its own run per preset, a pre-check («замер не состоялся», not
+   red), `--занят` (busyness — a note, without a baseline and red), a trial
+   mode; the machine's first baseline is taken by the group's first run at
+   the end of a `/studio/start` run («Замеры»);
+7. the parallel copy: preparation and separate data recorded, the quick run
+   green in a fresh copy, the copy's data did not get into the main one —
    «проверено · пишут: 2 · тяжёлых проверок: 1».
 
-Быстрая проверка с честным вердиктом (намеренная ошибка даёт красное) — в
-новом проекте кусок «Каркаса», в существующем — первый кусок этого пункта.
-Проверки есть, но вердикту верить нельзя или ядро не покрыто (у игры — и
-управление сценарием через ввод) — пункт называется «Довести проверки» и
-состоит из недостающих кусков.
+A quick run with an honest verdict (a deliberate error gives red) — in a new
+project a piece of «Каркаса», in an existing one — the first piece of this
+item. Checks exist, but the verdict cannot be trusted or the core is not
+covered (for a game — the controls with a scenario via input too) — the item
+is called «Довести проверки» and consists of the missing pieces.
 
-## Пункт «Стенд вида»
+## The «Стенд вида» item
 
-Для мира, который судят глазом, — сразу за проверками, `[можно] [код]`.
-Куски — по части «вид» раздела `## Стенд` шаблона: отдельная сцена или
-режим; именованные кадры из паспортов `docs/refs/`; остановка времени и
-ветра; пресеты света (нейтральный и целевой); варианты — аргументом;
-капсула 1,8 м и куб 1 м; снимок — ошибка, если объекта нет в кадре; снимок
-места владельца по seed и координатам. Команда `снимок кадра <имя> [вариант]
-[--seed … --место …]` — в «Команды проверки»; готово — состояние `есть`.
+For a world judged by eye — right after the checks, `[можно] [код]`. The
+pieces — per the «вид» part of the template's `## Стенд` section: a separate
+scene or mode; named frames from the passports `docs/refs/`; stopping time
+and wind; light presets (neutral and target); variants — as an argument; a
+1.8 m capsule and a 1 m cube; the screenshot — an error if the object is not
+in the frame; a screenshot of the owner's place by seed and coordinates. The
+command `снимок кадра <имя> [вариант] [--seed … --место …]` — into «Команды
+проверки»; done — the state `есть`.

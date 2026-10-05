@@ -3,7 +3,7 @@ description: Нужна картинка — короткая форма /studio
 agent: studio
 ---
 
-Нужна картинка: **$ARGUMENTS**
+Need a picture: **$ARGUMENTS**
 
-Это короткая форма `/studio/order art <объект>`. Прочитать `.opencode/commands/studio/order.md` и выполнить его целиком с видом `art`
-и описанием выше.
+This is a short form of `/studio/order art <object>`. Read `.opencode/commands/studio/order.md` and execute it in full with the kind `art`
+and the description above.

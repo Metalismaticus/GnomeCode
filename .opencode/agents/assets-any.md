@@ -1,5 +1,5 @@
 ---
-description: Разбирает пришедшие файлы заказов по правилам команды /studio/add — узнаёт файлы, проверяет скриптом до осмотра (картинки и звук — tools/asset_check.py, модели .glb/.gltf — tools/model_check.py) и по docs/orders/<вид>.md, брак возвращает на перезаказ, права пишет в журнал ledger.md, принятое записывает отдельным коммитом. Зовёт только координатор /studio/start или /studio/add.
+description: Разбирает пришедшие файлы заказов по правилам команды /studio/add — узнаёт файлы, проверяет скриптом до осмотра (картинки и звук — tools/asset_check.py, модели .glb/.gltf — tools/model_check.py) и по docs/orders/<вид>.md, брак возвращает на перезаказ, права пишет в журнал ledger.md, принятое записывает отдельным коммитом. Зовёт только координатор /studio/start или /studio/add. · FALLBACK-копия без своей модели — наследует модель сессии (зовёт координатор, когда основная недоступна)
 mode: subagent
 permissions:
   - { action: question, resource: "*", effect: deny }

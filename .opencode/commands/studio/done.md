@@ -1,321 +1,324 @@
 ---
-description: Принять проверенную владельцем работу — всю текущую партию из docs/BATCH.md, всё кроме названного или только выбранные пункты; до окна сам открыть на весь экран кадры [вид] «было / стало / образец» (и пару пробы), у [ощущение] — игру с выбранным вариантом; выбор и причины отказа — окнами (у [вид] и [ощущение] отказ — словами, они идут в следующий круг), решённое без вас — строками (оспорить — словами), после «только/кроме» окон о принятом нет; непринятое откатить revert-коммитом, причину записать дословно; принят последний пункт этапа — окном спросить, закрыт ли этап; в конце — разбор партии (/studio/retro) без окон. Звать только по слову владельца: /studio/done или «это не принимаю, остальное принимаю».
+description: Принять проверенную владельцем работу — всю текущую партию из docs/BATCH.md, всё кроме названного или только выбранные пункты; до окна сам открыть на весь экран кадры [вид] «было / стало / образец» (и пару пробы), у [ощущение] — игру с выбранным вариантом; выбор и причины отказа — окнами (у [вид] и [ощущение] отказ — словами, они идут в следующий круг), решённое без вас — строками (оспорить — словами), после «только/кроме» окон о принятом нет; непринятое откатить revert-коммитом, причину записать дословно; принят последний пункт этапа — окном спросить, закрыт ли этап; в конце — разбор партии (/studio/retro) без окон. Звать только по слову владельца — /studio/done или «это не принимаю, остальное принимаю».
 agent: studio
 ---
 
-Что принимает владелец: **$ARGUMENTS**
+What the owner accepts: **$ARGUMENTS**
 
-(Пусто или без подстановки — взять из сообщения владельца.)
+(Empty or left unsubstituted — take it from the owner's message.)
 
-`/studio/done` — владелец посмотрел результат в продукте и принимает партию из
-`docs/BATCH.md` или её часть: `/studio/done кроме <номера>`, `/studio/done только <номера>`;
-фраза «это не принимаю, остальное /studio/done» — форма `кроме`. Партии нет — сказать
-и остановиться.
+`/studio/done` — the owner has looked at the result in the product and accepts the batch from
+`docs/BATCH.md` or part of it: `/studio/done кроме <numbers>`, `/studio/done только <numbers>`;
+the phrase «это не принимаю, остальное /studio/done» is the `кроме` form. No batch — say so
+and stop.
 
-Коммиты партии уже в основной ветке: `/studio/start` сохраняет туда каждый одобренный
-пункт. Принять — оставить их и привести документы в порядок; не принять —
-откатить revert-коммитом. Рабочих веток нет (`AGENTS.md`, «Два чата»).
+The batch's commits are already in the main branch: `/studio/start` saves every approved
+item there. Accept — keep them and put the documents in order; not accept — revert with a
+revert commit. There are no working branches (`AGENTS.md`, «Два чата»).
 
-Вопросы — окнами по `.opencode/studio/reference/ASKING.md`; сообщения коммитов, поиск по ним и README — по
-`.opencode/studio/reference/COMMITS.md` (пометки ниже названы по-русски: `Пункт N:` —
-это и `Item N:`). Главное:
+Questions — via dialogs per `.opencode/studio/reference/ASKING.md`; commit messages, searching them, and README — per
+`.opencode/studio/reference/COMMITS.md` (the labels below are named in Russian: `Пункт N:`
+is also `Item N:`). The key points:
 
-- **причина отказа записывается дословно** — без неё следующий заход повторит
-  ту же ошибку;
-- **оспоренное «Решено за вас» уходит в поправку**, а не принимается молча;
-- **у `[вид]` — «было / стало / образец» на весь экран до окна**: здесь и
-  только здесь владелец судит вид; открыть самому, без этого окна «что
-  принимаете?» нет; отказ — его словами, дословно в «Журнал» паспорта и «Не
-  принят», они идут в следующий круг. `[ощущение]` — как `[вид]`, но вместо
-  кадров — игра или стенд с выбранным вариантом и его числа, в «Журнале» —
-  «вариант X (<числа>)» вместо «кадр» (состояние — тоже `принят кадр`);
-- **старому зелёному не верить**, если после него менялись не-`.md` файлы.
+- **the rejection reason is recorded verbatim** — without it the next pass repeats
+  the same mistake;
+- **a disputed «Решено за вас» goes into a fix**, not accepted silently;
+- **for `[вид]` — «было / стало / образец» full screen before the dialog**: here and
+  only here does the owner judge the look; open it yourself — without this there is
+  no «что принимаете?» dialog; rejection — in his words, verbatim into the passport's
+  «Журнал» and «Не принят», they go into the next round. `[ощущение]` — same as
+  `[вид]`, but instead of frames — the game or the stand with the chosen variant and
+  its numbers, in «Журнале» — «вариант X (<числа>)» instead of «кадр» (the state is
+  also `принят кадр`);
+- **do not trust an old green** if non-`.md` files changed after it.
 
-## 1. Собрать партию
+## 1. Gather the batch
 
-Из `docs/BATCH.md` — шапку («Последний полный прогон») и по пунктам: состояние,
-«Как увидеть» (там же пути снимков и «Не судил» проверяющего), «Решено за
-вас», «В документы при `/studio/done`»; строки «Решил сам» раздела «Принято по
-умолчанию». Коммиты пункта —
-`git log <хеш>..HEAD -E --grep "^(Пункт|Item) N:"`, его откаты —
-`-E --grep "^Revert .(Пункт|Item) N:"`, хеш — из строки шапки «Снята … на
-<хеш>» (номера в каждой партии свои); в их diff не должно быть чужих файлов.
-Из `docs/ROADMAP.md` (у багов — и из `docs/BUGS.md`) — строки `Замечание
-владельца во время партии` к пунктам партии: их пишет чат замысла, каждую
-показать до вопроса о принятии.
-У `[вид]` — паспорт из строки «Образец», «Образец для листа» главного кадра,
-принятый кадр `docs/refs/<тема>/accepted-<дата>.png` и «было» — главный кадр
-из `../<папка проекта>.wt/shots/<дата>-p<N>-до/` (нет — из прошлых `shots/`;
-нет и там — без «было», строкой).
+From `docs/BATCH.md` — the header («Последний полный прогон») and, per item: the state,
+«Как увидеть» (the screenshot paths and the reviewer's «Не судил» are there too),
+«Решено за вас», «В документы при `/studio/done`»; the «Решил сам» rows of the
+«Принято по умолчанию» section. The item's commits —
+`git log <хеш>..HEAD -E --grep "^(Пункт|Item) N:"`, its reverts —
+`-E --grep "^Revert .(Пункт|Item) N:"`, the hash — from the header row «Снята … на
+<хеш>» (the numbers are each batch's own); their diff must contain no foreign files.
+From `docs/ROADMAP.md` (for bugs — also from `docs/BUGS.md`) — the
+`Замечание владельца во время партии` rows for the batch's items: the concept chat
+writes them; show each one before the acceptance question.
+For `[вид]` — the passport from the «Образец» row, the main frame's «Образец для
+листа», the accepted frame `docs/refs/<тема>/accepted-<дата>.png`, and «было» — the
+main frame from `../<project folder>.wt/shots/<date>-p<N>-before/` (missing — from
+earlier `shots/`; missing there too — without «было», as a row).
 
-Сводку по пунктам длиннее 5 строк — во временный файл вне проекта, в чат —
-путь к нему: длинный текст закроет окно. Пункты `ждёт`, `ждёт выбора` и `не
-выполнен` не приняты по определению: остаются в очереди, о них не спрашивать;
-у `ждёт выбора` (партия до 0.10.5) строка и коммиты остаются — вариант
-выберет `/studio/start`.
+A per-item summary longer than 5 lines — into a temporary file outside the project,
+its path into the chat: long text will cover the dialog. Items `ждёт`, `ждёт
+выбора`, and `не выполнен` are unaccepted by definition: they stay in the queue, do
+not ask about them; for `ждёт выбора` (batches before 0.10.5) the row and the
+commits remain — `/studio/start` will choose the variant.
 
-## 2. Спросить
+## 2. Ask
 
-**Кадры — до окна, самим чатом; без них окна «что принимаете?» нет.**
-В партии есть `[вид]` или `[ощущение]` — по скиллу `studio-vid`
-(инструмент skill, раздел «Приёмка в `/studio/done`»): загрузи его и
-покажи кадры «было / стало / образец» так, как там. Других меток —
-кадров не нужно.
+**Frames — before the dialog, by the chat itself; without them there is no
+«что принимаете?» dialog.**
+The batch has `[вид]` or `[ощущение]` — per the `studio-vid` skill (the skill tool,
+section "Acceptance in `/studio/done`"): load it and show the «было / стало /
+образец» frames the way it says. Other tags need no frames.
 
-**Уборки** (пункты `Уборка:`) — в сводке одной строкой «технические, игра не
-меняется: N»; «проверьте по «Как увидеть», что ничего не сломалось» — только
-у уборки, которая меняла шейдер или сцену, или если полигон не `есть` или
-полная не зелёная; иначе — «проверено полной проверкой». Своего окна нет,
-«Пройти по пунктам» их не проходит: принимаются вместе с партией — и при
-`Всё`, и при `кроме …`, и при `только …`, — если владелец не назвал их сам
-(«кроме уборок», номер уборки, вариант «Уборки (N)» в «Какие пункты не
-принимаете?»; в «Какие пункты принимаете?» такого варианта нет). Окна
-«Причина» у уборки нет: слова владельца — дословно, нет — «не принята
-владельцем».
+**Cleanups** (items `Уборка:`) — in the summary, one line «технические, игра не
+меняется: N»; «проверьте по «Как увидеть», что ничего не сломалось» — only for a
+cleanup that changed a shader or a scene, or if the testbed is not `есть` or the
+full run is not green; otherwise — «проверено полной проверкой». They have no dialog
+of their own, «Пройти по пунктам» does not go through them: they are accepted
+together with the batch — with `Всё`, with `кроме …`, and with `только …` — unless
+the owner names them himself («кроме уборок», a cleanup's number, the «Уборки (N)»
+option in «Какие пункты не принимаете?»; «Какие пункты принимаете?» has no such
+option). A cleanup has no «Причина» dialog: the owner's words verbatim; none — «не
+принята владельцем».
 
-**Решено без вас — строками, не окном** (до окон; не влезает в 5 строк — в
-файл, путь в чат): «Решено без вас (видно в игре): П.N — <что видно>; …» —
-строки `[видно]` «Решено за вас» принимаемых пунктов (при `кроме`/`только` —
-только их) и видные в продукте строки «Решил сам» «Принято по умолчанию»
-(выбор варианта — «П.4: выбран C — ближе к образцу вечером, днём не
-выбеливает песок»; даль у глобального облика; принятая проба — строка о
-слабых ПК в `AGENTS.md` → минимум по замеру: «на слабых — неизвестно»);
-словами продукта, без чисел и терминов («П.4: контур темнее модели»); строка
-без метки — переписать так же, не сказать, что видит владелец, — `[техника]`.
-`[техника]` и порядок работы («сначала форма», «пункт 3 до выбора пункта 2»)
-— одной строкой в отчёт «технических решений за вас: N — в `docs/BATCH.md`,
-их проверял проверяющий». Затем строка «Не так — напишите, например:
-«поменяй П.1, мерки»». Оспорено словами (сейчас или в заметке к окну) — как
-оспоренное «Решено за вас» ниже; молчание — не оспорено. Окна «что не
-нравится» нет (`ASKING.md`, п. 3).
+**Decided without you — as rows, not a dialog** (before the dialogs; does not fit
+into 5 lines — into a file, the path into the chat): «Решено без вас (видно в игре):
+П.N — <что видно>; …» — the `[видно]` rows of «Решено за вас» of the items being
+accepted (with `кроме`/`только` — only those) and the product-visible «Решил сам»
+rows of «Принято по умолчанию» (a variant choice — «П.4: выбран C — ближе к образцу
+вечером, днём не выбеливает песок»; the global look's draw distance; the accepted
+probe — the row about weak PCs in `AGENTS.md` → the minimum per measurement: «на
+слабых — неизвестно»); in product words, without numbers or terms («П.4: контур
+темнее модели»); a row without a tag — rewrite it the same way, do not say what the
+owner sees — `[техника]`. `[техника]` and the order of work («сначала форма», «пункт
+3 до выбора пункта 2») — one line into the report «технических решений за вас: N —
+в `docs/BATCH.md`, их проверял проверяющий». Then the line «Не так — напишите,
+например: «поменяй П.1, мерки»». Disputed in words (now or in a dialog note) — like
+a disputed «Решено за вас» below; silence — not disputed. There is no «что не
+нравится» dialog (`ASKING.md`, p. 3).
 
-**Окно 1** — «Партия из N пунктов: что принимаете?» — `Всё` / `Всё, кроме…` /
-`Только…` / `Пройти по пунктам`. `Всё (Recommended)`, если все пункты `готов
-к проверке`, последний полный прогон зелёный и замечаний владельца во время
-партии нет; иначе без пометки. Владелец сам назвал, что принимает (`кроме …`,
-`только …`, «принимаю N» — в аргументе или словами), — окна нет, и дальше
-окон о принятых пунктах нет: только причина непринятого (не названа),
-зависимость и закрытие этапа.
+**Dialog 1** — «Партия из N пунктов: что принимаете?» — `Всё` / `Всё, кроме…` /
+`Только…` / `Пройти по пунктам`. `Всё (Recommended)` if all items are `готов к
+проверке`, the last full run is green, and there are no owner review notes during
+the batch; otherwise without the marker. The owner himself named what he accepts
+(`кроме …`, `только …`, «принимаю N» — in the argument or in words) — no dialog, and
+no further dialogs about accepted items: only the unaccepted item's reason (not
+named), the dependency, and closing the stage.
 
-**Выбор пунктов** (`Всё, кроме…`, `Только…`) — `multiSelect` «Какие пункты не
-принимаете?» или «Какие пункты принимаете?», до 4 пунктов в вопросе, больше —
-несколькими вопросами; уборки — выше.
+**Selecting items** (`Всё, кроме…`, `Только…`) — a `multiSelect` «Какие пункты не
+принимаете?» or «Какие пункты принимаете?», up to 4 items per question, more —
+across several questions; cleanups — above.
 
-**Причина** — для каждого непринятого, кроме уборки, если владелец её ещё не
-назвал:
+**«Причина»** — for every unaccepted item except a cleanup, if the owner has not
+named it yet:
 «Пункт N — <суть>: что не так?» — `Не похоже на задуманное` /
 `Не видно или не там` / `Ломает другое` / `Не успел посмотреть` (description:
-«откатится и вернётся в очередь как есть»). У `[вид]` и `[ощущение]` окна
-нет — отказ словами владельца; нет их — одной строкой «Пункт N — что не так
-против образца? Напишите словами». Заметка к ответу — главное, записать
-дословно; её нет (кроме `Не успел посмотреть`) — одной строкой спросить
-словами, что именно не так. Слова идут в следующий круг: у `[вид]` о
-способе или форме («свет облаков зависит от времени суток», «как устроены
-горы», «кубики») — пересмотр приёма (раздел 5), не образца; «образец
-другой» — пересмотр образца; иначе — «Не принят»: по ним `/studio/start` сделает
-новые варианты и выберет, ставя их выше образца. Снимок `[вид]` из ответа — в
-`docs/refs/<тема>/owner-<дата>-<n>.<ext>` (где лежит —
-`.opencode/agents/reference.md`, п. 1), путь — в строку «Не принят» или
-«Журнал», в документальный коммит.
+«откатится и вернётся в очередь как есть»). For `[вид]` and `[ощущение]` there is
+no dialog — rejection in the owner's words; none — one line «Пункт N — что не так
+против образца? Напишите словами». The note attached to the answer is the main
+thing, record it verbatim; there is none (except `Не успел посмотреть`) — ask in
+one line, in words, what exactly is wrong. The words go into the next round: for
+`[вид]` about the technique or the form («свет облаков зависит от времени суток»,
+«как устроены горы», «кубики») — «пересмотр приёма» (section 5), not of the
+reference; «образец другой» — a reference revision; otherwise — «Не принят»: from
+them `/studio/start` will make new variants and choose, ranking them above the
+reference. A `[вид]` screenshot from the answer — into
+`docs/refs/<topic>/owner-<дата>-<n>.<ext>` (where it lives —
+`.opencode/agents/reference.md`, p. 1), the path — into the «Не принят» row or
+«Журнал», into the documentary commit.
 
-**Пройти по пунктам** — по пункту за раз: «Как увидеть» и снимки (путь или
-путь к файлу; у `[вид]` — его кадры в просмотрщике), потом окно «Пункт N —
-<суть>: так и есть?» — `Да` / `Нет, вот что не так` / `Потом`. `Нет` —
-причина из заметки дословно (нет — словами, как выше); `Потом` — как `Не
-успел посмотреть`.
+**«Пройти по пунктам»** — one item at a time: «Как увидеть» and the screenshots (a
+path or a path to a file; for `[вид]` — its frames in the viewer), then the dialog
+«Пункт N — <суть>: так и есть?» — `Да` / `Нет, вот что не так` / `Потом`. `Нет` —
+the reason from the note verbatim (none — in words, as above); `Потом` — like
+`Не успел посмотреть`.
 
-**Зависимость.** Принятый пункт держится за непринятый — молча не принимать:
-назвать зависимость и спросить окном (уборку, которую владелец не назвал,
-окно не касается: она принята с партией). Строка «Решил сам: пункт M — до выбора
-пункта N» — M держится за основу N (раздел 3). Непринятый, от которого ничего
-не зависит, откатывается один.
+**Dependency.** An accepted item leans on an unaccepted one — do not accept silently:
+name the dependency and ask with a dialog (a cleanup the owner did not name is not
+covered by the dialog: it is accepted with the batch). The row «Решил сам: пункт M —
+до выбора пункта N» — M leans on N's base (section 3). An unaccepted item nothing
+depends on is reverted alone.
 
-После ответов — строка «Понял: принимаю …; не принимаю … (причины);
-оспорено …». Второго подтверждения не нужно. «Что принимаете?» дважды без
-ответа — ничего не менять и остановиться.
+After the answers — the line «Понял: принимаю …; не принимаю … (причины); оспорено
+…». No second confirmation needed. «Что принимаете?» twice without an answer —
+change nothing and stop.
 
-**Оспоренное.** Пункт с оспоренным решением сейчас не принимается и не
-откатывается: остаётся в партии и после раздела 5 идёт в поправку — раздел 6.
-Оспорено решение непринятого пункта — дописать к его причине.
+**Disputed.** An item with a disputed decision is neither accepted nor reverted now:
+it stays in the batch and after section 5 goes into a fix — section 6. The decision
+of an unaccepted item is disputed — append to its reason.
 
-## 3. Откатить непринятое
+## 3. Revert the unaccepted
 
-`git revert --no-edit` коммитов непринятых пунктов, от новых к старым. Пару
-«коммит — его `Revert "Пункт N: …"`» (откат после поиска виновника; пара — по
-`This reverts commit <хеш>` в теле отката) пропускать: она уже погашена.
-Коммит стенда (`Пункт N: стенд вида` или `стенд ощущения`, `Item N: Add the
-look stand` или `feel stand`) не откатывать — стенд служит следующим пунктам;
-листы и «Журнал» лежат в коммитах `Партия:` и остаются. Коммит основы
-(`Пункт N: основа — …`, `Item N: Base — …`) тоже не откатывать, если причина
-отказа — во вкусе (выбранный вариант, цвет, числа пресета) или её нет (`ждёт`,
-`не выполнен`): форму владелец не отвергал; причина в самой основе (форма,
-масса, дефект, «Ломает другое») — откатить и её. Конфликт только в
-`docs/BATCH.md` (партии до 0.4.0) — не зависимость: `git checkout HEAD --
-docs/BATCH.md`, `git revert --continue --no-edit`. Другой конфликт — `git
-revert --abort`, ничего не отправлять и показать, какой принятый пункт
-держится за непринятый. Откат трогает только файлы партии; незакоммиченные
-`.md` чата замысла в тех же файлах — попросить сначала завершить их там.
+`git revert --no-edit` of the unaccepted items' commits, from new to old. Skip the
+pair "a commit — its `Revert "Пункт N: …"`" (a revert after the culprit search; the
+pair — by `This reverts commit <хеш>` in the revert's body): it is already
+cancelled. Do not revert the stand commit (`Пункт N: стенд вида` or
+`стенд ощущения`, `Item N: Add the look stand` or `feel stand`) — the stand serves
+the next items; the sheets and «Журнал» live in the `Партия:` commits and remain.
+Do not revert the base commit either (`Пункт N: основа — …`, `Item N: Base — …`)
+if the rejection reason is in taste (the chosen variant, a colour, the preset's
+numbers) or there is none (`ждёт`, `не выполнен`): the owner did not reject the
+form; the reason is in the base itself (form, mass, a defect, «Ломает другое») —
+revert it too. A conflict only in `docs/BATCH.md` (batches before 0.4.0) — not a
+dependency: `git checkout HEAD -- docs/BATCH.md`, `git revert --continue --no-edit`.
+Any other conflict — `git revert --abort`, push nothing, and show which accepted
+item leans on the unaccepted one. The revert touches only the batch's files;
+uncommitted concept-chat `.md` in the same files — ask to finish them there first.
 
-## 4. Финальная проверка
+## 4. Final check
 
-По `docs/TESTING.md`, на том, что получилось после отката:
+Per `docs/TESTING.md`, on what came out after the revert:
 
-1. **Полная и долгая** — если «Последний полный прогон» в шапке партии
-   `не было` или красный, или `git diff --name-only <его хеш>..HEAD` содержит
-   не-`.md` файлы (откат, поправка, всё, что легло после прогона). Иначе не
-   гонять: назвать в отчёте его числа и хеш.
-2. Быстрая — с вердиктом так, как сказано в таблице.
-3. «После правки ресурсов», если менялись ресурсы; относящиеся снимки. Группу
-   «замеры» не гонять: это конец `/studio/start`.
+1. **Full and long** — if the batch header's «Последний полный прогон» is `не было`
+   or red, or `git diff --name-only <its hash>..HEAD` contains non-`.md` files (a
+   revert, a fix, anything that landed after the run). Otherwise do not run: name
+   its numbers and hash in the report.
+2. Quick — with the verdict as the table says.
+3. «После правки ресурсов», if resources changed; the related screenshots. Do not
+   run the «замеры» group: that is the end of `/studio/start`.
 
-Красная проверка — прогнать её ещё дважды (из полной — по имени), как
-`/studio/check`. Красная все три раза — **принятие остановлено**: документы не
-править, ничего не отправлять, показать точный провал. Красная 1–2 из 3 —
-нестабильная: в документы (раздел 5) и отдельной строкой в отчёт. Не ослаблять
-проверку ради зелёного итога.
+A red check — run it twice more (from the full one — by name), as in `/studio/check`.
+Red all three times — **acceptance stopped**: do not edit the documents, push
+nothing, show the exact failure. Red 1–2 of 3 — unstable: into the documents
+(section 5) and as a separate line in the report. Do not weaken the check for a
+green total.
 
-## 5. Документы и отправка
+## 5. Documents and push
 
-**Этап.** Есть «Этапы» `docs/ROADMAP.md`, принят пункт `[этап N]` этапа
-`идёт`, и других `[этап N]` в «Очереди» не осталось — до окна строка «Что
-увидит игрок» этапа, окно «Этап N — закрыт? (по «Закрыт, когда»: …)» — `Да
-(Recommended)` / `Нет, ещё: …` (description — «чего не хватает — в
-заметке») / `Ещё не проходил` (description — «спросит `/studio/roadmap
-следующий`»). «Да» — этап `сделан <дата>`, его системы в «Покрытии» —
-`работает`; остальные этапы не перестраивать. «Нет» — заметку дословно в
-`docs/BATCH.md`, «Найдено по ходу»: «Этап N не закрыт (<дата>): «…»» (пункт
-очереди из неё сделает чат замысла); заметки нет — спросить словами. «Ещё не
-проходил» — этап остаётся `идёт`, в отчёте — «пройдите «Что увидит игрок»,
-потом в чате замысла `/studio/roadmap следующий` спросит снова».
+**Stage.** `docs/ROADMAP.md` has «Этапы», the `идёт` stage's `[этап N]` item is
+accepted, and no other `[этап N]` left in «Очереди» — before the dialog, the
+stage's «Что увидит игрок» row, the dialog «Этап N — закрыт? (по «Закрыт, когда»:
+…)» — `Да (Recommended)` / `Нет, ещё: …` (description — «чего не хватает — в
+заметке») / `Ещё не проходил` (description — «спросит `/studio/roadmap следующий`»).
+`Да` — the stage is `сделан <дата>`, its systems in «Покрытии» — `работает`; do not
+rebuild the other stages. `Нет` — the note verbatim into `docs/BATCH.md`, «Найдено
+по ходу»: «Этап N не закрыт (<дата>): «…»» (the concept chat will make a queue item
+from it); no note — ask in words. `Ещё не проходил` — the stage stays `идёт`, in
+the report — «пройдите «Что увидит игрок», потом в чате замысла
+`/studio/roadmap следующий` спросит снова».
 
-В этих документах не должно быть незакоммиченных изменений чата замысла; есть
-— попросить завершить их там, не смешивать. Источник — строки пунктов в
-`docs/BATCH.md`:
+These documents must not carry uncommitted concept-chat changes; if they do — ask
+to finish them there, do not mix. The source — the item rows in `docs/BATCH.md`:
 
-- **`docs/ROADMAP.md`** — принятое убрать из очереди и «Дальше», одной строкой
-  в «Сделано» — словами игрока: что теперь можно, видно или слышно (строка
-  «Сделано» из «В документы при /studio/done»; у пункта `[этап N]` — метка в конце:
-  по ней `/studio/board` считает пункты этапа; у `Уборка:` — «<что> — для игрока без
-  изменений»); из неё `/studio/release` пишет заметки.
-  Непринятое остаётся в очереди; к его подробностям (у бага — к записи в
-  `docs/BUGS.md`: её читают исполнитель и проверяющий) — строка `Не принят
-  (<дата>): «<вариант> — <заметка владельца дословно>»` и пути снимков, если
-  результат видимый. Не выполненная `Уборка:` — к подробностям строка «Не
-  выполнен (<дата>): <причина>» (со второй такой `/studio/start` её не берёт).
-  Пункт `не выполнен: ждёт уборки <что>` — в очереди `[ждёт уборки]`
-  (иначе `/studio/start all` возьмёт его снова до той же находки);
-  принят пункт `Уборка:` — пункты `[ждёт уборки]` за ним по тому же файлу —
-  `[можно]`: метку снимает приёмка уборки, а не её постановка. Полигон стал
-  `есть` — пункты `[ждёт проверок]` — `[можно]`. **Принят свет** (паспорт
-  «свет и атмосфера», глобальный облик) — пункты `[ждёт света]` → `[можно]`,
-  если больше ничего не ждут;
-- **паспорта `docs/refs/<тема>.md`** — принятый `[вид]`: `Состояние: принят кадр
-  <дата>` (и в «Темах» `docs/refs/INDEX.md`), в «Журнал» — `- <дата>: принят
-  кадр accepted-<дата>.png`, к строке «покажем оба …» в «Противоречиях», выбор
-  по которой есть в «Журнале», — «решено <дата>: выбран <как образец | как в
-  ваших словах>»; непринятый — в «Журнал» дословно `- <дата>: не принят кадр —
-  «слова владельца»`; строки «Журнала», которые `/studio/start` оставил в
-  `docs/BATCH.md`, — туда же. **Пересмотр приёма** — `[вид]` `не выполнен:
-  пересмотр приёма` и непринятый с заметкой о способе (раздел 2): паспорт и
-  состояние не трогать («Журнал» — `- <дата>: пересмотр приёма — «<заметка>»`,
-  если `/studio/start` не написал), пункт в очереди — `[ждёт приёма]`, в «Решения»
-  `BLOCKED.md` — «Пересмотр приёма <тема>: «<заметка>» — `/studio/idea приём
-  <тема>`»; так же перевести стоящие с прошлых партий `не выполнен: на
-  пересмотр образца` и `[ждёт образца]` без слов владельца «образец другой»
-  (паспорт из `черновик` — в прежнее состояние по строке «Журнала», и в
-  «Темах»); свет принят после их листа — к подробностям пункта «Сначала:
-  переснять отвергнутые варианты в принятом свете». «Образец другой» —
-  паспорт в `черновик` (и в «Темах»; прежнее состояние — строкой в «Журнал»),
-  пункт — `[ждёт образца]`, в «Решения» — «Образец <тема>: пересмотреть —
-  `/studio/idea образец <тема>`». **Принят свет** — паспортам других тем с `принят
-  кадр` раньше: в «Журнал» `- <дата>: снято до света` (в «Темах» — к
-  состоянию), повторный лист по ним не заводится без слов владельца; в
-  «Найдено по ходу» `docs/BATCH.md` — «эталоны вида и проверки тона — снято
-  до света: обновить одним пунктом после приёмки света» (пункт ставит `/studio/idea`
-  или `/studio/setup обновить`);
-- **`docs/CONCEPT.md`** — только реально принятое работающее; строки
-  `CONCEPT, Где что: …` и `CONCEPT, Копии: …` — строкой этой таблицы
-  «Архитектуры» (таблицы нет — завести), `CONCEPT, Службы: …` — в строку
-  «Службы (автозагрузки)»;
-- **`docs/BUGS.md`** — удалить только принятые исправленные баги;
-- **`docs/BLOCKED.md`** — убрать закрытые принятым долги; в «Решения» —
-  вопросы пунктов `ждёт` и неотвеченное из «Вопросы владельцу», если их там
-  нет и ответа нет в `docs/DECISIONS.md`; такой пункт в «Очереди»
-  `ROADMAP.md` — `[ждёт ответа: …]`; ответ уже есть — в отчёт «пункт N можно
-  брать»;
-- **`docs/DECISIONS.md`** — существенное из «Решено за вас» и «Решил сам»
-  принятых пунктов (выбор, который потом потянет переделать): что выбрали —
-  что отвергли — почему, с датой;
-- **`docs/TESTING.md`** — по шапкам его разделов: новые проверки, состояние
-  полигона; строка `TESTING: Стенд, <часть> …` (и у непринятого: стенд не
-  откатывался) — эта часть «Стенда» `есть` и команда в таблицу; принятый
-  кадр — эталон для регрессии, если проект умеет сравнивать снимки с
-  допуском; `Ловушка:` → «Ловушки стека»; `Ограничение:` и «вид не
-  проверен» принятых → «Принято без полной проверки» (кроме лёгкого режима,
-  покрытого зелёным полным прогоном); шапка партии «Замеры: отложены …»,
-  «не состоялись» или «проверка сломана» → туда же «замеры партии <дата> не
-  сняты — <причина>», а «Замеры: N/M на <хеш>» снимает такие записи
-  ссылкой на этот прогон; нестабильные → «Нестабильные проверки»; принята
-  уборка реестра или раннера — в «Правилах каркаса» снять оговорку «цель;
-  пока …» у строки «раннер находит проверки сам», «Общие узлы» — по строке
+- **`docs/ROADMAP.md`** — move the accepted out of the queue and «Дальше», one line
+  into «Сделано» — in player words: what is now possible, visible, or audible (the
+  «Сделано» row from «В документы при /studio/done»; for an `[этап N]` item — the
+  tag at the end: `/studio/board` counts a stage's items by it; for `Уборка:` —
+  «<что> — для игрока без изменений»); `/studio/release` writes the release notes
+  from it. The unaccepted stays in the queue; to its details (for a bug — to the
+  `docs/BUGS.md` entry: the executor and the reviewer read it) — the row `Не принят
+  (<дата>): «<вариант> — <заметка владельца дословно>»` and the screenshot paths
+  if the result is visible. An unexecuted `Уборка:` — to the details the row «Не
+  выполнен (<дата>): <причина>» (on the second such row `/studio/start` stops
+  taking it). An item `не выполнен: ждёт уборки <что>` — in the queue
+  `[ждёт уборки]` (otherwise `/studio/start all` takes it again to the same
+  finding); an `Уборка:` item accepted — the `[ждёт уборки]` items behind it on the
+  same file — `[можно]`: the tag is removed by the cleanup's acceptance, not by
+  its queuing. The testbed became `есть` — the `[ждёт проверок]` items —
+  `[можно]`. **Light accepted** (the «свет и атмосфера» passport, the global look)
+  — the `[ждёт света]` items → `[можно]`, if nothing else waits;
+- **the `docs/refs/<тема>.md` passports** — the accepted `[вид]`: `Состояние:
+  принят кадр <дата>` (and in `docs/refs/INDEX.md`'s «Темах»), into «Журнал» —
+  `- <дата>: принят кадр accepted-<дата>.png`, to the «покажем оба …» row in
+  «Противоречиях» whose choice is in «Журнале» — «решено <дата>: выбран <как
+  образец | как в ваших словах>»; the unaccepted — into «Журнал» verbatim `- <дата>:
+  не принят кадр — «слова владельца»»; the «Журнал» rows `/studio/start` left in
+  `docs/BATCH.md` — there too. **Technique revision** — an `[вид]` `не выполнен:
+  пересмотр приёма` and an unaccepted one with a note about the technique
+  (section 2): do not touch the passport or the state («Журнал» — `- <дата>:
+  пересмотр приёма — «<заметка>»`, if `/studio/start` did not write it), the item
+  in the queue — `[ждёт приёма]`, into `BLOCKED.md`'s «Решения» — «Пересмотр приёма
+  <тема>: «<заметка>» — `/studio/idea приём <тема>`»; likewise convert the
+  `не выполнен: на пересмотр образца` and `[ждёт образца]` ones standing from past
+  batches without the owner's words «образец другой» (a passport from `черновик` —
+  to its former state per the «Журнал» row, and in «Темах»); light accepted after
+  their sheet — to the item's details «Сначала: переснять отвергнутые варианты в
+  принятом свете». «Образец другой» — the passport to `черновик` (and in «Темах»;
+  the former state — as a row into «Журнал»), the item — `[ждёт образца]`, into
+  «Решения» — «Образец <тема>: пересмотреть — `/studio/idea образец <тема>`».
+  **Light accepted** — for the other topics' passports with `принят кадр` earlier:
+  into «Журнал» `- <дата>: снято до света` (in «Темах» — to the state), no repeat
+  sheet is started for them without the owner's words; into `docs/BATCH.md`'s
+  «Найдено по ходу» — «эталоны вида и проверки тона — снято до света: обновить
+  одним пунктом после приёмки света» (the item is queued by `/studio/idea` or
+  `/studio/setup обновить`);
+- **`docs/CONCEPT.md`** — only what is really accepted and working; the rows
+  `CONCEPT, Где что: …` and `CONCEPT, Копии: …` — into a row of that «Архитектура»
+  table (no table — create one), `CONCEPT, Службы: …` — into the «Службы
+  (автозагрузки)» row;
+- **`docs/BUGS.md`** — delete only the accepted, fixed bugs;
+- **`docs/BLOCKED.md`** — remove the debts closed by acceptance; into «Решения» —
+  the `ждёт` items' questions and the unanswered from «Вопросы владельцу», if they
+  are not there and there is no answer in `docs/DECISIONS.md`; such an item in
+  `ROADMAP.md`'s «Очереди» — `[ждёт ответа: …]`; an answer already exists — into
+  the report «пункт N можно брать»;
+- **`docs/DECISIONS.md`** — the essential from the accepted items' «Решено за вас»
+  and «Решил сам» (a choice that will later pull a redo): what was chosen — what
+  was rejected — why, with the date;
+- **`docs/TESTING.md`** — per its sections' headers: new checks, the testbed's
+  state; the row `TESTING: Стенд, <часть> …` (and for the unaccepted one: the stand
+  was not reverted) — that «Стенд» part is `есть` and the command into the table;
+  the accepted frame — the regression reference, if the project can compare
+  screenshots with a tolerance; `Ловушка:` → «Ловушки стека»; `Ограничение:` and
+  the accepted items' «вид не проверен» → «Принято без полной проверки» (except the
+  light mode covered by a green full run); the batch header «Замеры: отложены …»,
+  «не состоялись», or «проверка сломана» → there too «замеры партии <дата> не
+  сняты — <причина>», and «Замеры: N/M на <хеш>» removes such records by
+  referencing this run; unstable ones → «Нестабильные проверки»; a registry or
+  runner cleanup accepted — in «Правилах каркаса» remove the «цель; пока …»
+  caveat from the «раннер находит проверки сам» row; «Общие узлы» — per the row
   `TESTING, Общие узлы: …`;
-- **`docs/DESIGN.md`** — строки `DESIGN:` принятых пунктов, которые владелец
-  не оспорил; новые компоненты; «так и не так» из поправок по виду;
-- **`docs/orders/<вид>.md`** — только при изменении правил заказа;
-- **`docs/BATCH.md`** — шапку и таблицу заменить строкой «Пусто.», кроме
-  пунктов на поправке и `ждёт выбора`: их строки и шапка остаются,
-  «Последний полный прогон» — по разделу 4. Образец в комментарии и заголовки
-  разделов оставить; из «Вопросы владельцу» убрать перенесённое в BLOCKED,
-  из «Принято по умолчанию» — строки пунктов, которые не остались в партии;
-  «Общий пробел», «Пришло» и «Найдено по ходу» — незакрытое и не перенесённое
-  чатом замысла оставить; были откаты — строки `уборка:`, которые кончаются
-  на «— этот diff» (находки партии), оставить только те, чьи файл и род
-  (размер, повтор, тип, закрытое, вызов по имени…) ещё называет
-  `code_check.py --changed <хеш снятия> --only` — номера строк и числа после
-  отката другие: находки откаченного пункта — призраки, `/studio/idea` поставила
-  бы по ним уборку без находки;
-- **`README.md` и `README.ru.md`** — блоки `features`, `status` и `shots` по
-  «README» `COMMITS.md`: только между метками, оба файла вместе; меток нет —
-  не трогать; строка в отчёт — по «README» `COMMITS.md` (после отказа
-  владельца — не писать).
+- **`docs/DESIGN.md`** — the accepted items' `DESIGN:` rows that the owner did not
+  dispute; new components; the "like this / not like this" pairs from look fixes;
+- **`docs/orders/<kind>.md`** — only when the order rules change;
+- **`docs/BATCH.md`** — replace the header and the table with the row «Пусто.»,
+  except items in a fix and `ждёт выбора`: their rows and the header remain,
+  «Последний полный прогон» — per section 4. Keep the reference in the comment and
+  the section headers; from «Вопросы владельцу» remove what was moved to BLOCKED,
+  from «Принято по умолчанию» — the rows of the items that did not stay in the
+  batch; «Общий пробел», «Пришло», and «Найдено по ходу» — keep the unclosed and
+  what the concept chat did not move; there were reverts — of the `уборка:` rows
+  ending in «— этот diff» (the batch's findings), keep only those whose file and
+  kind (size, repetition, type, closed, a call by name…) is still named by
+  `code_check.py --changed <capture hash> --only` — the line numbers and the
+  numbers differ after the revert: the reverted item's findings are ghosts,
+  `/studio/idea` would have queued a cleanup on them without a finding;
+- **`README.md` and `README.ru.md`** — the `features`, `status`, and `shots`
+  blocks per the "README" section of `COMMITS.md`: only between the markers, both
+  files together; no markers — do not touch; the report line — per the "README"
+  section of `COMMITS.md` (after the owner's rejection — do not write).
 
-Снимки принятых пунктов в `../<папка проекта>.wt/shots/` удалить, непринятых —
-оставить: на них ведут строки «Не принят»; папку `done/` — удалить. Отложенное пункта, ушедшего в
-очередь (`отложено: .wt/parked/p<N> на <хеш>`), — переименовать в
-`parked/<дата партии>-p<N>`, к подробностям пункта в `docs/ROADMAP.md` —
-«Начато (<дата>): <путь>, на <хеш>»: его возьмёт исполнитель следующей партии.
+Delete the accepted items' screenshots in `../<project folder>.wt/shots/`, keep
+the unaccepted ones: the «Не принят» rows point to them; delete the `done/`
+folder. The parked work of an item that went back to the queue (`отложено:
+.wt/parked/p<N> на <хеш>`), — rename to `parked/<дата партии>-p<N>`, to the item's
+details in `docs/ROADMAP.md` — «Начато (<дата>): <путь>, на <хеш>»: the next
+batch's executor will take it.
 
-**База здоровья кода** — `python -X utf8 tools/code_check.py --tighten`:
-снижает числа там, где стало лучше (нет скрипта или код 2 — пропустить; в
-партии остались пункты на поправке или `ждёт выбора` — тоже: их коммиты ещё
-могут откатить, а поднять базу потом нельзя — снизит следующий `/studio/done`).
-Все правки — одним документальным коммитом `Приёмка:` (первая строка — что
-теперь может игрок; в теле — оставленные и откаченные пункты, числа финальной
-проверки), файлы поимённо, с изменённым `tools/code_baseline.json`; отправить
-(`git push`), если в `AGENTS.md` коммиты отправляются.
+**The code health baseline** — `python -X utf8 tools/code_check.py --tighten`:
+lowers the numbers where things got better (no script or code 2 — skip; the batch
+still has items in a fix or `ждёт выбора` — too: their commits can still be
+reverted, and the baseline cannot be raised later — the next `/studio/done` would
+lower it). All edits — one documentary commit `Приёмка:` (the first line — what
+the player can do now; in the body — the kept and the reverted items, the final
+check's numbers), files by name, with the changed `tools/code_baseline.json`;
+push (`git push`) if `AGENTS.md` says commits are pushed.
 
-## 6. Оспоренное — в поправку
+## 6. Disputed — into a fix
 
-Как должно быть — из заметки к окну; её нет — спросить словами. Поправка —
-циклом `/studio/start` «Поправки после проверки владельца»: новый
-`executor-code` со
-словами владельца дословно (как круг 2–3: prep и finish заново не звать),
-`reviewer`, коммит `Пункт N: поправка — …`,
-отметка в `docs/BATCH.md`. Принимает её следующий `/studio/done`, когда владелец
-посмотрит.
+How it should be — from the dialog's note; none — ask in words. The fix — by the
+`/studio/start` cycle "Fixes after the owner's check": a new `executor-code` with
+the owner's words verbatim (as rounds 2–3: do not call prep and finish again),
+`reviewer`, the commit `Пункт N: поправка — …`, the mark in `docs/BATCH.md`. The
+next `/studio/done` accepts it once the owner has looked.
 
-## 7. Отчёт
+## 7. Report
 
-Словами продукта: принятые пункты и их хеши; непринятые — причина, хеш отката,
-где теперь в очереди; у `[вид]` — принятый кадр и состояние паспорта; что
-ушло в поправку и что посмотреть после неё; что записано в «Ловушки стека»,
-«Принято без полной проверки», `DECISIONS.md`; финальная проверка — прогнана
-сейчас или взят прогон партии (числа, хеш), нестабильные; хеш документального
-коммита, обновлённые блоки README и факт отправки; копия данных пользователя
-из `docs/BATCH.md`, если делалась, — её можно удалить; один конкретный
-следующий пункт очереди, без автоматического старта, а закрыт этап — вместо
-него строка «Следующий шаг — в чате замысла: `/studio/roadmap следующий`».
+In product words: the accepted items and their hashes; the unaccepted — the reason,
+the revert's hash, where in the queue now; for `[вид]` — the accepted frame and the
+passport's state; what went into a fix and what to look at after it; what was
+recorded in «Ловушки стека», «Принято без полной проверки», `DECISIONS.md`; the
+final check — run now or the batch's run taken (the numbers, the hash), the
+unstable ones; the documentary commit's hash, the updated README blocks, and the
+push fact; the user data copy from `docs/BATCH.md`, if one was made, — it can be
+deleted; one concrete next queue item, without an automatic start, and a stage
+closed — instead of it the line «Следующий шаг — в чате замысла:
+`/studio/roadmap следующий`».
 
-Затем — разбор партии по `.opencode/commands/studio/retro.md`, разделы 1–4, без окон (уроки
-вносятся сами; в отчёт — до 5 строк «Записал уроки: …» и «Не так —
-напишите»); владельцу звать `/studio/retro` не нужно.
+Then — the batch retro per `.opencode/commands/studio/retro.md`, sections 1–4,
+without dialogs (the lessons are entered automatically; into the report — up to 5
+lines «Записал уроки: …» and «Не так — напишите»); the owner does not need to call
+`/studio/retro`.

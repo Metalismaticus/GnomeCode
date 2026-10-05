@@ -1,69 +1,68 @@
-# Библиотека приёмов стилизованного вида
+# Library of stylized-look techniques
 
-Откуда берётся **способ** у пункта `[вид]`: паспорт темы ссылается на приём
-по имени («У нас: приём: <имя> · <где в коде>»), варианты выбора 1 — разными
-приёмами отсюда, «смена способа» — следующий приём из строки паспорта, не
-«придумать», «Способ:» в итоге исполнителя называет имя приёма. Описание
-приёма — без движка; блок **«Рецепт <движок> <версия>»** — фрагмент, не
-вставка: имена свойств и функций сверять с документацией версии из
-«Окружения» `docs/TESTING.md` (Context7 или `docs/engine-notes.md`); у
-движка без рецепта — «Unity–Unreal рецепта нет», приём всё равно применим.
-Найденное в проекте `reference` дописывает в `docs/refs/TECHNIQUES.md`
-(«Свои приёмы»), сюда ничего не сливается.
+Where the **method** of a `[вид]` item comes from: the theme passport references a technique
+by name («У нас: приём: <имя> · <где в коде>»), the variants of choice 1 — different
+techniques from here, a technique change — the next technique from the passport line, not
+"inventing one"; the «Способ:» line in the executor's summary names the technique. A
+technique's description — engine-free; the **"Recipe <engine> <version>"** block — a fragment, not
+a paste: verify property and function names against the documentation of the version from
+«Окружение» `docs/TESTING.md` (Context7 or `docs/engine-notes.md`); for an
+engine without a recipe — no Unity–Unreal recipe, the technique still applies.
+What the `reference` agent finds in the project it appends to `docs/refs/TECHNIQUES.md`
+(«Свои приёмы»); nothing is merged into here.
 
-У приёма: **что даёт** словами продукта · **проверить вариантом** на стенде ·
-**цена** (мс кадра на «рекомендуемых», оценка до замера) · **надёжность и
-источник** с датой (`официально` — документация движка, доклад студии /
-`разбор кадра` / `догадка`; источник без адреса — «проверить») · **где
-работает** (любой движок / Godot `gl_compatibility` / только Forward+) ·
-**какую меру листа двигает** (`tools/look_sheet.py`: яркость, контраст,
-насыщенность, тон, карта краёв `--sanity`; «форма — глазом» — числа не
-покажут). У приёмов света, дали и тона (разделы «Свет и атмосфера», «Даль и
-дымка», «Постобработка») мера листа — цвет: карта краёв не двигается, строка
-«варианты различаются только оттенком» у них не брак — лист и `--sanity`
-снимать с `--axis приём`. Дата аудита `techniques` — 2026-09-28; ссылки на
-документацию Godot — раздел «Источники» в конце.
+Each technique has: **what it gives** in product words · **verify with a variant** on the stand ·
+**cost** (frame ms on "recommended" hardware, an estimate before measurement) · **reliability and
+source** with a date (`официально` — engine documentation, a studio talk / `разбор кадра` /
+`догадка`; a source without an address — verify) · **where it works** (any engine / Godot
+`gl_compatibility` / Forward+ only) · **which sheet measure it moves** (`tools/look_sheet.py`:
+brightness, contrast, saturation, hue, edge map `--sanity`; "shape — by eye" — numbers will not
+show it). For the techniques of light, distance and hue (the sections "Light and atmosphere",
+"Distance and haze", "Post-processing") the sheet measure is color: the edge map does not move;
+the line «варианты различаются только оттенком» (the variants differ only in hue) is not a defect
+for them — capture the sheet and `--sanity` with `--axis <technique>`. The `techniques` audit date —
+2026-09-28; links to Godot documentation — the "Sources" section at the end.
 
-## Свет и атмосфера
+## Light and atmosphere
 
-### Тёплое солнце + прохладный ambient
+### Warm sun + cool ambient
 
-- Даёт: освещённые склоны золотистые, тени сине-зелёные, а не серые; две
-  трети впечатления «как на концепте» — здесь.
-- Проверить вариантом: цвет и сила солнца × цвет и доля неба в ambient;
-  вырезки «свет / тень» одного склона.
-- Цена: 0. Надёжность: `официально` (документация Environment, 2026-09-28).
-- Где работает: любой движок; Godot `gl_compatibility` — да.
-- Мера листа: тон вырезок света и тени (образец: тень #243A16, свет #ABA34B у
-  один проект на Godot 4.7), контраст.
+- Gives: sunlit slopes golden, shadows blue-green instead of gray; two
+  thirds of the "like the concept" impression — here.
+- Verify with a variant: sun color and strength × sky color and sky share in ambient;
+  «свет / тень» crops of one slope.
+- Cost: 0. Reliability: `официально` (Environment documentation, 2026-09-28).
+- Where it works: any engine; Godot `gl_compatibility` — yes.
+- Sheet measure: the hue of the light and shadow crops (example: shadow #243A16, light #ABA34B from
+  one Godot 4.7 project), contrast.
 
-Рецепт Godot 4.7 (фрагмент, не вставка):
+Recipe Godot 4.7 (fragment, not a paste):
 
 ```gdscript
 var env: Environment = world_environment.environment
 env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-env.ambient_light_sky_contribution = 0.6   # < 1: часть — цвет ниже, а не небо
-env.ambient_light_color = Color(0.60, 0.70, 0.86)  # прохладный
+env.ambient_light_sky_contribution = 0.6   # < 1: part — color below, not sky
+env.ambient_light_color = Color(0.60, 0.70, 0.86)  # cool
 env.ambient_light_energy = 0.7
-sun.light_color = Color(1.0, 0.86, 0.66)   # тёплое, низкое
+sun.light_color = Color(1.0, 0.86, 0.66)   # warm, low
 sun.light_energy = 1.4
-sun.rotation_degrees.x = -12.0             # 10–15° над горизонтом
+sun.rotation_degrees.x = -12.0             # 10–15° above the horizon
 ```
 
-### Ramp по освещённости
+### Ramp by illumination
 
-- Даёт: свет и тень ложатся широкими мягкими ступенями, как на рисунке, а
-  не плавным «пластилиновым» градиентом; кроны и валуны читаются массами.
-- Проверить вариантом: положение и ширина ступени (`step_edge`, `step_soft`),
-  тон теневой стороны.
-- Цена: ~0,1 мс (шейдер материала). Надёжность: `официально` (spatial shader
-  `light()`, 2026-09-28) + `разбор кадра` у стилизованных игр.
-- Где работает: любой движок с пользовательской моделью света; Godot
-  `gl_compatibility` — да.
-- Мера листа: контраст вырезки, карта краёв (появляется граница ступени).
+- Gives: light and shadow fall in broad soft steps as in a drawing, not
+  a smooth "plasticine" gradient; crowns and boulders read as masses.
+- Verify with a variant: step position and width (`step_edge`, `step_soft`),
+  the hue of the shadow side.
+- Cost: ~0.1 ms (a material shader). Reliability: `официально` (spatial shader
+  `light()`, 2026-09-28) + `разбор кадра` in stylized games.
+- Where it works: any engine with a custom lighting model; Godot
+  `gl_compatibility` — yes.
+- Sheet measure: crop contrast, edge map (a step boundary appears).
 
-Рецепт Godot 4.7 (фрагмент): в `light()` не ступенька `step`, а
-`smoothstep` по `ATTENUATION` — иначе граница тени дрожит.
+Recipe Godot 4.7 (fragment): in `light()` not the `step` step but
+`smoothstep` over `ATTENUATION` — otherwise the shadow boundary jitters.
 
 ```glsl
 uniform float step_edge : hint_range(0.0, 1.0) = 0.35;
@@ -78,107 +77,108 @@ void light() {
 }
 ```
 
-### Рим только в свету
+### Rim only in light
 
-- Даёт: светлая кромка по краю кроны и валуна со стороны солнца — предмет
-  отделяется от фона; в тени кромки нет, иначе всё «светится».
-- Проверить вариантом: сила и ширина рима; без него.
-- Цена: ~0. Надёжность: `разбор кадра` (проверить).
-- Где работает: любой; Godot — в том же `light()`.
-- Мера листа: карта краёв, яркость по краю вырезки.
+- Gives: a bright rim along the crown and boulder edge on the sun side — the object
+  separates from the background; in shadow there is no rim, or everything "glows".
+- Verify with a variant: rim strength and width; without it.
+- Cost: ~0. Reliability: `разбор кадра` (verify).
+- Where it works: any; Godot — in the same `light()`.
+- Sheet measure: edge map, brightness along the crop edge.
 
-Рецепт Godot 4.7 (фрагмент, продолжение `light()`):
+Recipe Godot 4.7 (fragment, a continuation of `light()`):
 
 ```glsl
 uniform float rim_power = 3.0;
 uniform float rim_strength = 0.25;
-// после lit:
+// after lit:
 float rim = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), rim_power);
-DIFFUSE_LIGHT += LIGHT_COLOR * rim * rim_strength * lit;  // только где lit
+DIFFUSE_LIGHT += LIGHT_COLOR * rim * rim_strength * lit;  // only where lit
 ```
 
-## Даль и дымка
+## Distance and haze
 
-### Depth-fog к цвету дали
+### Depth-fog to the distant color
 
-- Даёт: за лесом не белая стена, а холмы, уходящие в сине-серую дымку цвета
-  дали образца; четыре плана «луг → лес → синие холмы → горы» видны с земли.
-- Проверить вариантом: цвет дымки (цвет дали образца, не неба), начало и
-  конец по дальности, кривая.
-- Цена: 0. Надёжность: `официально` (Environment, режим Depth — 4.3+;
-  проверить на 4.7).
-- Где работает: любой; Godot `gl_compatibility` — да.
-- Мера листа: насыщенность и яркость дальнего плана (пример из одного проекта
-  0,25 / 0,61), тон; карта краёв не двигается — «только оттенком» не брак.
+- Gives: behind the forest not a white wall but hills sinking into a blue-gray haze the
+  color of the reference's distance; four planes "meadow → forest → blue hills → mountains"
+  visible from the ground.
+- Verify with a variant: the haze color (the reference's distance color, not the sky's), the
+  start and end by distance, the curve.
+- Cost: 0. Reliability: `официально` (Environment, Depth mode — 4.3+;
+  verify on 4.7).
+- Where it works: any; Godot `gl_compatibility` — yes.
+- Sheet measure: saturation and brightness of the far plane (an example from one project:
+  0.25 / 0.61), hue; the edge map does not move — "only in hue" is not a defect.
 
-Рецепт Godot 4.7 (фрагмент):
+Recipe Godot 4.7 (fragment):
 
 ```gdscript
 env.fog_enabled = true
 env.fog_mode = Environment.FOG_MODE_DEPTH
 env.fog_depth_begin = 60.0
-env.fog_depth_end = 420.0          # дальше края загруженного мира — шов прячет маска
+env.fog_depth_end = 420.0          # farther than the loaded world's edge — a mask hides the seam
 env.fog_depth_curve = 1.6
-env.fog_light_color = Color(0.42, 0.51, 0.62)  # цвет дали образца
+env.fog_light_color = Color(0.42, 0.51, 0.62)  # the reference's distance color
 env.fog_light_energy = 1.0
-env.fog_sky_affect = 0.0           # небо не «молочнеет»
+env.fog_sky_affect = 0.0           # the sky does not turn milky
 ```
 
-### Height-fog (дымка по высоте)
+### Height-fog (haze by altitude)
 
-- Даёт: низины тонут в дымке, вершины и кроны над ней чистые; вместе с
-  depth-fog — воздух «слоями».
-- Проверить вариантом: высота и плотность слоя; без слоя.
-- Цена: 0. Надёжность: `официально` (Environment `fog_height*`).
-- Где работает: любой; Godot `gl_compatibility` — да (объёмный туман —
-  только Forward+).
-- Мера листа: яркость нижней трети кадра дали (у темы света — второй кадр паспорта).
+- Gives: lowlands sink into haze, peaks and crowns above it clean; together with
+  depth-fog — air "in layers".
+- Verify with a variant: the layer's height and density; without the layer.
+- Cost: 0. Reliability: `официально` (Environment `fog_height*`).
+- Where it works: any; Godot `gl_compatibility` — yes (volumetric fog —
+  Forward+ only).
+- Sheet measure: brightness of the lower third of the distance frame (for a light theme — the passport's second frame).
 
-Рецепт Godot 4.7 (фрагмент): `env.fog_height = -10.0`,
-`env.fog_height_density = 0.02` (отрицательная высота — слой ниже камеры).
+Recipe Godot 4.7 (fragment): `env.fog_height = -10.0`,
+`env.fog_height_density = 0.02` (a negative height — the layer below the camera).
 
-### Воздушная перспектива + рассеяние солнца
+### Aerial perspective + sun scatter
 
-- Даёт: дальний план не только тускнеет, но и синеет, у солнца дымка
-  теплеет — дорожка света в воздухе.
-- Проверить вариантом: доля `aerial_perspective`, сила `sun_scatter`.
-- Цена: 0. Надёжность: `официально` (Environment).
-- Где работает: Godot 4 (оба рендера); в других движках — цвет тумана от
-  угла к солнцу в шейдере неба или постобработке.
-- Мера листа: тон дальнего плана, яркость у солнца.
+- Gives: the far plane not only dims but turns blue; near the sun the haze
+  warms — a path of light in the air.
+- Verify with a variant: the `aerial_perspective` share, the `sun_scatter` strength.
+- Cost: 0. Reliability: `официально` (Environment).
+- Where it works: Godot 4 (both renderers); in other engines — fog color by
+  angle to the sun in a sky shader or post-processing.
+- Sheet measure: far-plane hue, brightness near the sun.
 
-Рецепт Godot 4.7 (фрагмент): `env.fog_aerial_perspective = 0.35`,
+Recipe Godot 4.7 (fragment): `env.fog_aerial_perspective = 0.35`,
 `env.fog_sun_scatter = 0.15`.
 
-### Маска шва «участок ↔ дальний вид»
+### Seam mask "play area ↔ distant view"
 
-- Даёт: краевой туман прячет только стык загруженного мира и дальнего
-  вида (импосторы, карта высот вдали), а не всю даль.
-- Проверить вариантом: ширина маски, дальность от края; «даль видна с
-  земли» — решение картинки («Решил сам [видно]» в `/studio/start`).
-- Цена: ~0. Надёжность: `догадка` — свой приём проекта.
-- Где работает: любой.
-- Мера листа: форма — глазом; яркость последней трети кадра.
+- Gives: edge fog hides only the seam of the loaded world and the distant
+  view (impostors, a far heightmap), not the whole distance.
+- Verify with a variant: mask width, distance from the edge; «даль видна с земли»
+  (the distance visible from the ground) — a picture decision («Решил сам [видно]» in `/studio/start`).
+- Cost: ~0. Reliability: `догадка` — the project's own technique.
+- Where it works: any.
+- Sheet measure: shape — by eye; brightness of the last third of the frame.
 
-## Небо и облака
+## Sky and clouds
 
-### Sky-шейдер: слоистый 2D-шум с подсветкой от солнца
+### Sky shader: layered 2D noise with sun lighting
 
-- Даёт: облака как мазки, светлые со стороны солнца, серо-синие с тени;
-  цвет облаков — от часа суток, потому что берётся из цвета солнца и неба,
-  а не задан числом.
-- Проверить вариантом: покрытие, масштаб шума, сила подсветки; против
-  «слоёв с RGB-текстурой» ниже.
-- Цена: ~0,2–0,5 мс (полноэкранный sky). Надёжность: `официально` (sky
-  shader, `LIGHT0_*`) + `разбор кадра` (проверить).
-- Где работает: любой движок с шейдером неба; Godot `gl_compatibility` — да.
-- Мера листа: яркость и тон вырезки неба, карта краёв (силуэт облаков).
+- Gives: clouds as brush strokes, bright on the sun side, gray-blue in the shade;
+  cloud color — from the time of day, because it is taken from the sun and sky colors,
+  not set by a number.
+- Verify with a variant: coverage, noise scale, lighting strength; against
+  "layers with an RGB texture" below.
+- Cost: ~0.2–0.5 ms (a fullscreen sky). Reliability: `официально` (sky
+  shader, `LIGHT0_*`) + `разбор кадра` (verify).
+- Where it works: any engine with a sky shader; Godot `gl_compatibility` — yes.
+- Sheet measure: brightness and hue of the sky crop, edge map (cloud silhouette).
 
-Рецепт Godot 4.7 (фрагмент):
+Recipe Godot 4.7 (fragment):
 
 ```glsl
 shader_type sky;
-uniform sampler2D noise : filter_linear, repeat_enable; // NoiseTexture2D, 2 октавы
+uniform sampler2D noise : filter_linear, repeat_enable; // NoiseTexture2D, 2 octaves
 uniform float cover : hint_range(0.0, 1.0) = 0.55;
 uniform vec3 cloud_shade : source_color = vec3(0.55, 0.62, 0.75);
 
@@ -188,205 +188,205 @@ void sky() {
             + texture(noise, uv * 1.4 - TIME * 0.007).r * 0.4;
     float cloud = smoothstep(cover, cover + 0.25, n) * smoothstep(0.02, 0.15, EYEDIR.y);
     float toward_sun = pow(max(dot(EYEDIR, LIGHT0_DIRECTION), 0.0), 8.0);
-    vec3 lit = LIGHT0_COLOR * LIGHT0_ENERGY;           // цвет от часа — отсюда
+    vec3 lit = LIGHT0_COLOR * LIGHT0_ENERGY;           // color from the time of day — from here
     vec3 col = mix(cloud_shade, lit, clamp(0.35 + toward_sun, 0.0, 1.0));
-    COLOR = mix(COLOR, col, cloud);                    // COLOR — небо до облаков
+    COLOR = mix(COLOR, col, cloud);                    // COLOR — the sky before clouds
 }
 ```
 
-### Слои облаков с ручной RGB-текстурой
+### Cloud layers with a hand-drawn RGB texture
 
-- Даёт: силуэты, нарисованные под концепт (три слоя в каналах R, G, B на
-  разной высоте), подсветка — та же, от солнца.
-- Проверить вариантом: рядом с шумом; скорость слоёв.
-- Цена: ~0,2 мс. Надёжность: `догадка` (приём стилизованных игр —
-  проверить). Где работает: любой.
-- Мера листа: карта краёв (силуэт), тон.
+- Gives: silhouettes drawn to match the concept (three layers in the R, G, B channels at
+  different altitudes), lighting — the same, from the sun.
+- Verify with a variant: next to the noise; layer speed.
+- Cost: ~0.2 ms. Reliability: `догадка` (a stylized-games technique —
+  verify). Where it works: any.
+- Sheet measure: edge map (silhouette), hue.
 
-### Ореол солнца
+### Sun halo
 
-- Даёт: мягкий светлый круг вокруг солнца и подсвеченная дымка у горизонта.
-- Проверить вариантом: размер и сила; вместе с glow (ниже).
-- Цена: 0 (sky) или glow. Надёжность: `официально` (ProceduralSkyMaterial
-  `sun_angle_max`, `sun_curve`). Где работает: любой.
-- Мера листа: яркость у солнца (почти белого в кадре ≤ 3 % — утверждение
-  паспорта света одного проекта).
+- Gives: a soft bright circle around the sun and lit haze at the horizon.
+- Verify with a variant: size and strength; together with glow (below).
+- Cost: 0 (sky) or glow. Reliability: `официально` (ProceduralSkyMaterial
+  `sun_angle_max`, `sun_curve`). Where it works: any.
+- Sheet measure: brightness near the sun (near-white ≤ 3% of the frame — an assertion
+  of one project's light passport).
 
-## Кроны и листва
+## Crowns and foliage
 
-### Нормали кроны к центру массы
+### Crown normals toward the center of mass
 
-- Даёт: ярус кроны освещён как один мягкий шар — светлая макушка, тёмный низ,
-  без «объёмных кубиков» и граней на каждой карточке.
-- Проверить вариантом: центр — весь ярус / всё дерево; доля смешения с
-  настоящей нормалью.
-- Цена: 0 (нормали в меше). Надёжность: `разбор кадра` — приём
-  стилизованных деревьев (Blender Data Transfer «нормали от сферы» —
-  проверить). Где работает: любой (нормали — в мешере или в редакторе).
-- Мера листа: контраст вырезки кроны (падает), карта краёв (граней меньше).
+- Gives: a crown tier lit as one soft ball — a bright top, a dark bottom,
+  without "volume cubes" and edges on every card.
+- Verify with a variant: the center — the whole tier / the whole tree; the share of
+  blending with the true normal.
+- Cost: 0 (normals in the mesh). Reliability: `разбор кадра` — a
+  stylized-trees technique (Blender Data Transfer "normals from a sphere" —
+  verify). Where it works: any (normals — in the mesher or the editor).
+- Sheet measure: crown-crop contrast (drops), edge map (fewer edges).
 
-Рецепт Godot 4.7 (фрагмент, SurfaceTool; ArrayMesh — так же через
+Recipe Godot 4.7 (fragment, SurfaceTool; ArrayMesh — likewise via
 `ARRAY_NORMAL`):
 
 ```gdscript
-var centre := Vector3.ZERO           # центр массы яруса: среднее вершин
+var centre := Vector3.ZERO           # the tier's center of mass: the vertex average
 for v in tier_vertices: centre += v
 centre /= tier_vertices.size()
 for v in tier_vertices:
     var n := (v - centre).normalized()
-    st.set_normal(n.lerp(true_normal_of(v), 0.2).normalized())  # 0,2 — вариант
+    st.set_normal(n.lerp(true_normal_of(v), 0.2).normalized())  # 0.2 — the variant
     st.add_vertex(v)
 ```
 
-### Карточки хвои с плоским светом
+### Needle cards with flat light
 
-- Даёт: текстура карточки без запечённых бликов и теней — свет кладёт
-  движок, карточка не спорит с солнцем.
-- Проверить вариантом: пробный снимок на меше (`/studio/add` принимает картинку
-  только после него).
-- Цена: 0. Надёжность: `официально` — правило заказа `orders/art.md`
-  (рамка карточки). Где работает: любой.
-- Мера листа: яркость карточки в тени против освещённой.
+- Gives: a card texture without baked highlights and shadows — the engine lays
+  the light, the card does not argue with the sun.
+- Verify with a variant: a trial screenshot on the mesh (`/studio/add` accepts a picture
+  only after it).
+- Cost: 0. Reliability: `официально` — the order rule
+  `orders/art.md` (the card frame). Where it works: any.
+- Sheet measure: card brightness in shade versus lit.
 
-### Просвет в кроне
+### Gap in the crown
 
-- Даёт: тонкий свет сквозь хвою со стороны солнца — крона не «ком».
-- Проверить вариантом: сила просвета; без него.
-- Цена: ~0,1 мс. Надёжность: `официально` (`BACKLIGHT` в spatial shader).
-- Где работает: Godot (оба рендера); аналог — «transmission» в других.
-- Мера листа: яркость теневой стороны кроны.
+- Gives: thin light through the needles on the sun side — the crown is not a "lump".
+- Verify with a variant: the gap's strength; without it.
+- Cost: ~0.1 ms. Reliability: `официально` (`BACKLIGHT` in a spatial shader).
+- Where it works: Godot (both renderers); the analog — "transmission" elsewhere.
+- Sheet measure: brightness of the crown's shadow side.
 
-Рецепт Godot 4.7 (фрагмент): `BACKLIGHT = vec3(0.35, 0.4, 0.2);` в
-`fragment()` материала хвои; на карточках — с `cull_disabled`.
+Recipe Godot 4.7 (fragment): `BACKLIGHT = vec3(0.35, 0.4, 0.2);` in
+the needle material's `fragment()`; on cards — with `cull_disabled`.
 
-### Импосторы дальних деревьев
+### Impostors of distant trees
 
-- Даёт: лес до горизонта при той же цене; ближние — живые, дальние —
-  «открытки».
-- Проверить вариантом: дальность смены; цвет импостора под дымку.
-- Цена: −N мс (экономит). Надёжность: `официально` (Mesh LOD, 2026-09-28,
-  документация в «Источниках»).
-- Где работает: любой. Мера листа: карта краёв на границе смены.
+- Gives: forest to the horizon at the same cost; near ones — alive, far ones —
+  "postcards".
+- Verify with a variant: the swap distance; the impostor color under the haze.
+- Cost: −N ms (saves). Reliability: `официально` (Mesh LOD, 2026-09-28,
+  documentation in "Sources").
+- Where it works: any. Sheet measure: edge map at the swap boundary.
 
-## Трава
+## Grass
 
-### Нормали травы вверх
+### Grass normals up
 
-- Даёт: ковёр травы освещён как земля под ним — ровный тон, без «ёршика»
-  тёмных и светлых травинок и кислотной зелени на солнце.
-- Проверить вариантом: чистый «вверх» / смесь с нормалью земли 0,8.
-- Цена: 0. Надёжность: `разбор кадра` — стандартный приём травы
-  стилизованных игр (доклады GDC о траве — проверить).
-- Где работает: любой. Мера листа: насыщенность травы (≤ 0,65 —
-  утверждение паспорта света одного проекта), контраст ковра.
+- Gives: the grass carpet lit like the ground under it — an even tone, without the
+  "bristle" of dark and light blades and acid green in the sun.
+- Verify with a variant: pure "up" / a 0.8 blend with the ground normal.
+- Cost: 0. Reliability: `разбор кадра` — the standard grass technique
+  of stylized games (GDC talks on grass — verify).
+- Where it works: any. Sheet measure: grass saturation (≤ 0.65 —
+  an assertion of one project's light passport), carpet contrast.
 
-Рецепт Godot 4.7 (фрагмент): в `vertex()` материала травы
-`NORMAL = normalize(mix(NORMAL, vec3(0.0, 1.0, 0.0), up_mix));` (модельное
-пространство, травинка стоит вертикально) — или нормали «вверх» прямо в
-мешере пучков.
+Recipe Godot 4.7 (fragment): in the grass material's `vertex()`
+`NORMAL = normalize(mix(NORMAL, vec3(0.0, 1.0, 0.0), up_mix));` (model
+space, a blade stands vertical) — or "up" normals right in the
+tuft mesher.
 
-### Пучки поверх покрова, палитра из уборки
+### Tufts over the cover, palette from the cleanup
 
-- Даёт: покров — цвет земли с лёгким шумом, пучки — редкие и заметные; цвет
-  — из палитры концепта (паспорт света), а не из старого образца.
-- Проверить вариантом: плотность пучков, высота; палитра A/B.
-- Цена: по замеру пучков. Надёжность: `догадка` — свой приём проекта.
-- Где работает: любой. Мера листа: тон и насыщенность вырезки луга.
+- Gives: the cover — ground color with light noise, the tufts — sparse and noticeable; the
+  color — from the concept palette (the light passport), not from the old reference.
+- Verify with a variant: tuft density, height; palette A/B.
+- Cost: by the tuft measurement. Reliability: `догадка` — the project's own technique.
+- Where it works: any. Sheet measure: hue and saturation of the meadow crop.
 
-## Рельеф и горы
+## Terrain and mountains
 
-### Цветовые пласты по высоте и уклону
+### Color bands by altitude and slope
 
-- Даёт: дальше ~30 блоков гора читается слоями — луг, камень на крутом,
-  светлые вершины; как устроены настоящие горы (статьи — вход `reference`).
-- Проверить вариантом: пороги высоты и уклона, мягкость перехода.
-- Цена: ~0,1 мс (шейдер). Надёжность: `разбор кадра` (проверить).
-- Где работает: любой. Мера листа: тон по вырезкам «низ / склон / вершина».
+- Gives: beyond ~30 blocks a mountain reads in layers — meadow, rock on the steep,
+  bright peaks; the way real mountains are built (articles — `reference` input).
+- Verify with a variant: the altitude and slope thresholds, the softness of the transition.
+- Cost: ~0.1 ms (a shader). Reliability: `разбор кадра` (verify).
+- Where it works: any. Sheet measure: hue across the «низ / склон / вершина» crops.
 
-Рецепт Godot 4.7 (фрагмент, `fragment()` материала рельефа):
+Recipe Godot 4.7 (fragment, the terrain material's `fragment()`):
 
 ```glsl
-float h = world_pos.y;                       // varying из vertex()
+float h = world_pos.y;                       // varying from vertex()
 float slope = 1.0 - clamp(world_normal.y, 0.0, 1.0);
 vec3 band = mix(low_col, high_col, smoothstep(h0, h1, h));
 band = mix(band, rock_col, smoothstep(0.55, 0.75, slope));
 ALBEDO = mix(ALBEDO, band, smoothstep(30.0, 60.0, dist_to_camera));
 ```
 
-### Террасы с острой кромкой и мягким лбом
+### Terraces with a sharp edge and a soft brow
 
-- Даёт: гора — уступы: край уступа резкий, склон между ними оплывший;
-  силуэт ступенчатый, как на концепте, без «мятой бумаги».
-- Проверить вариантом: шаг террасы, ширина кромки (форма — глазом).
-- Цена: 0 (генератор). Надёжность: `догадка` — свой приём «оплывшего мира».
-- Где работает: любой генератор высот. Мера листа: карта краёв.
+- Gives: a mountain — ledges: the ledge's edge sharp, the slope between them slumped;
+  a stepped silhouette as in the concept, without "crumpled paper".
+- Verify with a variant: the terrace step, the edge width (shape — by eye).
+- Cost: 0 (a generator). Reliability: `догадка` — the project's own "slumped world" technique.
+- Where it works: any heightmap generator. Sheet measure: edge map.
 
-### Вершинный AO в мешере
+### Vertex AO in the mesher
 
-- Даёт: затенение в углах, под кронами и валунами без SSAO — ложится в
-  цвет вершин при сборке меша, 0 мс в кадре.
-- Проверить вариантом: сила и радиус; вместе с SSAO / без.
-- Цена: 0 в кадре. Надёжность: `официально` (`AO`, `AO_LIGHT_AFFECT` в
-  spatial shader) + `разбор кадра` у воксельных игр.
-- Где работает: любой. Мера листа: контраст вырезки под кроной.
+- Gives: shading in the corners, under crowns and boulders without SSAO — goes into
+  vertex color at mesh assembly, 0 ms in frame.
+- Verify with a variant: strength and radius; with SSAO / without.
+- Cost: 0 in frame. Reliability: `официально` (`AO`, `AO_LIGHT_AFFECT` in
+  a spatial shader) + `разбор кадра` in voxel games.
+- Where it works: any. Sheet measure: contrast of the crop under a crown.
 
-Рецепт Godot 4.7 (фрагмент): в мешере — `st.set_color(Color(ao, ao, ao))`
-(ao 0–1 по числу соседей-блоков у вершины); в материале —
+Recipe Godot 4.7 (fragment): in the mesher — `st.set_color(Color(ao, ao, ao))`
+(ao 0–1 by the count of block neighbors at a vertex); in the material —
 
 ```glsl
 void fragment() {
     AO = COLOR.r;
-    AO_LIGHT_AFFECT = 0.4;   // сколько AO гасит прямой свет
+    AO_LIGHT_AFFECT = 0.4;   // how much AO dims direct light
 }
 ```
 
-## Вода
+## Water
 
-### Широкий блик по френелю
+### Broad highlight by fresnel
 
-- Даёт: солнце на воде — широкая дорожка, а не крапина; у берега вода
-  прозрачнее, вдали — небо.
-- Проверить вариантом: `ROUGHNESS` 0,3–0,4 (крапина — при 0,05), сила
-  френеля.
-- Цена: 0. Надёжность: `официально` (spatial shader). Где работает: любой.
-- Мера листа: яркость вырезки блика, карта краёв (крапина исчезает).
+- Gives: the sun on water — a broad path, not a speck; near the shore the water
+  clearer, in the distance — the sky.
+- Verify with a variant: `ROUGHNESS` 0.3–0.4 (a speck — at 0.05), the
+  fresnel strength.
+- Cost: 0. Reliability: `официально` (a spatial shader). Where it works: any.
+- Sheet measure: highlight-crop brightness, edge map (the speck disappears).
 
-Рецепт Godot 4.7 (фрагмент):
+Recipe Godot 4.7 (fragment):
 
 ```glsl
 void fragment() {
     float fres = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 5.0);
     ALBEDO = mix(shallow_col, deep_col, depth_fade);
-    ROUGHNESS = 0.35;            // широкий блик
+    ROUGHNESS = 0.35;            // a broad highlight
     SPECULAR = 0.5;
     METALLIC = 0.0;
-    EMISSION = sky_col * fres * 0.15;   // небо по краю
+    EMISSION = sky_col * fres * 0.15;   // the sky at the edge
 }
 ```
 
-### Цвет по глубине
+### Color by depth
 
-- Даёт: мель тёплая и прозрачная, глубина — синяя, переход по глубине, а
-  не по расстоянию.
-- Проверить вариантом: глубина полного цвета; палитра из паспорта воды.
-- Цена: 0 (`DEPTH_TEXTURE` — Forward+; в `gl_compatibility` — по высоте
-  дна из данных мира). Надёжность: `официально`.
-- Где работает: любой. Мера листа: тон вырезок «берег / глубина».
+- Gives: the shallows warm and clear, the depth blue, the transition by depth, not
+  by distance.
+- Verify with a variant: the depth of full color; the palette from the water passport.
+- Cost: 0 (`DEPTH_TEXTURE` — Forward+; in `gl_compatibility` — from the bottom
+  height in the world data). Reliability: `официально`.
+- Where it works: any. Sheet measure: hue of the «берег / глубина» crops.
 
-## Тени и AO
+## Shadows and AO
 
-### Карта теней: дальность, сплиты, размер, normal bias
+### Shadow map: distance, splits, size, normal bias
 
-- Даёт: мягкие тени без «шероховатости» и лесенки на кронах; тень видна на
-  всей дальности кадра.
-- Проверить вариантом: дальность 120 / 250, 2 или 4 сплита, размер
-  4096 / 2048 (слабые ПК), normal bias.
-- Цена: 0,5–2 мс по замеру. Надёжность: `официально` (Lights and shadows,
+- Gives: soft shadows without "roughness" and stair-stepping on the crowns; the shadow
+  visible over the whole frame distance.
+- Verify with a variant: distance 120 / 250, 2 or 4 splits, size
+  4096 / 2048 (weak PCs), normal bias.
+- Cost: 0.5–2 ms by measurement. Reliability: `официально` (Lights and shadows,
   2026-09-28).
-- Где работает: любой; Godot `gl_compatibility` — да (PCSS — только Forward+).
-- Мера листа: контраст тени, карта краёв (лесенка).
+- Where it works: any; Godot `gl_compatibility` — yes (PCSS — Forward+ only).
+- Sheet measure: shadow contrast, edge map (stair-stepping).
 
-Рецепт Godot 4.7 (фрагмент):
+Recipe Godot 4.7 (fragment):
 
 ```gdscript
 sun.shadow_enabled = true
@@ -398,98 +398,98 @@ sun.directional_shadow_split_3 = 0.55
 sun.directional_shadow_blend_splits = true
 sun.shadow_normal_bias = 1.5
 sun.shadow_bias = 0.05
-# размер карты — настройка проекта rendering/lights_and_shadows/directional_shadow/size
-# (4096; слабые ПК — 2048), мягкость — soft_shadow_filter_quality
+# map size — the project setting rendering/lights_and_shadows/directional_shadow/size
+# (4096; weak PCs — 2048), softness — soft_shadow_filter_quality
 ```
 
-### Простой SSAO
+### Simple SSAO
 
-- Даёт: затенение в стыках блоков, под валунами и в кронах поверх
-  вершинного AO.
-- Проверить вариантом: радиус, сила; без SSAO (только вершинный).
-- Цена: ~0,6 мс в 1080p (замер в одном проекте на Godot 4.7). Надёжность:
-  `официально` (Environment: SSAO — Forward+ и Compatibility, не Mobile —
-  документация 4.7, 2026-09-28).
-- Где работает: Godot Forward+ и `gl_compatibility` (4.6+), любой движок с SSAO.
-- Мера листа: контраст вырезки под кроной.
+- Gives: shading in the block seams, under boulders and in the crowns on top of
+  vertex AO.
+- Verify with a variant: radius, strength; without SSAO (vertex only).
+- Cost: ~0.6 ms at 1080p (a measurement in one Godot 4.7 project). Reliability:
+  `официально` (Environment: SSAO — Forward+ and Compatibility, not Mobile —
+  the 4.7 documentation, 2026-09-28).
+- Where it works: Godot Forward+ and `gl_compatibility` (4.6+), any engine with SSAO.
+- Sheet measure: contrast of the crop under a crown.
 
-Рецепт Godot 4.7 (фрагмент): `env.ssao_enabled = true`,
+Recipe Godot 4.7 (fragment): `env.ssao_enabled = true`,
 `env.ssao_radius = 1.0`, `env.ssao_intensity = 2.0`, `env.ssao_power = 1.5`,
 `env.ssao_light_affect = 0.0`.
 
-## Постобработка
+## Post-processing
 
-### AgX с белой точкой и контрастом
+### AgX with a white point and contrast
 
-- Даёт: светлое не выбелено (небо у солнца #F7DBA9, не белое), цвета
-  сочные, но не кислотные — против ACES 2,5, который выжигает небо.
-- Проверить вариантом: AgX / ACES / Filmic, белая точка, контраст.
-- Цена: 0. Надёжность: `официально` (AgX — 4.3+; белая точка и контраст AgX
-  — 4.6+, свойства `tonemap_agx_white`, `tonemap_agx_contrast` —
-  документация 4.7, 2026-09-28).
-- Где работает: Godot оба рендера; в других — свой тонмаппер.
-- Мера листа: доля почти белого (≤ 3 %), контраст (≥ 0,18), насыщенность.
+- Gives: the brights not bleached (the sky near the sun #F7DBA9, not white), the
+  colors juicy but not acid — against ACES 2.5, which burns the sky out.
+- Verify with a variant: AgX / ACES / Filmic, the white point, the contrast.
+- Cost: 0. Reliability: `официально` (AgX — 4.3+; the AgX white point and contrast —
+  4.6+, the `tonemap_agx_white`, `tonemap_agx_contrast` properties —
+  the 4.7 documentation, 2026-09-28).
+- Where it works: Godot, both renderers; elsewhere — a custom tonemapper.
+- Sheet measure: the near-white share (≤ 3%), contrast (≥ 0.18), saturation.
 
-Рецепт Godot 4.7 (фрагмент): `env.tonemap_mode = Environment.TONE_MAPPER_AGX`,
-`env.tonemap_agx_white = 16.29`, `env.tonemap_agx_contrast = 1.25` (значения
-по умолчанию — от них варианты); `exposure` — через `CameraAttributes`.
+Recipe Godot 4.7 (fragment): `env.tonemap_mode = Environment.TONE_MAPPER_AGX`,
+`env.tonemap_agx_white = 16.29`, `env.tonemap_agx_contrast = 1.25` (the defaults —
+variants start from them); `exposure` — via `CameraAttributes`.
 
-### LUT из кадра концепта
+### LUT from a concept frame
 
-- Даёт: наш кадр приводится к палитре концепта одной таблицей цветов — быстрый
-  вариант «C = A + LUT» для сравнения с настройками дымки.
-- Проверить вариантом: с LUT / без; сила смешения.
-- Цена: ~0,1 мс. Надёжность: `официально` (`adjustment_color_correction`) —
-  таблицу строит скрипт (проверить: гистограммное сопоставление Pillow по
-  каналам нашего кадра и кадра-цели того же ракурса).
-- Где работает: любой с color grading; Godot `gl_compatibility` — проверить.
-- Мера листа: тон, насыщенность, яркость всего кадра; карта краёв не
-  двигается — «только оттенком» не брак.
+- Gives: our frame brought to the concept's palette by one color table — a quick
+  "C = A + LUT" variant for comparison with the haze settings.
+- Verify with a variant: with LUT / without; the blend strength.
+- Cost: ~0.1 ms. Reliability: `официально` (`adjustment_color_correction`) —
+  a script builds the table (verify: histogram matching with Pillow over
+  the channels of our frame and the target frame of the same angle).
+- Where it works: any engine with color grading; Godot `gl_compatibility` — verify.
+- Sheet measure: hue, saturation, brightness of the whole frame; the edge map does not
+  move — "only in hue" is not a defect.
 
-Рецепт Godot 4.7 (фрагмент): 1) снять наш кадр и кадр-цель того же ракурса;
-2) скриптом подобрать кривые по каналам → полоса 256×1 PNG (1D LUT; 3D — если
-1D не тянет); 3) `env.adjustment_enabled = true`,
-`env.adjustment_color_correction = load("res://…/lut_concept.png")`. LUT —
-вариант, не приёмка: числа листа — опора.
+Recipe Godot 4.7 (fragment): 1) capture our frame and the target frame of the same angle;
+2) with a script fit the curves per channel → a 256×1 PNG strip (a 1D LUT; 3D — if
+1D is not enough); 3) `env.adjustment_enabled = true`,
+`env.adjustment_color_correction = load("res://…/lut_concept.png")`. LUT — a
+variant, not acceptance: the sheet numbers — the anchor.
 
-### Glow Screen ~0,1
+### Glow Screen ~0.1
 
-- Даёт: мягкий ореол у солнца и бликов воды; при `intensity` выше ~0,2
-  кадр «молочнеет».
-- Проверить вариантом: 0,08 / 0,12 / без.
-- Цена: ~0,2 мс. Надёжность: `официально` (Environment glow; в
-  `gl_compatibility` — с 4.3, проверить).
-- Где работает: Godot оба рендера; любой движок с bloom.
-- Мера листа: яркость у солнца, контраст.
+- Gives: a soft halo around the sun and the water highlights; at `intensity` above ~0.2
+  the frame "turns milky".
+- Verify with a variant: 0.08 / 0.12 / without.
+- Cost: ~0.2 ms. Reliability: `официально` (Environment glow; in
+  `gl_compatibility` — since 4.3, verify).
+- Where it works: Godot, both renderers; any engine with bloom.
+- Sheet measure: brightness near the sun, contrast.
 
-Рецепт Godot 4.7 (фрагмент): `env.glow_enabled = true`,
+Recipe Godot 4.7 (fragment): `env.glow_enabled = true`,
 `env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SCREEN`,
 `env.glow_intensity = 0.1`, `env.glow_bloom = 0.0`,
 `env.glow_hdr_threshold = 1.0`.
 
-## Почему правила такие (зрение моделей)
+## Why the rules are as they are (model vision)
 
-Тонкие различия модели не видят (DiffSpot: лучшая находит 40,7 % единичных
-правок; VDiff-Bench: 8,7–33 % на шуме и текстуре), числа по картинке не
-читают (MeasureBench), завышают оценку от яркости, наложений и порядка
-показа (EMNLP 2025) — источники по договору 0.10, адреса проверить. Поэтому:
-числа и «изменилось ли» — скриптом (`look_sheet.py`, `--sanity`, карта
-краёв), вопросы к модели — закрытые по критериям паспорта, вердикт пары —
-в двух порядках показа (не совпал — «не знаю»), кадры — без мерок и подписей,
-не больше 6 картинок за вызов.
+Models do not see fine differences (DiffSpot: the best finds 40.7% of single
+edits; VDiff-Bench: 8.7–33% on noise and texture), do not read numbers from a
+picture (MeasureBench), overestimate from brightness, overlays and presentation
+order (EMNLP 2025) — the sources per contract 0.10, verify the addresses. Therefore:
+numbers and "did it change" — by script (`look_sheet.py`, `--sanity`, the edge
+map); questions to a model — closed-ended, against passport criteria; a pair's verdict —
+in two presentation orders (no match — "don't know"); frames — without rulers and captions,
+no more than 6 images per call.
 
-## Источники
+## Sources
 
-- Документация Godot 4 (версия в пути — из «Окружения»,
+- Godot 4 documentation (the version in the path — from «Окружение»,
   `docs.godotengine.org/en/<x.y>/`): `tutorials/3d/environment_and_post_processing.html`
-  (ambient, туман, glow, SSAO, тонмаппинг, adjustment), `tutorials/3d/lights_and_shadows.html`
-  (карта теней, сплиты, bias), `tutorials/shaders/shader_reference/spatial_shader.html`
+  (ambient, fog, glow, SSAO, tonemapping, adjustment), `tutorials/3d/lights_and_shadows.html`
+  (the shadow map, splits, bias), `tutorials/shaders/shader_reference/spatial_shader.html`
   (`light()`, `BACKLIGHT`, `AO`), `tutorials/shaders/shader_reference/sky_shader.html`
-  (`EYEDIR`, `LIGHT0_*`), `tutorials/3d/mesh_lod.html` (импосторы, LOD —
-  из разбора `3d-tools.md` 2026-09-28).
-- Аудит `techniques` договора 0.10 (2026-09-28): факты о `gl_compatibility`
-  4.6+ (SSAO, AgX white/contrast) подтверждены документацией 4.7
+  (`EYEDIR`, `LIGHT0_*`), `tutorials/3d/mesh_lod.html` (impostors, LOD —
+  from the `3d-tools.md` analysis of 2026-09-28).
+- The `techniques` audit of contract 0.10 (2026-09-28): the facts about `gl_compatibility`
+  4.6+ (SSAO, AgX white/contrast) confirmed by the 4.7 documentation
   (`class_environment.html`, 2026-09-28).
-- Доклады студий о стилизованной траве, листве и облаках (GDC, CEDEC) —
-  искать по «<игра> GDC foliage / grass / clouds»; адреса — проверить, в
-  паспорт — с датой и надёжностью.
+- Studio talks on stylized grass, foliage and clouds (GDC, CEDEC) —
+  search by "<game> GDC foliage / grass / clouds"; verify the addresses; into the passport —
+  with a date and reliability.

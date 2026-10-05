@@ -1,74 +1,85 @@
 ---
-name: studio — волна
-description: Протокол параллельной волны пунктов (раздел 3а /studio/start) — слоты .wt, одновременные цепочки executor, слияние по одному, сбои волн. Загружать координатору /studio/start, когда пункты партии пишутся одновременно (пишут больше 1).
+name: studio — wave
+description: Protocol of a parallel wave of items (section 3a of /studio/start) — .wt slots, simultaneous executor chains, one-at-a-time merging, wave failures. Load for the coordinator of /studio/start when the batch's items are written simultaneously (`пишут` above 1).
 ---
 
-Ссылки «раздел N» — протокол `/studio/start` в контексте координатора; раздел 3б (`[вид]`/`[ощущение]`) — скилл `studio-vid`.
+“Section N” references mean the `/studio/start` protocol in the coordinator context; section 3b (`[вид]`/`[ощущение]`) — the `studio-vid` skill.
 
-## 3а. Волна: пункты одновременно
+## 3a. Wave: items at the same time
 
-Каждый пункт волны — в своей копии из **набора копий**: git worktree
-`../<папка проекта>.wt/slot<K>` на ветке `wave/p<N>`; основная папка и `main`
-не меняются, пока пункт не одобрен. Копия видит только закоммиченное, поэтому
-порядок строгий:
+Each item of the wave — in its own worktree copy from the **«Набор
+копий»** set: git worktree `../<папка проекта>.wt/slot<K>` on branch
+`wave/p<N>`; the main folder and `main` do not change until the item is
+approved. A copy sees only what is committed, so the order is strict:
 
-1. `[ui]` волны — `designer` в основной папке, итог — по разделу 3, п. 2:
-   все сразу, если в `docs/TESTING.md` нет команды снимка, иначе по одному;
-   каждый пишет только свой файл в `docs/specs/`.
-2. **Коммит партии до копий:** `docs/BATCH.md` (партия, пункты волны `в работе
-   · круг 1/3`) и спецификации волны поимённо, сообщением `Партия: волна W —
-   пункты N, M`. Без него исполнитель в копии прочтёт прошлую партию.
-3. Слот на каждый пункт N. Нового ещё нет — `git worktree add -b wave/p<N>
-   "<слот>" main`. Прежний — сбросить по «Набору копий» `docs/TESTING.md`,
-   старую ветку слота удалить (`git branch -d`, снятую сбоем — `-D`). Слот
-   пункта `ждёт` или с незакоммиченным до ответа не брать; слот — в строку
-   пункта: `ждёт: … · слот K`.
-4. Всех цепочки `executor` волны — **одновременно** (несколько вызовов
-   subagent в одном сообщении, первым звеном — `executor-prep`; дальше
-   каждое звено — по разделу 3, п. 3, тоже одновременно с соседними
-   пунктами), не больше `пишут` пунктов: «Пункт N партии из
-   `docs/BATCH.md`. Работай
-   только в копии `<полный путь слота>`: сначала подготовь её по
-   `docs/TESTING.md`, «Параллельная работа»», путь брифа — как в разделе 3,
-   п. 3, для `[ui]` — путь спецификации,
-   для `[вид]` — шаг и полный путь библиотеки приёмов
-   `.opencode/studio/reference/LOOK_TECHNIQUES.md` (раздел 3, п. 3).
-5. Итоги волны приходят вместе: `reviewer`-ов — одним сообщением по разделу
-   3, п. 5–6, с путём копии (файлы снимать из неё). **Тяжёлые** — полные и
-   со снимками (`[вид]`, пункт про вид): видеокарта одна, их разом не больше
-   `тяжёлых проверок`, остальные — как освободится; снимки `executor-finish` по ходу
-   — без очереди, это не замер. `docs/BATCH.md` ведёт только координатор в
-   основной папке; в копиях его не править и не коммитить.
+1. The wave's `[ui]` items — `designer` in the main folder, the result per
+   section 3, step 2: all at once if `docs/TESTING.md` has no screenshot
+   command, otherwise one at a time; each writes only its own file in
+   `docs/specs/`.
+2. **The batch commit before copies:** `docs/BATCH.md` (the batch, the
+   wave's items `в работе · круг 1/3`) and the wave's specifications by
+   name, with the message `Партия: волна W — пункты N, M`. Without it an
+   executor in a copy reads the previous batch.
+3. One slot per item N. No new one yet — `git worktree add -b wave/p<N>
+   "<слот>" main`. A former one — reset per the «Набор копий» section of
+   `docs/TESTING.md`, delete the slot's old branch (`git branch -d`, one
+   taken down by a failure — `-D`). Do not take a slot whose item is
+   `ждёт` or has uncommitted work before the answer; the slot goes into
+   the item's line: `ждёт: … · слот K`.
+4. All of the wave's `executor` chains — **simultaneously** (several
+   subagent calls in one message, the first link — `executor-prep`; then
+   each link per section 3, step 3, also simultaneously with the
+   neighboring items), no more than `пишут` items: “Item N of the batch
+   from `docs/BATCH.md`. Work only in the copy `<полный путь слота>`:
+   first prepare it per `docs/TESTING.md`, «Параллельная работа»”, the
+   brief's path — as in section 3, step 3, for `[ui]` — the
+   specification's path, for `[вид]` — the step and the full path of the
+   technique library `.opencode/studio/reference/LOOK_TECHNIQUES.md`
+   (section 3, step 3).
+5. The wave's results arrive together: the `reviewer`s — in one message
+   per section 3, steps 5–6, with the copy's path (pull the files from
+   it). **Heavy** ones — full runs with screenshots (`[вид]`, the item
+   about the look): there is one GPU, no more than `тяжёлых проверок` of
+   them at once, the rest — as it frees up; `executor-finish` screenshots
+   as they come — without queueing, this is not a measurement.
+   `docs/BATCH.md` is maintained only by the coordinator in the main
+   folder; in copies it is not edited and not committed.
 
-**Слияние — строго по одному, в порядке очереди**, по мере одобрения:
+**Merging — strictly one at a time, in queue order**, as items get
+approved:
 
-1. В копии: коммит файлов пункта поимённо, сообщение — по разделу 3, п. 7;
-   `git rebase main` (конфликт — `git rebase --abort`, «Сбой волны»); `main`
-   успел измениться — быстрая и проверка пункта, красное — «Сбой волны».
-2. В основной папке: `git merge --ff-only wave/p<N>`, быстрая проверка;
-   красное — `git revert --no-edit` коммитов пункта, «Сбой волны».
-3. В `docs/BATCH.md` — `готов к проверке` и строки по разделу 3, п. 7; коммит
-   `Партия: пункт N готов к проверке`; отправить, если коммиты отправляются.
+1. In the copy: commit the item's files by name, the message per section
+   3, step 7; `git rebase main` (conflict — `git rebase --abort`, «Сбой
+   волны»); if `main` managed to change — a quick run and the item's
+   check, red — «Сбой волны».
+2. In the main folder: `git merge --ff-only wave/p<N>`, a quick run; red
+   — `git revert --no-edit` of the item's commits, «Сбой волны».
+3. In `docs/BATCH.md` — `готов к проверке` and the lines per section 3,
+   step 7; the commit `Партия: пункт N готов к проверке`; push if
+   commits are being pushed.
 
-**`[вид]` в копии** вливает одобренную основу (`основа —`) так же, затем в
-том же слоте идёт выбор. **Исключение из порядка очереди:** после слияния
-основы пункт очередь не держит — следующие вливаются, пока идёт его выбор;
-коммит вариантов ждёт в `wave/p<N>`. После выбора (3б, п. 3) — в слоте `git
-rebase main`, «встроить вариант X», слияние. Конфликт или красное — «Сбой
-волны», но повтор — с «встроить» в основной папке: цепочка `executor` получает `git
-show` коммита вариантов, выбор — в «Журнале».
+**A `[вид]` item in a copy** merges its approved base (`основа —`) the
+same way, then the choice runs in the same slot. **Exception to the queue
+order:** after merging the base, the item does not hold up the queue —
+the following items merge while its choice runs; the variants commit
+waits in `wave/p<N>`. After the choice (section 3b, step 3) — in the slot
+`git rebase main`, «встроить вариант X», merge. Conflict or red — «Сбой
+волны», but the retry — with «встроить» in the main folder: the `executor`
+chain gets `git show` of the variants commit, the choice — from the
+«Журнал».
 
-Чистые слоты убрать в конце запуска, после раздела 6 (слот нужен поиску
-виновника): `git worktree remove`, `git branch -d`; слот с незакоммиченным
-— в отчёт, не удалять. Проверки из «Нельзя одновременно» —
-только в основной папке, по одной; снимки стенда — в копии пункта, как
-тяжёлые (п. 5): строка «снимки стенда — по одному» старых проектов — о том же.
+Remove clean slots at the end of the run, after section 6 (a slot is
+needed for the culprit hunt): `git worktree remove`, `git branch -d`; a
+slot with uncommitted work — into the report, do not delete. Checks from
+«Нельзя одновременно» — only in the main folder, one at a time; stand
+screenshots — in the item's copy, like the heavy ones (step 5): the old
+projects' line “снимки стенда — по одному” means the same.
 
-**Сбой волны** — пункт не так независим, как обещал `scout`: вернуть его
-`ждёт очереди` с пометкой «повтор по одному: <причина>» и сделать **после**
-волны по разделу 3, с нуля; в «Найдено по ходу» — в чём ошибка прогноза
-(неназванный общий узел — для «Общих узлов» `docs/TESTING.md`). **Ложные
-провалы** (красное в копии, зелёное в основной папке) — до конца партии всё
-по одному; в «Найдено по ходу» — снизить `пишут` или дописать «Нельзя
-одновременно».
-
+**«Сбой волны»** — an item is not as independent as `scout` promised:
+return it to `ждёт очереди` with the note “повтор по одному: <причина>”
+and do it **after** the wave per section 3, from scratch; into «Найдено
+по ходу» — what the forecast got wrong (an unnamed shared hub — for the
+«Общие узлы» section of `docs/TESTING.md`). **False failures** (red in
+the copy, green in the main folder) — everything one at a time until the
+end of the batch; into «Найдено по ходу» — lower `пишут` or add to
+«Нельзя одновременно».

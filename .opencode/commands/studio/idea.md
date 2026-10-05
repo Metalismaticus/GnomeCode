@@ -3,259 +3,299 @@ description: Разобрать заметку или список владел�
 agent: studio
 ---
 
-Входящие заметки владельца: **$ARGUMENTS**
+Incoming owner notes: **$ARGUMENTS**
 
-(Если строка выше пуста или осталась без подстановки — взять из сообщения
-владельца.)
+(If the line above is empty or was left unsubstituted — take it from the
+owner's message.)
 
-Вход — одна идея или смешанный поток: баги, вопросы, просьбы проверить
-существующее, готовые файлы, фразы «сделай», скрины и названия игр. Это
-материал для разбора, а не наряд на реализацию.
+The input is one idea or a mixed stream: bugs, questions, requests to check
+what exists, ready files, phrases like «сделай», screenshots and game names.
+This is material for analysis, not a work order to implement.
 
-**Главное:**
+**Key points:**
 
-- Кода не писать ни строки; продукт, проверки и сборки не запускать никогда:
-  чат замысла фиксирует, проверяет чат разработки (`AGENTS.md`, «Два чата»).
-  Скрипты `tools/` над документами, картинками, звуком и кодом
-  (`roadmap_check.py`, `refs_check.py`, `look_sheet.py`, `asset_check.py`,
-  `code_check.py`) — не продукт, их можно; единственный запуск — снимок
-  стенда для «Разрыва» паспорта агентом `reference` (раздел 3) командой
-  «снимок кадра» `docs/TESTING.md`, окно за краем экрана.
-  Что требует замера — пункт очереди, первый кусок которого замер.
-- Не записывать фактов, которых нет в коде, `git log` или документах, и своего
-  толкования слов владельца вместо его слов.
-- **Образец — картинками и числами, а не прилагательными.** Владелец назвал
-  игру, мод, фильм, видео, приложил скрин, сказал «как в X» или снова
-  жалуется на вид или ощущение темы без подтверждённого паспорта — сразу
-  разбор образца (раздел 3), не спрашивая. Картинка всего кадра без названной
-  темы или ТЗ на стиль всей игры — раздел 8; тема названа — раздел 3.
-- Вопросы — окнами по `.opencode/studio/reference/ASKING.md`; спрашивать только о решениях владельца, факты искать самому.
-- Постоянные документы править только после ответа владельца — в окне или его
-  словами в этом чате. Сообщение из другого чата или сессии — не ответ.
-  Исключение — что разбор образца пишет в `docs/refs/` до вопросов: черновик
-  паспорта, картинки, `_concept/`.
+- Write not a line of code; never run the product, the checks, or the
+  builds: the concept chat records and verifies, the dev chat runs
+  (`AGENTS.md`, «Два чата»). Scripts from `tools/` over documents, images,
+  sound, and code (`roadmap_check.py`, `refs_check.py`, `look_sheet.py`,
+  `asset_check.py`, `code_check.py`) — not the product, they are allowed; the
+  single run is a stand screenshot for the passport's «Разрыв» by the
+  `reference` agent (section 3) with the «снимок кадра» command of
+  `docs/TESTING.md`, the window beyond the screen edge. Whatever needs a
+  measurement — a queue item whose first piece is the measurement.
+- Record no facts that are absent from the code, `git log`, or the
+  documents, and no own interpretation of the owner's words in place of
+  his words.
+- **The reference — in pictures and numbers, not adjectives.** The owner
+  named a game, a mod, a film, a video, attached a screenshot, said «как в
+  X», or keeps complaining about a theme's look or feel without a
+  confirmed passport — a reference analysis right away (section 3), without
+  asking. A picture of the whole frame without a named theme, or a style
+  spec for the whole game — section 8; a theme named — section 3.
+- Questions — via dialogs per `.opencode/studio/reference/ASKING.md`; ask
+  only about the owner's decisions, look up the facts yourself.
+- Permanent documents are edited only after the owner's answer — in a
+  dialog or in his words in this chat. A message from another chat or
+  session is not an answer. Exception — what a reference analysis writes
+  into `docs/refs/` before the questions: a draft passport, images,
+  `_concept/`.
 
-Нет `docs/ROADMAP.md` — проект не развёрнут: предложить `/studio/setup` и остановиться.
+No `docs/ROADMAP.md` — the project is not deployed: offer `/studio/setup`
+and stop.
 
-## 1. Разобрать вход
+## 1. Take the input apart
 
-До чтения больших документов:
+Before reading the large documents:
 
-1. разделить на атомарные пункты, объединить явные повторы;
-2. определить тип: идея или переделка, баг, жалоба на сделанное, вопрос о
-   текущем состоянии, решение владельца, заказ, образец, концепт стиля —
-   вид всей игры (раздел 8), замечание о пункте текущей партии (он есть в
+1. split into atomic items, merge explicit repeats;
+2. determine the type: an idea or a rework, a bug, a complaint about what
+   was made, a question about the current state, an owner's decision, an
+   order, a reference, a style concept — the look of the whole game
+   (section 8), a review note about an item of the current batch (it is in
    `docs/BATCH.md`);
-3. связанные симптомы объединять только как гипотезу и проверить, общая ли
-   причина;
-4. оговорки «наверное», «кажется», «возможно» сохранить: такой пункт идёт с
-   пометкой `[предварительно]`, а не как решение владельца;
-5. **неоднозначное слово-оценку** («старые», «не то», «листва») не толковать
-   самому: про вид или ощущение темы — раздел 3; иначе до записи — окно с 2–4
-   толкованиями, в description каждого — что тогда войдёт в пункт; если от
-   толкования не зависит проверка по коду — вопросом в окне раздела 6.
+3. merge related symptoms only as a hypothesis and check whether the cause
+   is shared;
+4. keep the hedges «наверное», «кажется», «возможно»: such an item goes with
+   the `[предварительно]` marker, not as an owner's decision;
+5. **an ambiguous assessment word** («старые», «не то», «листва») — do not
+   interpret it yourself: about a theme's look or feel — section 3;
+   otherwise before recording — a dialog with 2–4 interpretations, in each
+   description — what will then go into the item; if verification against
+   the code does not depend on the interpretation — as a question in the
+   dialog of section 6.
 
-**Больше, чем пункт** (вход раздела 8 — не повод: его строки не о виде — «вне
-стиля») — три и больше новых систем (нет в «Покрытии замысла» `docs/ROADMAP.md`
-и в файлах замысла `docs/*CONCEPT*.md`), слова «концепт» (замысла, не стиля),
-«план», «этапы», «дорожная карта» или идея против «Одной строкой» или «Чего не
-делаем» главного замысла («Чего не делаем» второго замысла — не повод: оно о его
-этапе): не россыпь пунктов, а окно «<суть>: разложить замысел на этапы через
-`/studio/roadmap`?» — `Да (Recommended)` / `Нет, по пунктам`. «Да» — звать `/studio/roadmap`
-(есть «Этапы» — `/studio/roadmap пересмотр`), заметку владельца — аргументом после
-режима, разбор не вести; «Нет» — строка в «Как ведётся работа» `DECISIONS.md`
-«<дата>: <причина окна> — по пунктам, без `/studio/roadmap`» (по той же причине окно
-больше не открывать), дальше разделы 2–7 (следующие окна вытекают из ответа).
+**More than an item** (input of section 8 is not a reason: its lines are
+not about the look — «вне стиля») — three or more new systems (absent from
+«Покрытие замысла» of `docs/ROADMAP.md` and from the concept files
+`docs/*CONCEPT*.md`), the words «концепт» (of the concept, not of style),
+«план», «этапы», «дорожная карта», or an idea against «Одной строкой» or
+«Чего не делаем» of the main concept («Чего не делаем» of the second
+concept is not a reason: it is about its stage): not a scatter of items,
+but the dialog «<суть>: разложить замысел на этапы через
+`/studio/roadmap`?» — `Да (Recommended)` / `Нет, по пунктам`. «Да» — call
+`/studio/roadmap` (with «Этапы» present — `/studio/roadmap пересмотр`),
+the owner's note as the argument after the mode, do not run the analysis;
+«Нет» — a row in «Как ведётся работа» of `DECISIONS.md` «<дата>:
+<причина окна> — по пунктам, без `/studio/roadmap`» (for the same reason
+the dialog is not opened again), then sections 2–7 (the following dialogs
+follow from the answer).
 
-## 2. Прочитать нужное, а не всё подряд
+## 2. Read what is needed, not everything in a row
 
-Не опираться на память, но и не грузить все документы: искать разделы по
-заголовкам и ключевым словам.
+Do not rely on memory, but do not load every document either: look for
+sections by headings and keywords.
 
-- Идея или переделка — «Одной строкой», «Ядро», «Чего не делаем» и относящийся
-  раздел `docs/CONCEPT.md` (весь — только если идея меняет ядро или несколько
-  систем); «Этапы» и «Покрытие замысла» `docs/ROADMAP.md`, если есть (какой
-  этап `идёт`, есть ли система); решения по теме в `docs/DECISIONS.md`; про
-  вид или ощущение — паспорт темы в `docs/refs/` и `docs/refs/INDEX.md`.
-- Возможный баг — `docs/BUGS.md` и «Написано, но не подключено» в
-  `docs/ROADMAP.md`; причину искать по коду, воспроизведение — чату разработки.
-- **Жалоба на сделанное** («стало хуже», «опять не то») — сначала сверить с
-  `git log`, `docs/BATCH.md`, `docs/BUGS.md`: что делалось, когда, принято ли,
-  откатывалось ли. Записывать только найденное — не «откат», которого не было.
-  Про вид или ощущение — раздел 3. Иначе непонятно, что не так, — попросить
-  снимок и место (экран, seed, координаты — строкой по F3 из игры, если она
-  это умеет); пункт `[ждёт снимка]`.
-- «Это уже работает?» — проверить по коду; без прогона не ответить — так и
-  сказать и поставить в очередь замер, а не новую задачу.
-- Сказано, что заказ готов, — найти файл в папке назначения из
-  `docs/orders/<вид>.md`, проверить, подключён ли; путь до поиска не спрашивать.
-- Каждый раз — «Пришло» и «Найдено по ходу» `docs/BATCH.md` (у концепта стиля —
-  только строка итога «в заметках разработки N строк — `/studio/idea`»): строки,
-  которых ещё нет в `ROADMAP.md` и `BLOCKED.md` (сверить по пути файла или
-  сути), перенести туда по приоритету — это часть разбора. **Владельца о них не
-  спрашивать**: технические находки (проверки, баги, замеры, уборка кода,
-  сломанная оснастка) чат ставит сам и называет строкой в «Принято по умолчанию»
-  («из заметок разработки в очередь: 4 пункта — …»); в окно — только находка,
-  меняющая то, что видит или делает игрок, состав этапа, деньги или необратимое.
-  Строка «карта: …» (пишет `/studio/retro`) — не пункт очереди: предложить `/studio/roadmap
-  пересмотр`. `BATCH.md` не править — его чистит чат разработки.
-  **Строка `уборка: …`** — пункт `Уборка: …` по образцу шаблона
-  `.opencode/studio/templates/docs/ROADMAP.md`, но сначала сверка: `python -X utf8
-  tools/code_check.py --only <файл>` — пункт, только если строка там есть
-  находкой (код 1) или это риск поломки, который скрипт не меряет (мёртвое,
-  которое зовут только проверки; копия, уже разошедшаяся или давшая баг;
-  обход открытого интерфейса); иначе — остаётся заметкой, без пункта. Окна
-  об уборках нет: что ставить, решает чат, в «Принято по умолчанию» —
-  «уборки: поставлено N, остались заметками M». Открытых `Уборка:` в «Очереди» — не
-  больше 5: сверх того строка ждёт места в «Найдено по ходу» (в «Принято по
-  умолчанию» — «уборок ждут места: N»). Мимо предела — только «не удалось»
-  пункта, уборка перед пунктом `[ждёт уборки]` и находка сверх базы (код 1,
-  не заметка) о файле, который правит пункт «Очереди»: запаса у него нет;
-  заметки (большой, горячий, длинная функция, мёртвое, наборы чисел) — в
-  пределе, хоть их файл и правят. Одна цель; строки об одном файле — один
-  пункт, цель — первая по порядку «Раздутого кода»
-  (`.opencode/studio/setup-steps/update.md`): реестр и раннер раньше размера; повтор — та
-  же цель, а не тот же файл; прочие цели файла (типы при раннере, размер
-  при мёртвом) перенесёнными не считать — встают своим пунктом, когда первая
-  уборка файла принята. Повтор «— из базы, задет переносом» — не уборка:
-  после `/studio/done` его не называет ни один прогон, красного и зелёного нет.
-  «Готово, когда» — по образцу: у находки сверх базы — `code_check` её не
-  называет, у заметки о размере — цель куска и число ниже прежнего (кусок —
-  часть, которую правит первый пункт «Очереди» по этому файлу: по «Где что»
-  и его «Кускам»), у реестра и раннера — новое без строки в нём, у второй
-  копии на другом языке — её часть снята (проверки — на основную, сверка —
-  на хеши, копия удалена);
-  горячая заметка числом не служит («задело пунктов» уборка не снижает) —
-  цель по размеру файла или функции. Строка `уборка: пересмотреть «Готово,
-  когда» — <пункт>` (пишет `/studio/start`: уборка дважды не выполнена) — сузить
-  цель до одной функции или файла (той части, что правит пункт `[ждёт
-  уборки]`) и переписать критерий по нынешнему `code_check.py --only
-  <файл>`; строки «Не выполнен» убрать, в подробности — «Пересмотрен
-  (<дата>)». `уборка: тип записи <сущность> — нужно поле …` (пишет
-  `/studio/start`) — пункт «Уборка: тип записи <сущность>: <массивы или ключи> →
-  поля одного типа», поведение и хеши прежние: это уборка одной сущности, а
-  не «переписать систему»; исходная строка — в «Слова владельца». Прочая
-  строка с «— не удалось пункта M» в конце (пишет `/studio/start`) — формой
-  заметки с нынешним числом из `code_check.py --only <файл>` (находка была
-  в откаченном diff): «<место> N → меньше, часть, которую правит пункт M, —
-  своей функцией или файлом». Место — перед первым пунктом «Очереди»,
-  который правит этот файл (по «Где что» `docs/CONCEPT.md`; разблокирует —
-  п. 3 приоритета), нет такого — после пунктов этапа `идёт`, без
-  `[этап N]`; полигон `docs/TESTING.md` не `есть` — `[ждёт проверок]` (без
-  проверок «поведение прежнее» не доказать; стал `есть` — `[можно]`). Пункт
-  `[ждёт уборки]`, перед которым нет `Уборка:` по его файлу, — при каждом
-  разборе поставить её
-  (стоит позади — перенести перед ним; нет нигде — формой заметки из
-  `code_check.py --only <файл>`); `[можно]` ему вернёт `/studio/done`, приняв
-  уборку. Мёртвый код, который — неподключённая возможность, а не
-  остаток замены, — не уборка: строкой в «Написано, но не подключено»
-  `ROADMAP.md`, дальше как находка для игрока.
-- Каждый разбор — ещё `python -X utf8 tools/refs_check.py` (только читает):
-  строка «Паспорт вида неполон» у подтверждённого паспорта (нет «Главного
-  впечатления», «Разрыва», «У нас: приём:», «Чем делаем» или «Образец для
-  листа» — целый концепт-кадр), тема которого после разбора стоит пунктом
-  `[вид]` `[можно]` в «Очереди» (первой ночью — только свет; `[ждёт света]`
-  — когда `/studio/done` снимет метку), — свежий `reference` «концепт: приём»
-  (раздел 3, «Пересмотр приёма» — тот же вход без заметки: тема, строки ТЗ,
-  вырезка `_concept/target-<тема>-N`, движок, пути библиотек), без окна, по
-  одной теме за раз (снимок стенда — один): он дописывает «Разрыв», «Главное
-  впечатление», «У нас: приём:», «Чем делаем», у темы света — «Образец для
-  листа» целым кадром как `target-<тема>-1.png`; в «Принято по умолчанию» —
-  «паспорт <тема> дописан по v16: <что>». После него `refs_check.py` снова:
-  красный («Разрыв: не снято») — пункт `[ждёт образца: <строка>]`, строка
-  «Решений» `BLOCKED.md`. Без этого `/studio/start` пункт не возьмёт, а исполнитель
-  при целом концепт-кадре поставит «ждёт образца».
-- Перед записью в `ROADMAP.md` и `BLOCKED.md` сверить `git log` с последнего
-  чтения: чат разработки мог их менять.
+- An idea or a rework — «Одной строкой», «Ядро», «Чего не делаем», and the
+  relevant section of `docs/CONCEPT.md` (all of it — only if the idea
+  changes the core or several systems); «Этапы» and «Покрытие замысла» of
+  `docs/ROADMAP.md`, if present (which stage `идёт`, whether the system
+  exists); decisions on the theme in `docs/DECISIONS.md`; about the look or
+  feel — the theme's passport in `docs/refs/` and `docs/refs/INDEX.md`.
+- A possible bug — `docs/BUGS.md` and «Написано, но не подключено» in
+  `docs/ROADMAP.md`; look for the cause in the code, reproduction belongs
+  to the dev chat.
+- **A complaint about what was made** («стало хуже», «опять не то») — first
+  check against `git log`, `docs/BATCH.md`, `docs/BUGS.md`: what was done,
+  when, accepted or not, reverted or not. Record only what was found — not
+  a revert that never happened. About the look or feel — section 3.
+  Otherwise, if it is unclear what is wrong — ask for a screenshot and the
+  place (screen, seed, coordinates — a line via F3 from the game, if it
+  can); the item `[ждёт снимка]`.
+- «Это уже работает?» — check against the code; no answer without a run —
+  say so and queue a measurement, not a new task.
+- Told that an order is ready — find the file in the destination folder of
+  `docs/orders/<kind>.md`, check whether it is wired up; do not ask for
+  the path before searching.
+- Every time — «Пришло» and «Найдено по ходу» of `docs/BATCH.md` (for a
+  style concept — only the summary row «в заметках разработки N строк —
+  `/studio/idea`»): the rows not yet in `ROADMAP.md` and `BLOCKED.md`
+  (check by file path or gist), move there by priority — this is part of
+  the analysis. **Do not ask the owner about them**: technical findings
+  (checks, bugs, measurements, code cleanup, broken tooling) the chat
+  queues itself and names in a row of «Принято по умолчанию» («из заметок
+  разработки в очередь: 4 пункта — …»); into a dialog — only a finding that
+  changes what the player sees or does, the stage's composition, money, or
+  the irreversible. The row «карта: …» (written by `/studio/retro`) — not a
+  queue item: offer `/studio/roadmap пересмотр`. `BATCH.md` is not edited —
+  the dev chat cleans it. **The row `уборка: …`** — an item `Уборка: …`
+  following the sample of the template
+  `.opencode/studio/templates/docs/ROADMAP.md`, but first a check:
+  `python -X utf8 tools/code_check.py --only <файл>` — an item only if the
+  row is there as a finding (code 1) or it is a breakage risk the script
+  does not measure (dead code only tests call; a worktree copy already
+  diverged or produced a bug; bypassing a public interface); otherwise —
+  it stays a note, without an item. There is no dialog about cleanups:
+  what to queue is decided by the chat, in «Принято по умолчанию» —
+  «уборки: поставлено N, остались заметками M». Open `Уборка:` rows in
+  «Очереди» — no more than 5: beyond that a row waits for a place in
+  «Найдено по ходу» (in «Принято по умолчанию» — «уборок ждут места: N»).
+  Past the limit — only an item's «не удалось», a cleanup before an item
+  `[ждёт уборки]`, and a finding past the baseline (code 1, not a note)
+  about a file a «Очередь» item edits: it has no headroom; notes (a big
+  file, a hot one, a long function, dead code, number sets) — within the
+  limit, even when their file is being edited. One goal; rows about one
+  file — one item, the goal — the first in the order of «Раздутого кода»
+  (`.opencode/studio/setup-steps/update.md`): registry and runner before
+  size; a repeat — the same goal, not the same file; the file's other
+  goals (types with a runner, size with dead code) do not count as
+  carried over — they become their own item when the file's first cleanup
+  is accepted. The repeat «— из базы, задет переносом» — not a cleanup:
+  after `/studio/done` no run names it, no red and no green. «Готово,
+  когда» — by the sample: for a finding past the baseline — `code_check`
+  does not name it; for a size note — the piece's goal and the number
+  below the former one (the piece — the part the first «Очередь» item on
+  that file edits: per «Где что» and its «Куски»); for the registry and
+  the runner — the new one without a row in it; for a second copy in
+  another language — its part removed (checks — onto the main one,
+  comparison — onto hashes, the copy deleted); a hot note does not serve
+  as a number («задело пунктов» the cleanup does not lower) — the goal by
+  file or function size. The row `уборка: пересмотреть «Готово, когда» —
+  <пункт>` (written by `/studio/start`: the cleanup was not done twice) —
+  narrow the goal to one function or file (the part the `[ждёт уборки]`
+  item edits) and rewrite the criterion against the current
+  `code_check.py --only <файл>`; remove the «Не выполнен» rows, into the
+  details — «Пересмотрен (<дата>)». `уборка: тип записи <сущность> — нужно
+  поле …` (written by `/studio/start`) — the item «Уборка: тип записи
+  <сущность>: <массивы или ключи> → поля одного типа», behavior and
+  hashes unchanged: it is a cleanup of one entity, not a «rewrite the
+  system»; the source row — into «Слова владельца». Any other row ending
+  in «— не удалось пункта M» (written by `/studio/start`) — in the note's
+  form with the current number from `code_check.py --only <файл>` (the
+  finding was in the reverted diff): «<место> N → меньше, часть, которую
+  правит пункт M, — своей функцией или файлом». The place — before the
+  first «Очередь» item that edits that file (per «Где что» of
+  `docs/CONCEPT.md`; it unblocks — p. 3 of the priority), none — after the
+  items of the `идёт` stage, without `[этап N]`; the testbed of
+  `docs/TESTING.md` not `есть` — `[ждёт проверок]` (without a run
+  «поведение прежнее» cannot be proven; became `есть` — `[можно]`). An item
+  `[ждёт уборки]` with no `Уборка:` before it on its file — at every
+  analysis put one there (standing behind — move it before the item; none
+  anywhere — in the note's form from `code_check.py --only <файл>`);
+  `[можно]` will be returned to it by `/studio/done`, accepting the
+  cleanup. Dead code that is an unwired feature, not the leftover of a
+  replacement — not a cleanup: a row in «Написано, но не подключено» of
+  `ROADMAP.md`, then as a finding for the player.
+- Every analysis — also `python -X utf8 tools/refs_check.py` (read-only):
+  the row «Паспорт вида неполон» at a confirmed passport (missing «Главное
+  впечатление», «Разрыв», «У нас: приём:», «Чем делаем», or «Образец для
+  листа» — a whole concept frame), whose theme after the analysis stands
+  as an item `[вид]` `[можно]` in «Очереди» (the first night — light only;
+  `[ждёт света]` — until `/studio/done` removes the marker), — a fresh
+  `reference` «концепт: приём» (section 3, «Пересмотр приёма» — the same
+  input without a note: the theme, the spec rows, the
+  `_concept/target-<тема>-N` cutout, the engine, the library paths),
+  without a dialog, one theme at a time (one stand screenshot): it fills
+  in «Разрыв», «Главное впечатление», «У нас: приём:», «Чем делаем»; for
+  the light theme — «Образец для листа» as a whole frame
+  `target-<тема>-1.png`; in «Принято по умолчанию» — «паспорт <тема>
+  дописан по v16: <что>». After it `refs_check.py` again: red («Разрыв: не
+  снято») — the item `[ждёт образца: <строка>]`, a row in «Решения» of
+  `BLOCKED.md`. Without this `/studio/start` will not take the item, and
+  the executor at a whole concept frame will set «ждёт образца».
+- Before writing into `ROADMAP.md` and `BLOCKED.md`, check `git log` since
+  the last reading: the dev chat may have changed them.
 
-## 3. Образец: разобрать до вопросов
+## 3. Reference: analyze before questions
 
-Раздел — скилл `studio-obrazec` (инструмент skill): владелец назвал
-игру, прислал скрин или сказал «как в X» — загрузи его и разбери
-образец по нему (агент `reference`, параллельно). Замысел без
-образцов — не нужен.
+The section is the `studio-obrazec` skill (the skill tool): the owner named
+a game, sent a screenshot, or said «как в X» — load it and run the
+reference analysis by it (the `reference` agent, in parallel). A concept
+without references does not need it.
 
-## 4. Сверить с записанным и кодом
+## 4. Check against what is recorded and the code
 
-Три вопроса, каждый — фактом из кода или документа, не рассуждением:
+Three questions, each — with a fact from the code or a document, not
+reasoning:
 
-- **Новое или уже есть?** Поиском по коду и по «Покрытию замысла» (система
-  там есть — идея ложится в её этап). Написано, но не подключено — доводка.
-- **Чему противоречит?** Поимённо, с путями и строками: раздел CONCEPT,
-  решение из DECISIONS, работающая функция, паспорт и главный образец в
-  `docs/refs/INDEX.md`.
-- **Что придётся переделать?** Файлы и системы; что чинилось замером — сказать,
-  что замер придётся повторить.
+- **New or already there?** By searching the code and «Покрытие замысла»
+  (the system is there — the idea lands in its stage). Written but not
+  wired up — a finishing touch.
+- **What does it contradict?** By name, with paths and line numbers: the
+  CONCEPT section, a DECISIONS decision, a working function, the passport
+  and the main reference in `docs/refs/INDEX.md`.
+- **What will have to be redone?** Files and systems; what a measurement
+  fixed — say the measurement will have to be repeated.
 
-Для бага вместо цены — воспроизведение, найденная или предполагаемая причина и
-чего не хватает для уверенного вывода. Не чинить.
+For a bug, instead of the price — reproduction, the found or assumed
+cause, and what is missing for a confident conclusion. Do not fix.
 
-## 5. Назвать цену
+## 5. Name the price
 
-Писать **что** нужно и **по чему судим**, а не **как**: куски — части задачи
-(«замер такой-то», «проверка краснеет без исправления»), способ — исполнителю.
-Образец вида, ощущения или механики — раздел 3; названный приём — найти, как
-он сделан, и записать ссылки к пункту. Свой вариант — строкой «не обязателен».
+Write **what** is needed and **what it is judged by**, not **how**: the
+pieces — parts of the task («such-and-such measurement», «the check goes
+red without a fix»), the method — to the executor. A look, feel, or
+mechanics reference — section 3; a named technique — find how it is done
+and record the links at the item. Your own variant — as the «не
+обязателен» row.
 
-Первый кусок крупной функции — сквозной видимый срез: владелец сразу что-то
-видит в продукте. Пункт больше трёх кусков или ~10 файлов — разрезать на
-несколько пунктов очереди.
+The first piece of a large feature — an end-to-end visible slice: the
+owner sees something in the product at once. An item with more than three
+pieces or ~10 files — cut into several queue items.
 
-Отдельно и коротко: что потребует от владельца (заказ, решение); что станет
-невозможным; есть ли способ дешевле с тем же ощущением. Хорошая идея — так и
-сказать: задача не в том, чтобы отговорить.
+Separately and briefly: what it will demand of the owner (an order, a
+decision); what becomes impossible; whether there is a cheaper way with
+the same feel. A good idea — say so: the task is not to talk him out of
+it.
 
-## 6. Показать разбор и спросить
+## 6. Show the analysis and ask
 
-Разбор — текстом, пункты с номерами: **тип → как понято → что проверено → что
-предлагается**, объединённые повторы и место каждого в очереди по приоритету из
-`AGENTS.md`. Под ним — «Принято по умолчанию — поправьте, если не так»: что
-решено без вопроса (объединения, место в очереди, метки), по строке. Длиннее
-пяти строк — в файл вне проекта, в чат — путь и итог в 3–5 строк.
+The analysis — as text, items numbered: **type → how understood → what was
+checked → what is proposed**, merged repeats and each one's place in the
+queue by the priority from `AGENTS.md`. Under it — «Принято по умолчанию —
+поправьте, если не так»: what was decided without a question (merges,
+place in the queue, markers), one row each. Longer than five lines — into
+a file outside the project, into the chat — the path and the gist in 3–5
+lines.
 
-**Сказанное владельцем — уже решение, его не переспрашивать.** Пункт,
-который владелец назвал сам (велел, показал картинкой, написал «хочу»,
-«должна», «все разные»), записывается без окна: после разбора — «Записал:
-…» по строке и «Не так — напишите, например: «убери пункт 2»». Что видно на
-его картинке (ягоды на кусте) или выводится по умолчанию (рост куста — по
-образцу и жанру) — строкой «Решено за вас [видно]» / «[допущение]», не
-вопросом. Окно — только о том, что разбор **добавил от себя**:
+**What the owner said is already a decision — do not re-ask it.** An item
+the owner named himself (ordered, showed with a picture, wrote «хочу»,
+«должна», «все разные»), is recorded without a dialog: after the analysis —
+«Записал: …» row by row and «Не так — напишите, например: «убери пункт
+2»». What is visible in his picture (berries on a bush) or follows by
+default (bush growth — by the reference and the genre) — as a «Решено за
+вас [видно]» / «[допущение]» row, not a question. A dialog — only about
+what the analysis **added on its own**:
 
-- `multiSelect` «Какие пункты принимаете?» — только выведенные пункты, которых
-  владелец не называл (объединение, сменившее смысл; система, которую его
-  слова подразумевают; находка, меняющая продукт; технические — в «Принято по
-  умолчанию», без окна); вариант на пункт, description — куда ляжет,
-  последним — `Ничего из этого`; больше трёх — несколькими вопросами по 2–3
-  пункта; пункт один — «Пункт 1, <суть>: записать так?»; таких нет — окна нет;
-- по вопросу на каждый спорный пункт — только где от ответа заметно меняется
-  смысл или цена и ответа нет ни в словах, ни на картинке: рекомендуемый
-  вариант первым, в description — что изменится при этом ответе; не больше
-  двух окон подряд, считая окно образца. Управление или действие игрока без числа в словах
-  владельца («прыжок выше») — вопрос с 2–3 числами от нынешнего значения в
-  коде: «на 30% выше — до 2,6 м (Recommended)» / «вдвое» / …; не сводится к
-  одному числу («деревянное», «как в X») — пункт `[ощущение]`;
-- есть «Этапы», пункт — новая система (её нет в «Покрытии») — «Пункт K,
-  <система>: куда?» — `Этап N` (этап `идёт`; его нет — `следом`) / `Этап M`
-  / `Потом` / `Не делаем`; первым и с `(Recommended)` — `Этап N`, если
-  система нужна его «Что увидит игрок», иначе подходящий; description — что
-  войдёт в этап.
+- `multiSelect` «Какие пункты принимаете?» — only the derived items the
+  owner did not name (a merge that changed the gist; a system his words
+  imply; a finding that changes the product; technical ones — into
+  «Принято по умолчанию», without a dialog); a variant per item, the
+  description — where it lands, last — `Ничего из этого`; more than
+  three — across several questions of 2–3 items; one item — «Пункт 1,
+  <суть>: записать так?»; none — no dialog;
+- per question for each disputed item — only where the answer noticeably
+  changes the gist or the price and there is no answer either in the
+  words or in the picture: the recommended variant first, in the
+  description — what changes at that answer; no more than two dialogs in
+  a row, counting the reference dialog. A control or a player action
+  without a number in the owner's words («прыжок выше») — a question with
+  2–3 numbers from the current value in the code: «на 30% выше — до 2,6 м
+  (Recommended)» / «вдвое» / …; not reducible to one number («деревянное»,
+  «как в X») — the item `[ощущение]`;
+- with «Этапы» present and the item a new system (absent from «Покрытие»)
+  — «Пункт K, <система>: куда?» — `Этап N` (the `идёт` stage; absent —
+  `следом`) / `Этап M` / `Потом` / `Не делаем`; first and with
+  `(Recommended)` — `Этап N`, if the system is needed by its «Что увидит
+  игрок», otherwise the fitting one; the description — what goes into the
+  stage.
 
-После ответа — «Понял: …». Не отмеченное пунктом не записывать; «пока не
-знаю» — в «Решения» `BLOCKED.md`, пункт `[ждёт …]`. **До ответа не править
-постоянные документы.**
+After the answer — «Понял: …». What is not marked with an item is not
+recorded; «пока не знаю» — into «Решения» of `BLOCKED.md`, the item `[ждёт
+…]`. **Before the answer, do not edit permanent documents.**
 
-## 7. После ответа
+## 7. After the answer
 
-Ответ владельца разрешает менять и сохранять **только документы** и
-`docs/refs/`, без второго подтверждения для коммита.
+The owner's answer permits changing and saving **only documents** and
+`docs/refs/`, without a second confirmation for the commit.
 
-Разнести, не копируя долг в два списка:
+Distribute, without copying the debt into two lists:
 
-1. баг — подробно в `docs/BUGS.md` по образцу его шапки (место — в «Где»), в
-   «Очередь» `docs/ROADMAP.md` — короткая ссылка;
-2. функция или переделка — в «Задумано, но не сделано» `docs/CONCEPT.md`,
-   коротким пунктом в «Очередь» с меткой состояния и маршрута и подробностями
-   в «Дальше» `docs/ROADMAP.md`:
+1. a bug — in detail into `docs/BUGS.md` following the sample of its
+   header (the place — into «Где»), into «Очередь» of `docs/ROADMAP.md` —
+   a short link;
+2. a feature or a rework — into «Задумано, но не сделано» of
+   `docs/CONCEPT.md`, as a short item into «Очередь» with state and route
+   markers and with the details in «Дальше» of `docs/ROADMAP.md`:
 
    ```
    #### <Название> [метка состояния] [метка маршрута]
@@ -269,96 +309,114 @@ agent: studio
    Необратимо: <что> (только если меняет формат сохранения, удаляет содержимое, ломает выпущенное; пункт стоит [ждёт «да»])
    ```
 
-   Маршрут: судится глазом в мире (свет и небо, вода, растительность,
-   местность, постройки, персонажи, эффекты, анимация) — `[вид]`; игрой или на
-   слух (управление, камера, темп и тайминг в руках, звук, отдача) —
-   `[ощущение]`; экраны интерфейса — `[ui]`; только файлы содержимого —
-   `[данные]`; иначе `[код]`. Куски `[вид]` — свет, туман и цветокоррекция →
-   силуэт и масса → материал или шейдер и движение; оси вариантов в кусках —
-   «различаются приёмами: <имя> / <имя>» из «Как сделано у образца» паспорта
-   (не «радиусом», «тоном», «цветом солнца»; у глобального облика первая ось
-   — приём дали и тона). **Свет — первым:** `[вид]` любой темы, кроме
-   глобального облика (паспорт «свет и атмосфера» — слово «свет» в
-   названии), при его паспорте не `принят кадр` — `[ждёт света]` (проект
-   без темы света — без метки); сам он не ждёт пробы рендера, теней и
-   прочих `[код]`. У пункта глобального облика первый кусок — перевести
-   эталоны вида и проверки тона и края (файл эталонов из «Правил проекта»,
-   проверки `*tone*`, краевой туман до края мира) на относительные
-   утверждения паспорта света с пометкой «снято до света»: это его
-   критерий, не отдельный `[код]` (находка `/studio/setup обновить` «эталоны» —
-   сюда, не пунктом); находки стенда, нужные первому `[вид]` (час кадра
-   аргументом и поле `time`, выключатель мерок, кадры темы в стенде), — в
-   очередь перед ним отдельным `[код]` или первым куском его «основы», иначе
-   лист снимется с мерками и в чужой час. `[код]`, которому нужен принятый
-   свет (пресет `concept` стенда из «Составляющих» паспорта света, проба по
-   паре кадров, пересъёмка отвергнутых вариантов), — `[ждёт света]` тоже:
-   метка бывает не только у `[вид]`, снимает её `/studio/done` приёмкой света.
-   Проба рендера или дорогой возможности — `[код]` с «Готово, когда: пара
-   кадров — те же кадры паспорта света было / стало в одном свете, судит
-   владелец в `/studio/done`», после принятого света (`[ждёт света]`), `[вид]` на
-   неё не ссылаются. «Чем делаем: файл» в паспорте — основа: подключение
-   модели кодом (инстансы, посадка), варианты — 2–4 файла на стенде
-   (`-Model <путь>`), лист и выбор те же. Части «вид» «Стенда»
-   `docs/TESTING.md` нет (не `есть`) и пункта «Стенд вида» в очереди нет —
-   поставить его перед этим отдельным пунктом `[код]` (часть «ощущение»
-   строит первый шаг самого `[ощущение]`). Звуку, которому для вариантов
-   нужны новые файлы, — сначала `/studio/order sfx` с 2–3 вариантами, пункт `[ждёт
-   файла]`. «Готово, когда» `[вид]` и `[ощущение]` — кадр (вариант и его
-   числа), принятый владельцем в `/studio/done`, а не «похоже на образец»; у `[вид]`
-   первой — положительная строка вида из «Главного впечатления» паспорта
-   («вода перекатывается через край одной мягкой шапкой, граней не видно»),
-   не только «чего быть не должно»; числа — опора, не приёмка; у оси
-   «покажем оба» паспорта куски и «Готово, когда» — цели обеих сторон («как
-   образец: …; как в словах: …») или «после выбора — по выбранному».
+   Route: judged by the eye in the world (light and sky, water, vegetation,
+   terrain, buildings, characters, effects, animation) — `[вид]`; by play
+   or by ear (controls, camera, pace and timing in the hands, sound,
+   feedback) — `[ощущение]`; interface screens — `[ui]`; content files
+   only — `[данные]`; otherwise `[код]`. The `[вид]` pieces — light, fog,
+   and color grading → silhouette and mass → material or shader and
+   motion; the variant axes in the pieces — «различаются приёмами: <имя> /
+   <имя>» from the passport's «Как сделано у образца» (not «радиусом»,
+   «тоном», «цветом солнца»; for the global look the first axis — the
+   technique of distance and tone). **Light — first:** any theme's
+   `[вид]`, except the global look (the «свет и атмосфера» passport — the
+   word «свет» in the title), at its passport not `принят кадр` — `[ждёт
+   света]` (a project without a light theme — without the marker); it
+   does not wait for a render probe, shadows, or other `[код]`. For the
+   global look's item the first piece — translate the look etalons and the
+   tone and edge checks (the etalon file from «Правила проекта», the
+   `*tone*` checks, edge fog up to the world's edge) into relative claims
+   of the light passport with the «снято до света» mark: that is its
+   criterion, not a separate `[код]` (the `/studio/setup обновить`
+   «эталоны» finding — here, not an item); the stand findings the first
+   `[вид]` needs (the frame's hour as an argument and the `time` field,
+   the scale-marker switch, the theme's frames in the stand) — into the
+   queue before it as a separate `[код]` or as the first piece of its
+   «основа», otherwise the sheet will be shot with scale markers and at a
+   foreign hour. A `[код]` that needs accepted light (the stand's
+   `concept` preset from the light passport's «Составляющие», the probe
+   over a pair of frames, the reshooting of rejected variants) — `[ждёт
+   света]` too: the marker occurs not only on `[вид]`, `/studio/done`
+   removes it by accepting the light. A render probe or an expensive
+   feature — `[код]` with «Готово, когда: пара кадров — те же кадры
+   паспорта света было / стало в одном свете, судит владелец в
+   `/studio/done`», after the accepted light (`[ждёт света]`), `[вид]`
+   does not reference it. «Чем делаем: файл» in the passport — the base:
+   wiring the model in code (instances, placement), the variants — 2–4
+   files on the stand (`-Model <путь>`), the sheet and the choice the
+   same. The «вид» part of `docs/TESTING.md`'s «Стенд» missing (not
+   `есть`) and no «Стенд вида» item in the queue — put it before that as
+   a separate `[код]` item (the «ощущение» part builds the first step of
+   the `[ощущение]` itself). Sound that needs new files for variants —
+   first `/studio/order sfx` with 2–3 variants, the item `[ждёт файла]`.
+   The «Готово, когда» of `[вид]` and `[ощущение]` — a frame (the variant
+   and its numbers), accepted by the owner in `/studio/done`, not «похоже
+   на образец»; for `[вид]` the first — a positive look row from the
+   passport's «Главного впечатления» («вода перекатывается через край
+   одной мягкой шапкой, граней не видно»), not only «чего быть не
+   должно»; the numbers — support, not acceptance; with the passport's
+   «покажем оба» axis, the pieces and «Готово, когда» — the goals of both
+   sides («как образец: …; как в словах: …») or «после выбора — по
+   выбранному».
 
-   **Есть «Этапы».** Пункт очереди и подробности — только у этапа `идёт`; идея
-   для этапа `следом`, `потом` или «Потом» — только в «Задумано», записью с
-   `[этап M]` или `[Потом]` в начале (куски распишет `/studio/roadmap следующий`).
-   Новая система — ещё строка «Покрытия» (`С-<следующий номер>`, раздел замысла,
-   «Слова владельца» дословно, «Требует», этап по ответу, `впереди`) и её номер
-   в «Системы» этапа; «Не делаем» — вместо «Задумано» строка в «Чего не делаем»
-   главного замысла (`CONCEPT.md` или названный в `DECISIONS.md` «главный
-   замысел — …»), причина — в `DECISIONS.md` (п. 4).
+   **«Этапы» present.** A queue item and details — only for the `идёт`
+   stage; an idea for the `следом` stage, `потом`, or «Потом» — only into
+   «Задумано», as an entry with `[этап M]` or `[Потом]` at the start (the
+   pieces will be written out by `/studio/roadmap следующий`). A new
+   system — also a «Покрытие» row (`С-<next number>`, the concept
+   section, «Слова владельца» verbatim, «Требует», the stage per the
+   answer, `впереди`) and its number in the stage's «Системы»; «Не делаем»
+   — instead of «Задумано» a row in the main concept's «Чего не делаем»
+   (`CONCEPT.md` or the one named in `DECISIONS.md` «главный замысел —
+   …»), the reason — in `DECISIONS.md` (p. 4).
 
-   Пункт из «Пришло» или «Найдено по ходу» — `Слова владельца: нет — <откуда>`;
-3. замечание о пункте текущей партии — не новый пункт, а строка к нему в
-   `docs/ROADMAP.md` (у пункта `[баг]` — к записи в `docs/BUGS.md`):
-   `Замечание владельца во время партии (<дата>): «…»` — её прочтёт `/studio/done`;
-4. выбор между вариантами — в `docs/DECISIONS.md`: что выбрали, что отвергли,
-   почему; отклонённое с причиной, которую стоит помнить, — тоже;
-5. заказ или ответ владельца — в `docs/BLOCKED.md`; заказ — через `/studio/order`;
-6. отвеченный вопрос о текущем состоянии никуда не писать, если он не нашёл баг
-   или недоделку.
+   An item from «Пришло» or «Найдено по ходу» — `Слова владельца: нет —
+   <откуда>`;
+3. a review note about an item of the current batch — not a new item, but
+   a row attached to it in `docs/ROADMAP.md` (for an item with `[баг]` —
+   to the entry in `docs/BUGS.md`): `Замечание владельца во время партии
+   (<дата>): «…»` — `/studio/done` will read it;
+4. a choice between variants — into `docs/DECISIONS.md`: what was chosen,
+   what was rejected, why; the rejected with a reason worth remembering —
+   too;
+5. an order or the owner's answer — into `docs/BLOCKED.md`; an order — via
+   `/studio/order`;
+6. an answered question about the current state is written nowhere, unless
+   it found a bug or a shortfall.
 
-Новый пункт ставить по приоритету из `AGENTS.md`, а не в конец; есть «Этапы»
-— с меткой `[этап N]` этапа `идёт` (баг тоже); этапа `идёт` нет (закрыт, а
-`/studio/roadmap следующий` ещё не звали) — пункт разработки в очередь не ставить,
-а предложить `/studio/roadmap следующий`, баг — с `[этап N]` этапа `следом`.
-**`[можно]` — только пункту, по которому у владельца ничего не открыто:**
-`/studio/start all` берёт только их и идёт без владельца (`ASKING.md`, п. 12).
-Открыт вопрос «что делать» (в том числе не влезший в окна, «пока не знаю» и
-оговорка `[предварительно]` — строкой «<пункт>: «<оговорка>» — делать
-так?») — `[ждёт ответа: …]` и строка в «Решения» `BLOCKED.md`; нужен файл —
-`[ждёт …]`; с «Необратимо» — `[ждёт «да»]` и строка «Пункт X необратим:
-<что>. Делать?» (`/studio/need` спросит, ответ — `[можно]`). Выбор варианта
-(`[вид]`, `[ощущение]`, ось «покажем оба») — не открытый вопрос: его делает
-`/studio/start` сам, судит владелец в `/studio/done`; `[ждёт света]` — не долг владельца,
-снимает `/studio/done` приёмкой света.
-Порядок очереди — без окна: «Решил сам: <пункт> первым — <почему>; отменить —
-словами» в «Принято по умолчанию».
+A new item goes in by the priority from `AGENTS.md`, not at the end; with
+«Этапы» — with the `[этап N]` marker of the `идёт` stage (a bug too); no
+`идёт` stage (closed, and `/studio/roadmap следующий` not yet called) — do
+not put a dev item into the queue, offer `/studio/roadmap следующий`
+instead, a bug — with the `[этап N]` of the `следом` stage. **`[можно]` —
+only an item on which nothing is open with the owner:** `/studio/start
+all` takes only those and goes without the owner (`ASKING.md`, p. 12). An
+open question «что делать» (including one that did not fit into the
+dialogs, «пока не знаю» and the `[предварительно]` hedge — as the row
+«<пункт>: «<оговорка>» — делать так?») — `[ждёт ответа: …]` and a row in
+«Решения» of `BLOCKED.md`; a file needed — `[ждёт …]`; with «Необратимо» —
+`[ждёт «да»]` and the row «Пункт X необратим: <что>. Делать?»
+(`/studio/need` will ask, the answer — `[можно]`). The choice of a variant
+(`[вид]`, `[ощущение]`, the «покажем оба» axis) — not an open question:
+`/studio/start` makes it itself, the owner judges in `/studio/done`;
+`[ждёт света]` — not the owner's debt, `/studio/done` removes it by
+accepting the light. The queue's order — without a dialog: «Решил сам:
+<пункт> первым — <почему>; отменить — словами» in «Принято по
+умолчанию».
 
-Перечислить словами, что куда записано (документ — строка); diff — только по
-просьбе. Один документальный коммит — свои `.md`, картинки и листы разбора
-(`sheet-*.png`, `.json`) `docs/refs/` поимённо (попавшие под `.gitignore` не
-добавлять: у публичного репозитория чужие кадры не коммитятся), пометка
-`Queue:` / `Очередь:`, только образцы — `Reference:` / `Образец:` по
-`.opencode/studio/reference/COMMITS.md` («Queue: Add night raids to Stage 2» /
-«Очередь: ночные набеги — в Этап 2»); отправить, если в `AGENTS.md` коммиты
-отправляются. Документ уже содержит изменения неизвестного происхождения —
-остановиться и назвать конфликт, не смешивать.
+List in words what was recorded where (a document — a row); diff — only
+on request. One documentation commit — its own `.md`, images, and
+analysis sheets (`sheet-*.png`, `.json`) of `docs/refs/` by name (those
+caught by `.gitignore` are not added: in a public repository another's
+frames are not committed), the note `Queue:` / `Очередь:`, references
+only — `Reference:` / `Образец:` per
+`.opencode/studio/reference/COMMITS.md` («Queue: Add night raids to Stage
+2» / «Очередь: ночные набеги — в Этап 2»); push, if in `AGENTS.md`
+commits are pushed. A document already carries changes of unknown origin
+— stop and name the conflict, do not mix.
 
-## 8. Концепт стиля (вид всей игры)
+## 8. Style concept (the look of the whole game)
 
-Раздел — скилл `studio-concept` (инструмент skill): принесли концепт
-стиля — картинка всего кадра или ТЗ на стиль — загрузи его и работай
-по нему. Нет — не нужен.
+The section is the `studio-concept` skill (the skill tool): a style concept
+was brought — a picture of the whole frame or a style spec — load it and
+work by it. None — not needed.
