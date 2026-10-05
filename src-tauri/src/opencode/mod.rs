@@ -44,7 +44,9 @@ impl Sink for WindowSink {
 }
 
 enum Cmd {
-    Prompt(String),
+    /// `shown` — строка вопроса в ленте (владелец должен видеть, что отправляет),
+    /// `prompt` — текст движку, с приложенными файлами.
+    Prompt { shown: String, prompt: String },
     Stop,
 }
 
@@ -105,13 +107,16 @@ impl Chat {
     }
 
     /// Отправить текст в сессию: команда уходит в поток ленты, а не блокирует интерфейс.
-    pub fn send(&self, text: &str) -> Result<(), String> {
-        let text = text.trim();
-        if text.is_empty() {
+    pub fn send(&self, shown: &str, prompt: &str) -> Result<(), String> {
+        let prompt = prompt.trim();
+        if prompt.is_empty() {
             return Err("пустое сообщение отправлять нечем".to_string());
         }
         self.tx
-            .send(Cmd::Prompt(text.to_string()))
+            .send(Cmd::Prompt {
+                shown: shown.trim().to_string(),
+                prompt: prompt.to_string(),
+            })
             .map_err(|_| "лента закрыта: перезапустите приложение".to_string())
     }
 }
@@ -184,7 +189,7 @@ fn supervise_missing(rx: Receiver<Cmd>, sink: Arc<dyn Sink>) {
     loop {
         match rx.try_recv() {
             Ok(Cmd::Stop) => return,
-            Ok(Cmd::Prompt(_)) => sink.emit(FeedEvent::notice(
+            Ok(Cmd::Prompt { .. }) => sink.emit(FeedEvent::notice(
                 "engine",
                 &format!("{NOTICE_NO_ENGINE}: поставьте opencode CLI — сообщение не отправлено"),
             )),
@@ -209,16 +214,16 @@ fn pump(
         while let Ok(cmd) = rx.try_recv() {
             match cmd {
                 Cmd::Stop => return true,
-                Cmd::Prompt(text) => {
+                Cmd::Prompt { shown, prompt } => {
                     *sent += 1;
                     // Идентификатор строки вопроса не переиспользуется: два одинаковых
                     // вопроса — две строки, даже если между ними был обрыв потока.
                     sink.emit(FeedEvent::Row {
                         id: format!("user-{sent}"),
                         kind: client::RowKind::User,
-                        text: text.clone(),
+                        text: shown,
                     });
-                    if let Err(reason) = api.prompt(session, &text) {
+                    if let Err(reason) = api.prompt(session, &prompt) {
                         sink.emit(FeedEvent::notice(
                             "engine",
                             &format!("Сообщение не ушло: {reason}"),

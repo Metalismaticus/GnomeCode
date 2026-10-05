@@ -161,12 +161,12 @@ fn user_row_id_is_not_restarted_after_a_stream_break() {
     let sink = Arc::new(ListSink::default());
     let chat = Chat::with_engine(Box::new(Loopback { endpoint }), Arc::clone(&sink) as Arc<dyn Sink>);
 
-    chat.send(QUESTION).expect("первый вопрос ушёл");
+    chat.send(QUESTION, QUESTION).expect("первый вопрос ушёл");
     wait_for(&sink, QUESTION);
 
     wait_for(&sink, RECONNECT);
 
-    chat.send(QUESTION).expect("второй вопрос ушёл");
+    chat.send(QUESTION, QUESTION).expect("второй вопрос ушёл");
     let deadline = Instant::now() + WAIT;
     while questions(&sink).len() < 2 && Instant::now() < deadline {
         thread::sleep(Duration::from_millis(20));
