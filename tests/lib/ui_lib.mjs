@@ -3,7 +3,7 @@
 // иначе каждый повторяет свой `freePort` и `waiting` (docs/TESTING.md, «Полигон»).
 //
 // Итог сценария — код возврата и последняя строка вывода (tests/lib/runner_lib.py).
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:net";
 import { chromium } from "@playwright/test";
 
@@ -47,7 +47,16 @@ export const startInterface = async () => {
     stdio: "ignore",
     shell: true,
   });
-  const stop = () => server.kill();
+  // `server` на Windows — это оболочка (cmd), её kill не трогает детей:
+  // каждый сценарий оставлял живой vite (~350 МБ на пару процессов), RAM
+  // кончался и opencode падал. Убиваем всё дерево целиком.
+  const stop = () => {
+    if (process.platform === "win32") {
+      spawnSync("taskkill", ["/pid", String(server.pid), "/T", "/F"], { stdio: "ignore" });
+    } else {
+      server.kill();
+    }
+  };
   process.on("exit", stop);
   if (!(await waiting(url, 60))) {
     stop();
