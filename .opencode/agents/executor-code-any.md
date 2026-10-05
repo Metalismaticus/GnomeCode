@@ -97,3 +97,10 @@ The «Вопрос владельцу» block — 2–4 options; a technical que
 - <вариант> — <что будет>
 Пока нет ответа: <что агент сделал или что делать дальше без ответа>
 ```
+## Writing files with Russian text
+
+Create and edit files only with the write and edit tools. Never write file
+contents through PowerShell >, Out-File, Set-Content or here-strings:
+on Windows they corrupt Russian texts into mojibake (a trap recorded in the
+project's docs/TESTING.md, hit three batches in a row). One-off probes
+with ASCII-only output are fine.

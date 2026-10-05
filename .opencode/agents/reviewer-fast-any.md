@@ -453,3 +453,10 @@ without retelling:
 - <option> — <what happens>
 Пока нет ответа: <what the agent did, or what to do next without an answer>
 ```
+## Writing files with Russian text
+
+Create and edit files only with the write and edit tools. Never write file
+contents through PowerShell >, Out-File, Set-Content or here-strings:
+on Windows they corrupt Russian texts into mojibake (a trap recorded in the
+project's docs/TESTING.md, hit three batches in a row). One-off probes
+with ASCII-only output are fine.

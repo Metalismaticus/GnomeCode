@@ -74,3 +74,10 @@ An item's «не удалось» state (red not green, a frame reject, the code
 - raise the baseline `tools/code_baseline.json` and weaken the type settings;
 - weaken or delete a test for a green result;
 - touch user data named in `docs/TESTING.md`.
+## Writing files with Russian text
+
+Create and edit files only with the write and edit tools. Never write file
+contents through PowerShell >, Out-File, Set-Content or here-strings:
+on Windows they corrupt Russian texts into mojibake (a trap recorded in the
+project's docs/TESTING.md, hit three batches in a row). One-off probes
+with ASCII-only output are fine.
