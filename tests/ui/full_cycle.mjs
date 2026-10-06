@@ -29,8 +29,8 @@ const DONE = "Ответ модели получен";
 const FIXTURE_CHAT = "Разбор главного окна";
 const LIGHT = "light";
 
-/** Переключатель темы стоит в шапке чата. */
-const themeSwitch = '[data-testid="chat-header"] [data-testid="theme-switch"]';
+/** Переключатель темы: кластер кнопок окна в шапке правой панели (WindowCluster.tsx). */
+const themeSwitch = '[data-testid="context-panel"] [data-testid="theme-switch"]';
 
 const iface = await startInterface();
 try {

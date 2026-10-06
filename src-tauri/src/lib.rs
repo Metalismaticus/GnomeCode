@@ -128,6 +128,13 @@ fn chat_send(
     Ok(())
 }
 
+/// «Новый чат»: лента чистится событием `reset`, движку поднимается новая
+/// сессия — прошлый чат остаётся в списке сессий движка, не удаляется.
+#[tauri::command]
+fn chat_new(chat: State<'_, Chat>) -> Result<(), String> {
+    chat.new_chat()
+}
+
 /// Каталог моделей: свежий с opencode.ai или из кэша (`compare.json` в папке
 /// данных, узор `catalog_list`); доступность у провайдера решает движок.
 #[tauri::command]
@@ -151,6 +158,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             app_version,
             catalog_list,
+            chat_new,
             chat_send,
             compare_list,
             compare_refresh,

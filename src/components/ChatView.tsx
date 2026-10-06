@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 import type { ApprovalDecision, ChatModelChoice, PluginScope } from "../bridge";
 import type { CatalogEntry } from "../catalog";
@@ -10,7 +10,7 @@ import { useCatalog } from "../features/plugins/useCatalog";
 import type { PluginsState } from "../features/plugins/usePlugins";
 import { useToolsets } from "../features/plugins/useToolsets";
 import type { ProjectState } from "../features/project/useProject";
-import { params, type Theme } from "../viewparams";
+import { params } from "../viewparams";
 import { ComparePanel } from "./ComparePanel";
 import { ChatHeader } from "./ChatHeader";
 import { ChatPluginsPanel } from "./ChatPluginsPanel";
@@ -83,10 +83,10 @@ function useOverlayDismiss(
 /** Центральная колонка: шапка, лента, композер. Ядро окна — то, что тянется. */
 export function ChatView({
   title,
-  theme,
-  onToggleTheme,
   onTogglePanel,
   panelOpen,
+  narrow,
+  cluster,
   project,
   onFirstQuestion,
   onOpenPluginsPage,
@@ -95,12 +95,16 @@ export function ChatView({
   plugins,
   approval,
   counts,
+  onNewChat,
 }: {
   title: string;
-  theme: Theme;
-  onToggleTheme: () => void;
   onTogglePanel: () => void;
   panelOpen: boolean;
+  /** Окно уже 1200 px: правая панель складывается — кластер кнопок окна
+   *  возвращается в шапку чата (WindowCluster.tsx). */
+  narrow: boolean;
+  /** Кластер кнопок окна: тема + свернуть/развернуть/закрыть — правый край. */
+  cluster: ReactNode;
   /** Файлы контекста: уходят с вопросом, чипы живут в композере. */
   project: ProjectState;
   /** Первый вопрос владельца становится титулом чата (src/appstate.ts). */
@@ -117,6 +121,8 @@ export function ChatView({
   approval: ApprovalState;
   /** Счётчики приветственной сборки: длина списков чатов и проектов. */
   counts: { chats: number; projects: number };
+  /** Карточка «Новый чат» приветствия: тот же ход, что кнопка сайдбара. */
+  onNewChat: () => void;
 }) {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -281,10 +287,9 @@ export function ChatView({
     <main className="chat" data-testid="chat">
       <ChatHeader
         title={title}
-        theme={theme}
-        onToggleTheme={onToggleTheme}
         onTogglePanel={onTogglePanel}
         panelOpen={panelOpen}
+        cluster={narrow ? cluster : null}
         model={model}
         plugins={plugins.connected}
         onRunCommand={(plugin, command) => void approval.run(plugin, command)}
@@ -336,6 +341,7 @@ export function ChatView({
             onOpenProject={project.pick}
             onConnectPlugin={onOpenPluginsPage}
             onCompare={() => setOverlay("compare")}
+            onNewChat={onNewChat}
           />
         )}
       </div>

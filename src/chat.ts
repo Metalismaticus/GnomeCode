@@ -36,15 +36,20 @@ export function foldFeed(events: FeedEvent[]): FeedRow[] {
       rows[at] = row;
       continue;
     }
-    const at = index.get(event.id);
-    if (at === undefined) {
-      // Дельта без своей строки — потерянное событие: показываем как отдельную строку,
-      // чтобы текст не исчез молча.
-      index.set(event.id, rows.length);
-      rows.push({ id: event.id, kind: "assistant", text: event.delta });
+    if (event.type === "append") {
+      const at = index.get(event.id);
+      if (at === undefined) {
+        // Дельта без своей строки — потерянное событие: показываем как отдельную строку,
+        // чтобы текст не исчез молча.
+        index.set(event.id, rows.length);
+        rows.push({ id: event.id, kind: "assistant", text: event.delta });
+        continue;
+      }
+      rows[at] = { ...rows[at], text: rows[at].text + event.delta };
       continue;
     }
-    rows[at] = { ...rows[at], text: rows[at].text + event.delta };
+    // `reset` («новый чат») ленту чистит подписчик (useFeed): в уже собранной
+    // ленте его не бывает — пропуск, не строка.
   }
   return rows;
 }
@@ -57,7 +62,8 @@ export function useFeed() {
   useEffect(() => {
     // Каждая подписка получает свою функцию-обёртку: React StrictMode подписывается дважды,
     // и один и тот же обработчик в наборе схлопывается в одну запись — отписка убила бы обе.
-    const listener = (event: FeedEvent) => setEvents((known) => [...known, event]);
+    const listener = (event: FeedEvent) =>
+      setEvents((known) => (event.type === "reset" ? [] : [...known, event]));
     let stop: () => void = () => {};
     let cancelled = false;
     bridge()

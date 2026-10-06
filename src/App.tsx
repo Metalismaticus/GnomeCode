@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 
+import { bridge, type FeedEvent } from "./bridge";
 import { ChatView } from "./components/ChatView";
 import { ContextPanel } from "./components/ContextPanel";
 import { PluginsPage } from "./components/PluginsPage";
 import { SettingsPage } from "./components/SettingsPage";
 import { Sidebar, type SidebarChat, type SidebarProject } from "./components/Sidebar";
+import { WindowCluster } from "./components/WindowCluster";
 import { panels } from "./fixture";
 import type { ChatModelChoice } from "./bridge";
 import { chatTitleOf, loadState, patchState, DEFAULT_MODEL, type WindowState } from "./appstate";
@@ -100,6 +102,37 @@ function useThemeToggle(theme: Theme, setTheme: (theme: Theme) => void): () => v
   }, [theme, setTheme]);
 }
 
+/** Событие `reset` ленты (новый чат): титул и время чата сбрасываются вместе с
+ *  лентой — следующий вопрос станет титулом нового чата. StrictMode зовёт
+ *  эффект дважды: двойной reset те же поля не портит. */
+function useFeedReset(reset: () => void): void {
+  useEffect(() => {
+    let stop: () => void = () => {};
+    let cancelled = false;
+    const listener = (event: FeedEvent) => {
+      if (event.type === "reset") {
+        reset();
+      }
+    };
+    bridge()
+      .listen(listener)
+      .then((off) => {
+        if (cancelled) {
+          off();
+          return;
+        }
+        stop = off;
+      })
+      .catch(() => {
+        // Лента не поднялась: сброс титула придёт вместе с её починкой.
+      });
+    return () => {
+      cancelled = true;
+      stop();
+    };
+  }, [reset]);
+}
+
 /** Титул и начало чата и модели (своя у чата, по умолчанию — настроек): один
  *  источник для шапки, сайдбара, страницы настроек и запроса движку. Выбор
  *  бейджа сразу показывается и уходит в состояние окна; выбор дефолта меняет
@@ -113,6 +146,8 @@ function useChatModels(): {
   choose: (choice: ChatModelChoice) => void;
   chooseDefault: (choice: ChatModelChoice) => void;
   applySaved: (saved: WindowState) => void;
+  /** «Новый чат»: титул и время чата сбрасываются вместе с лентой. */
+  dropChat: () => void;
 } {
   const [title, setTitle] = useState("");
   const [time, setTime] = useState<number | null>(null);
@@ -168,6 +203,14 @@ function useChatModels(): {
     }
   }, []);
 
+  /** «Новый чат»: титул и время сбрасываются — первый вопрос станет титулом
+   *  нового чата; модель чата не трогается (выбранная модель остаётся и у
+   *  нового чата, сброс только в настройках по умолчанию). */
+  const dropChat = useCallback(() => {
+    setTitle("");
+    setTime(null);
+  }, []);
+
   return {
     title,
     time,
@@ -177,6 +220,7 @@ function useChatModels(): {
     choose,
     chooseDefault,
     applySaved,
+    dropChat,
   };
 }
 
@@ -212,6 +256,19 @@ export default function App() {
   const approval = useApproval(plugins.refresh);
   const chat = useChatModels();
 
+  /** «Новый чат»: лента чистится событием `reset`, движку поднимается новая
+   *  сессия; титул и время чата сбрасывает тот же ход (использование — кнопка
+   *  сайдбара и карточка приветствия, замечание владельца 2026-10-06). */
+  const newChat = useCallback(() => {
+    void bridge().newChat();
+  }, []);
+  useFeedReset(
+    useCallback(() => {
+      chat.dropChat();
+      void patchState({ chatTitle: "", chatTime: 0 });
+    }, [chat.dropChat]),
+  );
+
   // Состояние прошлого запуска — один запрос при старте: см. useSavedState.
   const applySaved = useCallback((saved: WindowState) => {
     if (saved.project) {
@@ -241,6 +298,9 @@ export default function App() {
 
   return (
     <div className="app">
+      {/* Кластер кнопок окна (тема + свернуть/развернуть/закрыть) — правый край
+          окна: при ширине от 1200 px его шапка — шапка правой панели, при узком
+          окне — шапка чата; один узел, два дома (WindowCluster.tsx). */}
       <Sidebar
         projects={projects}
         chats={chats}
@@ -251,6 +311,7 @@ export default function App() {
         onOpenSettings={() => setPage("settings")}
         settingsOpen={page === "settings"}
         onOpenChat={() => setPage("chat")}
+        onNewChat={newChat}
       />
       {page === "plugins" ? (
         <PluginsPage plugins={plugins} />
@@ -265,8 +326,8 @@ export default function App() {
       ) : (
         <ChatView
           title={chat.title || "Новый чат"}
-          theme={theme}
-          onToggleTheme={toggleTheme}
+          narrow={narrow}
+          cluster={<WindowCluster theme={theme} onToggleTheme={toggleTheme} />}
           onTogglePanel={() => setPanelOpen(!panelOpen)}
           panelOpen={panelOpen}
           project={project}
@@ -277,6 +338,7 @@ export default function App() {
           plugins={plugins}
           approval={approval}
           counts={{ chats: chats.length, projects: projects.length }}
+          onNewChat={newChat}
         />
       )}
       {narrow && !panelOpen ? null : (
@@ -287,6 +349,7 @@ export default function App() {
           plugins={plugins}
           onRunCommand={approval.run}
           onOpenPluginsPage={() => setPage("plugins")}
+          cluster={narrow ? null : <WindowCluster theme={theme} onToggleTheme={toggleTheme} />}
         />
       )}
     </div>

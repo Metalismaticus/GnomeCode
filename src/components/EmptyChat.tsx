@@ -5,7 +5,7 @@
 // ленты; композер — не часть сборки и не едет.
 import { useMemo } from "react";
 
-import { knownModels, providersOf } from "../markdown";
+import { knownModels, providersOf, type KnownModel } from "../markdown";
 import { useCompare } from "../features/compare/useCompare";
 import type { PluginsState } from "../features/plugins/usePlugins";
 import { ChatGlyph, FolderGlyph, PuzzleGlyph, ScalesGlyph } from "./glyphs";
@@ -20,8 +20,8 @@ const MODEL_OF_CHAT = "модель этого чата";
 type WelcomeCounts = { chats: number; projects: number };
 
 /** Сценарии: константа — действия реальные, те же, что кнопки шапки сайдбара.
- *  «Новый чат» ведёт себя как кнопка сайдбара: machinery нового чата появится
- *  с возобновляемыми сессиями (см. plugins_scopes), карточка держит место образца. */
+ *  «Новый чат» ведёт себя как кнопка сайдбара: лента чистится, движку
+ *  поднимается новая сессия (замечание владельца 2026-10-06). */
 const SCENARIOS = [
   { key: "open-project", title: "Открыть проект", sub: "Выбрать папку с кодом", Glyph: FolderGlyph },
   { key: "new-chat", title: "Новый чат", sub: "Начать с чистого листа", Glyph: ChatGlyph },
@@ -36,6 +36,7 @@ export function EmptyChat({
   onOpenProject,
   onConnectPlugin,
   onCompare,
+  onNewChat,
 }: {
   counts: WelcomeCounts;
   plugins: PluginsState;
@@ -44,6 +45,8 @@ export function EmptyChat({
   onOpenProject: () => void;
   onConnectPlugin: () => void;
   onCompare: () => void;
+  /** Карточка «Новый чат»: тот же ход, что кнопка сайдбара. */
+  onNewChat: () => void;
 }) {
   const compare = useCompare(true);
   const models = useMemo(() => knownModels(model, compare.models), [model, compare.models]);
@@ -62,16 +65,17 @@ export function EmptyChat({
     if (key === "open-project") {
       return onOpenProject;
     }
+    if (key === "new-chat") {
+      return onNewChat;
+    }
     if (key === "connect-plugin") {
       return onConnectPlugin;
     }
     if (key === "compare-models") {
       return onCompare;
     }
-    // «Новый чат» — как кнопка «Новый чат» сайдбара: нового чата в продукте ещё нет.
     return undefined;
-  };
-  return (
+  };  return (
     <div className="empty" data-testid="empty">
       <h1 className="empty__title" data-testid="empty-title">
         {TITLE}
@@ -117,21 +121,27 @@ export function EmptyChat({
         ))}
       </div>
 
-      {models.length ? (
-        <>
-          <div className="empty__row" data-testid="welcome-models">
-            {models.map((known, index) => (
-              <div className="welcome-card" key={`${known.name}-${index}`} data-testid="welcome-model">
-                <span className="welcome-card__name">{known.name}</span>
-                <span className="welcome-card__sub">{known.lab || MODEL_OF_CHAT}</span>
-              </div>
-            ))}
-          </div>
-          <button type="button" className="empty__manage" data-testid="welcome-manage" onClick={onCompare}>
-            {MANAGE}
-          </button>
-        </>
-      ) : null}
+      {models.length ? <ModelRow models={models} onCompare={onCompare} /> : null}
     </div>
+  );
+}
+
+/** Ряд моделей каталога и «Управление моделями» под ним: шаг сборки, а не своя
+ *  логика — модели считаны в EmptyChat (useCompare/knownModels). */
+function ModelRow({ models, onCompare }: { models: KnownModel[]; onCompare: () => void }) {
+  return (
+    <>
+      <div className="empty__row" data-testid="welcome-models">
+        {models.map((known, index) => (
+          <div className="welcome-card" key={`${known.name}-${index}`} data-testid="welcome-model">
+            <span className="welcome-card__name">{known.name}</span>
+            <span className="welcome-card__sub">{known.lab || MODEL_OF_CHAT}</span>
+          </div>
+        ))}
+      </div>
+      <button type="button" className="empty__manage" data-testid="welcome-manage" onClick={onCompare}>
+        {MANAGE}
+      </button>
+    </>
   );
 }

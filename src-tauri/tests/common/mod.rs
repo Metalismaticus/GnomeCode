@@ -101,13 +101,15 @@ impl EngineLife for Loopback {
     }
 }
 
-/// Строки ленты одним списком текстов: по ним ждут и проверяют.
+/// Строки ленты одним списком текстов: по ним ждут и проверяют. Событие `reset`
+/// («новый чат») строки не несёт — в тексты не попадает.
 pub fn texts(sink: &ListSink) -> Vec<String> {
     sink.rows()
         .into_iter()
-        .map(|row| match row {
-            FeedEvent::Row { text, .. } => text,
-            FeedEvent::Append { delta, .. } => delta,
+        .filter_map(|row| match row {
+            FeedEvent::Row { text, .. } => Some(text),
+            FeedEvent::Append { delta, .. } => Some(delta),
+            FeedEvent::Reset => None,
         })
         .collect()
 }

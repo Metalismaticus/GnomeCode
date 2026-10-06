@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import type { Plugin, PluginCommand } from "../bridge";
 import type { PluginsState } from "../features/plugins/usePlugins";
@@ -23,6 +23,10 @@ export type ContextPanelData = {
   onRunCommand: (plugin: Plugin, command: PluginCommand) => void;
   /** «Подключить» и «Browse plugins…» ведут в раздел «Плагины» (существующие ходы). */
   onOpenPluginsPage: () => void;
+  /** Кластер кнопок окна (тема + свернуть/развернуть/закрыть): шапка панели — его
+   *  дом при ширине от 1200 px, правый край окна (WindowCluster.tsx); при узком
+   *  окне панель складывается и кластер живёт в шапке чата. */
+  cluster?: ReactNode;
 };
 
 /** Раздел «Безопасность этого чата» — показатели состояния, а не новые права:
@@ -97,6 +101,7 @@ export function ContextPanel({
   plugins,
   onRunCommand,
   onOpenPluginsPage,
+  cluster,
 }: ContextPanelData) {
   // Вкладки принадлежат панели, а не дереву: переключение не убирает дерево из экрана.
   const [tab, setTab] = useState("Файлы");
@@ -118,7 +123,10 @@ export function ContextPanel({
   const rest = projectRows.filter((row) => !row.label.startsWith("Папка"));
   return (
     <aside className="context" data-testid="context-panel">
-      <div className="context__header" data-tauri-drag-region>Контекст проекта</div>
+      <div className="context__header" data-tauri-drag-region>
+        <span className="context__header-title">Контекст проекта</span>
+        {cluster}
+      </div>
       <FileTree project={project} tab={tab} onTab={setTab} />
       <div className="context__section">
         <div className="context__section-title">Проект</div>

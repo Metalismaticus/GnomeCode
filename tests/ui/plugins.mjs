@@ -126,7 +126,8 @@ try {
     }
 
     // д) Кнопка остаётся после перерисовки — «всё без перезапуска» --------------------
-    await page.click('[data-testid="chat-header"] [data-testid="theme-switch"]');
+    // Переключатель темы — в шапке правой панели (WindowCluster.tsx).
+    await page.click('[data-testid="context-panel"] [data-testid="theme-switch"]');
     await page.waitForFunction(() => document.documentElement.dataset.theme === "light", undefined, { timeout: 5000 });
     if ((await buttons(page)).length !== solo.length) {
       done(1, "после перерисовки окна кнопки плагинов в шапке пропали — подключение держится только до перерисовки");

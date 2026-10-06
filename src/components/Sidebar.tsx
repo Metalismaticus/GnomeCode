@@ -77,6 +77,7 @@ export function Sidebar({
   onOpenSettings,
   settingsOpen,
   onOpenChat,
+  onNewChat,
 }: {
   projects: SidebarProject[];
   chats: SidebarChat[];
@@ -92,6 +93,9 @@ export function Sidebar({
   settingsOpen: boolean;
   /** Возврат в чат кликом по строке чата: страница раздела размонтируется. */
   onOpenChat: () => void;
+  /** «Новый чат»: лента чистится, движку поднимается новая сессия (замечание
+   *  владельца 2026-10-06 — карточку «Новый чат» не нажать). */
+  onNewChat: () => void;
 }) {
   const now = Date.now();
   const groups = groupsOf(chats, now);
@@ -104,7 +108,7 @@ export function Sidebar({
       <Button variant="primary" data-testid="btn-primary" onClick={onPickFolder}>
         + Новый проект
       </Button>
-      <Button variant="ghost" data-testid="btn-new-chat">
+      <Button variant="ghost" data-testid="btn-new-chat" onClick={onNewChat}>
         Новый чат
       </Button>
       <SidebarItem title="Плагины" testid="sidebar-plugins" onClick={onOpenPlugins} />

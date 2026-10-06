@@ -1,19 +1,19 @@
+import type { ReactNode } from "react";
 import type { Plugin } from "../bridge";
 import { DEFAULT_MODEL } from "../appstate";
-import type { Theme } from "../viewparams";
 import { PluginButton } from "./PluginButton";
-import { ThemeSwitch } from "./ThemeSwitch";
-import { WindowButtons } from "./WindowButtons";
 
 import "./ChatHeader.css";
 
 export type ChatHeaderProps = {
   title: string;
-  theme: Theme;
-  onToggleTheme: () => void;
   onTogglePanel: () => void;
   panelOpen?: boolean;
   model?: string;
+  /** Кластер кнопок окна (тема + свернуть/развернуть/закрыть): приходит извне,
+   *  потому что живёт в правом краю окна — в шапке чата только при узком окне,
+   *  когда правая панель складывается (WindowCluster.tsx). */
+  cluster?: ReactNode;
   /** Подключённые к чату плагины: одна кнопка на команду, рядом с бейджем. */
   plugins?: Plugin[];
   /** Клик по кнопке команды: слой прав решает вопрос одобрения и запуск. */
@@ -65,16 +65,17 @@ function PluginsArea({
   );
 }
 
-/** Шапка чата: название слева, бейдж модели и переключатель темы справа.
+/** Шапка чата: название слева, бейдж модели и подключённые плагины справа.
  *  Кнопка `☰` рисуется только при ширине < 1200 px — при ней правая панель
- *  складывается (docs/DESIGN.md, раздел 5). */
+ *  складывается (docs/DESIGN.md, раздел 5); вместе с ней в шапке остаётся и
+ *  кластер кнопок окна: при широкой панели он живёт в её шапке (правый край
+ *  окна), при узкой — возвращается сюда. */
 export function ChatHeader({
   title,
-  theme,
-  onToggleTheme,
   onTogglePanel,
   panelOpen = false,
   model = DEFAULT_MODEL,
+  cluster,
   plugins = [],
   onRunCommand,
   onOpenPlugins,
@@ -120,8 +121,7 @@ export function ChatHeader({
       >
         ☰
       </button>
-      <ThemeSwitch theme={theme} onToggle={onToggleTheme} />
-      <WindowButtons />
+      {cluster}
     </header>
   );
 }

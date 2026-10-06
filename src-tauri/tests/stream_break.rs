@@ -76,6 +76,7 @@ fn seen(sink: &ListSink, needle: &str) -> bool {
     sink.rows().iter().any(|row| match row {
         FeedEvent::Row { text, .. } => text.contains(needle),
         FeedEvent::Append { delta, .. } => delta.contains(needle),
+        FeedEvent::Reset => false,
     })
 }
 
@@ -91,9 +92,10 @@ fn wait_for(sink: &ListSink, needle: &str) {
     let rows: Vec<String> = sink
         .rows()
         .into_iter()
-        .map(|row| match row {
-            FeedEvent::Row { text, .. } => text,
-            FeedEvent::Append { delta, .. } => delta,
+        .filter_map(|row| match row {
+            FeedEvent::Row { text, .. } => Some(text),
+            FeedEvent::Append { delta, .. } => Some(delta),
+            FeedEvent::Reset => None,
         })
         .collect();
     panic!("в ленте нет «{needle}» за {WAIT:?}: {rows:?}");

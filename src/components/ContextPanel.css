@@ -23,6 +23,16 @@
   font-size: 13px;
 }
 
+/* Титул забирает свободную ширину: кластер кнопок окна прижимается к правому
+   краю окна, прижатый конец шапки (WindowCluster.tsx). */
+.context__header-title {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .context__section {
   padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--border);

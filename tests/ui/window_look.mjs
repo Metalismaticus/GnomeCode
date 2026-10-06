@@ -131,7 +131,8 @@ try {
 
     // --- Темы совпадают по раскладке и различаются по цвету ----------------------------
     const before = await measure(wide);
-    await wide.click('[data-testid="chat-header"] [data-testid="theme-switch"]');
+    // Кластер кнопок окна живёт в шапке правой панели (WindowCluster.tsx).
+    await wide.click('[data-testid="context-panel"] [data-testid="theme-switch"]');
     try {
       await wide.waitForFunction(() => document.documentElement.dataset.theme === "light", undefined, {
         timeout: 5000,

@@ -70,6 +70,9 @@ enum Cmd {
         label: String,
         why: client::Refusal,
     },
+    /// «Новый чат»: лента чистится событием `reset`, сессия поднимается новая —
+    /// прошлый чат остаётся в списке сессий движка (session.rs), а не удаляется.
+    NewChat,
     Stop,
     /// Установлен плагин из каталога или записан ключ провайдера: движок
     /// перечитывает их только при старте — лента поднимает его заново,
@@ -228,6 +231,13 @@ impl Chat {
             .send(Cmd::Restart)
             .map_err(|_| "лента закрыта: перезапустите приложение".to_string())
     }
+
+    /// «Новый чат»: лента чистится событием `reset`, сессия поднимается новая.
+    pub fn new_chat(&self) -> Result<(), String> {
+        self.tx
+            .send(Cmd::NewChat)
+            .map_err(|_| "лента закрыта: перезапустите приложение".to_string())
+    }
 }
 
 impl Drop for Chat {
@@ -271,6 +281,8 @@ fn supervise(
     // Просьба перезапустить движок (установка плагина): поток сам поднимает
     // его заново, не роняя ленту в строку «прерван».
     let mut restart_asked = false;
+    // Просьба «новый чат»: сессия обнуляется, лента — чистая, без строки «прерван».
+    let mut new_chat_asked = false;
     loop {
         if !engine.alive() {
             sink.emit(FeedEvent::notice("engine", NOTICE_RESTART));
@@ -332,6 +344,7 @@ fn supervise(
             &mut sent,
             &mut plugin_rows,
             &mut restart_asked,
+            &mut new_chat_asked,
         ) {
             return;
         }
@@ -346,6 +359,14 @@ fn supervise(
             }
             // Сессия не сбрасывается: базы движка переживают перезапуск процесса,
             // список живых вернёт её же (opencode/session.rs).
+            continue;
+        }
+        if new_chat_asked {
+            // Лента уже чиста (reset ушёл из pump): сессия прошлого чата больше
+            // не наша — следующая итерация поднимет новую. Обрыва здесь нет:
+            // строка «переподключаюсь» новый чат не сопровождает.
+            new_chat_asked = false;
+            session = None;
             continue;
         }
         sink.emit(FeedEvent::notice("stream", NOTICE_RECONNECT));
@@ -384,6 +405,9 @@ fn supervise_missing(rx: Receiver<Cmd>, sink: Arc<dyn Sink>) {
             // Движка нет — перезапускать нечего: запрос установки уже исполнен,
             // лента продолжает ждать появления движка.
             Ok(Cmd::Restart) => {}
+            // «Новый чат» без движка: лента и так пуста, сессию поднимет
+            // появившийся движок — тихий пропуск.
+            Ok(Cmd::NewChat) => {}
             Err(TryRecvError::Disconnected) => return,
             Err(TryRecvError::Empty) => thread::sleep(Duration::from_secs(RETRY_SECONDS)),
         }
@@ -405,6 +429,8 @@ fn pump(
     plugin_rows: &mut usize,
     // Просьба тихого перезапуска: поднимается поток ленты, не владелец.
     restart_asked: &mut bool,
+    // Просьба «новый чат»: лента чистится здесь же, сессию обнуляет supervise.
+    new_chat_asked: &mut bool,
 ) -> bool {
     loop {
         while let Ok(cmd) = rx.try_recv() {
@@ -413,6 +439,13 @@ fn pump(
                 Cmd::Restart => {
                     *restart_asked = true;
                     // Поток событий прошлой жизни движка больше не придёт.
+                    return false;
+                }
+                Cmd::NewChat => {
+                    // Лента чистится сразу, до подъёма новой сессии: владелец не
+                    // должен видеть прошлый чат, пока движок занимает новую.
+                    sink.emit(FeedEvent::Reset);
+                    *new_chat_asked = true;
                     return false;
                 }
                 Cmd::Prompt { shown, prompt, files, model } => {

@@ -1,7 +1,7 @@
 /* Строка «метка — значение»: метка переносится, значение не переносится,
    при нехватке места значение уходит под метку. Варианты: action — кнопки
    команд (высота 24, паддинг 4×8, моно 11 — спека «Размеры», моё), toggle —
-   тумблер 32×18 (моё: дорожка --border-strong/--accent, ручка 14 --on-accent). */
+   тумблер 32×18 (моё: дорожка --border-strong/--accent, ручка --switch-knob). */
 
 .context-row {
   display: flex;
@@ -74,7 +74,10 @@
   cursor: default;
 }
 
-/* Тумблер: выключен — дорожка --border-strong, включён — --accent. */
+/* Тумблер: выключен — дорожка --switch-track, включён — --accent. Ручка --
+   --switch-knob: не чисто белый (--on-accent): на тёмной теме белая ручка
+   на тёмной дорожке читалась владельцем «ползунок белый» — теперь у ручки
+   свой тон на каждую тему, заметнее чистого белого. */
 .context-row__switch {
   margin-left: auto;
   width: 32px;
@@ -83,7 +86,7 @@
   padding: 0;
   border: none;
   border-radius: 999px;
-  background: var(--border-strong);
+  background: var(--switch-track);
   position: relative;
   transition: background 0.15s ease;
 }
@@ -108,7 +111,7 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--on-accent);
+  background: var(--switch-knob);
   transition: transform 0.15s ease;
 }
 

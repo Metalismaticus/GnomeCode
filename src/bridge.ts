@@ -53,7 +53,9 @@ export type RowKind = "user" | "assistant" | "tool" | "notice";
  *  источники ответа (phase2.md, раздел 9.1), блок «Sources used» их показывает. */
 export type FeedEvent =
   | { type: "row"; id: string; kind: RowKind; text: string; plugin?: string; files?: string[]; file?: string }
-  | { type: "append"; id: string; delta: string };
+  | { type: "append"; id: string; delta: string }
+  /** Новый чат: лента чистится целиком, следующие строки — нового чата. */
+  | { type: "reset" };
 
 export type FeedRow = {
   id: string;
@@ -168,6 +170,8 @@ type Listener = (event: FeedEvent) => void;
 type Bridge = {
   /** Вопрос владельца; `files` — пути файлов, которые уйдут с ним движку. */
   send(text: string, files: string[]): Promise<void>;
+  /** Новый чат: лента чистится событием `reset`, движку поднимается новая сессия. */
+  newChat(): Promise<void>;
   listen(listener: Listener): Promise<() => void>;
   version(): Promise<string>;
   /** Выбрать папку проекта системным диалогом; `null` — владелец передумал. */
@@ -254,6 +258,9 @@ const inTauri = () => typeof window !== "undefined" && "__TAURI_INTERNALS__" in 
 const tauriBridge = (): Bridge => ({
   async send(text: string, files: string[]) {
     await invoke("chat_send", { text, files });
+  },
+  async newChat() {
+    await invoke("chat_new");
   },
   async listen(listener: Listener) {
     return listen<FeedEvent>(FEED_CHANNEL, (event) => listener(event.payload));
@@ -391,6 +398,9 @@ const fixtureBridge = (): Bridge => ({
     // Скоуп «Once» (сцена E): соединение служит текущему запросу — следующий
     // вопрос снимает плагин с чата, как registry.take_once (plugin_send).
     takeOnceFixture();
+  },
+  async newChat() {
+    fixture.reset();
   },
   async listen(listener: Listener) {
     return fixture.play(listener);

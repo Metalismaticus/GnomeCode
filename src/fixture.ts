@@ -171,6 +171,12 @@ class Fixture {
       listener(event);
     }
   }
+
+  /** Новый чат: лента чистится тем же событием, что шлёт живой мост
+   *  (FeedEvent::reset) — следующий вопрос открывает чистую ленту. */
+  reset(): void {
+    this.emit({ type: "reset" });
+  }
 }
 
 export type PanelData = {
