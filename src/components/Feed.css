@@ -28,6 +28,29 @@
 
 .feed__row--assistant {
   color: var(--text);
+  max-width: none;
+}
+
+/* Markdown-lite: абзац и список с маркером — внутри строки ответа. */
+.feed__para {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.feed__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.feed__list-item {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.feed__list-item::before {
+  content: "• ";
+  color: var(--text-dim);
 }
 
 .feed__row--tool,

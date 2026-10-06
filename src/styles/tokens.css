@@ -51,6 +51,9 @@
   --badge-border: rgba(109, 92, 255, 0.35);
 
   --code-bg: #0b1020;
+  /* Подсветка синтаксиса код-блока — токенами (CodeBlock.css). */
+  --code-keyword: #6d8cff;
+  --code-func: #a78bfa;
   --shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
 }
 
@@ -82,6 +85,9 @@
   --badge-border: rgba(124, 58, 237, 0.3);
 
   --code-bg: #1e1e2e;
+  /* Подсветка синтаксиса код-блока — токенами (CodeBlock.css). */
+  --code-keyword: #6d28d9;
+  --code-func: #7c3aed;
   --shadow: 0 4px 24px rgba(20, 20, 40, 0.08);
 }
 

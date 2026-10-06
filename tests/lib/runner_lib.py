@@ -22,7 +22,7 @@ LIMITS = {"quick_build": 150, "harness": 180, "window_shot": 600, "opencode_clie
           "plugins_usage": 300, "plugin_usage": 180, "usage_shot": 120,
           "sources_used": 300, "sources_shot": 120,
           "compare": 300, "chat_model": 600, "compare_shot": 240,
-          "full_cycle": 600}  # секунды: замер × 3, одно место
+          "full_cycle": 600, "glavnoe": 300}  # секунды: замер × 3, одно место
 DEFAULT_LIMIT = 60
 
 

@@ -16,11 +16,18 @@ const OUT_DIR = "shots";
 const SHOTS = [
   { name: "main-window-1440x900", size: [1440, 900], query: "", texts: ["Новый чат", "Контекст проекта"] },
   { name: "main-window-1440x900-light", size: [1440, 900], query: "?тема=светлая", wait: "theme", texts: ["Новый чат"] },
-  { name: "main-window-1440x900-empty", size: [1440, 900], query: "?состояние=пусто", wait: "empty", texts: ["Прототипировать идея"] },
+  { name: "main-window-1440x900-empty", size: [1440, 900], query: "?состояние=пусто", wait: "empty", texts: ["Добро пожаловать в GnomeCode", "Открыть проект"] },
   { name: "main-window-1440x900-error", size: [1440, 900], query: "?состояние=ошибка", text: "Сервер OpenCode недоступен", texts: ["Не отвечает"] },
   { name: "main-window-1440x900-long", size: [1440, 900], query: "?состояние=много", wait: "rows:100", texts: ["Открыть проект из Documents"] },
   { name: "main-window-1024x640", size: [1024, 640], query: "", texts: ["Новый чат"] },
   { name: "main-window-1024x640-panel", size: [1024, 640], query: "?правая=открыта", wait: "panel", texts: ["Контекст проекта"] },
+  // Кадры пункта 11 (docs/specs/2026-10-06-11-glavnoe.md, «Где снимать»): приветствие
+  // и разбор в обеих темах плюс минимум.
+  { name: "glavnoe-1440x900-pusto", size: [1440, 900], query: "?состояние=пусто", wait: "empty", texts: ["Добро пожаловать в GnomeCode", "ЧАТЫ", "Открыть проект"] },
+  { name: "glavnoe-1440x900-pusto-light", size: [1440, 900], query: "?состояние=пусто&тема=светлая", wait: "empty-light", texts: ["Добро пожаловать в GnomeCode"] },
+  { name: "glavnoe-1440x900-razbor", size: [1440, 900], query: "?состояние=разбор", wait: "step", texts: ["Копировать", "Sources used"] },
+  { name: "glavnoe-1440x900-razbor-light", size: [1440, 900], query: "?состояние=разбор&тема=светлая", wait: "step-light", texts: ["Копировать", "Sources used"] },
+  { name: "glavnoe-1024x640-pusto", size: [1024, 640], query: "?состояние=пусто", wait: "empty", texts: ["Добро пожаловать в GnomeCode"] },
 ];
 
 const WAITED = { theme: 15000, empty: 15000, panel: 15000 };
@@ -36,6 +43,25 @@ const settled = async (page, shot) => {
   }
   if (shot.wait === "empty") {
     await page.waitForFunction(() => Boolean(document.querySelector('[data-testid="empty"]')), undefined, {
+      timeout: WAITED.empty,
+    });
+    return;
+  }
+  if (shot.wait === "empty-light" || shot.wait === "step-light") {
+    // Светлая тема и признак состояния вместе: кадр снимается, когда оба на месте.
+    await page.waitForFunction(
+      (mark) =>
+        document.documentElement.dataset.theme === "light" &&
+        (mark === "empty"
+          ? Boolean(document.querySelector('[data-testid="empty"]'))
+          : Boolean(document.querySelector('[data-testid="step"]'))),
+      shot.wait === "empty-light" ? "empty" : "step",
+      { timeout: WAITED.empty },
+    );
+    return;
+  }
+  if (shot.wait === "step") {
+    await page.waitForFunction(() => Boolean(document.querySelector('[data-testid="step"]')), undefined, {
       timeout: WAITED.empty,
     });
     return;

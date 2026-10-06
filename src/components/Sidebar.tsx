@@ -1,14 +1,69 @@
 import type { Theme } from "../viewparams";
+import { MONTHS } from "../compare";
 import { Button } from "./Button";
 import { SidebarItem } from "./SidebarItem";
 import { ThemeSwitch } from "./ThemeSwitch";
 
 import "./Sidebar.css";
 
-export type SidebarChat = { title: string; active?: boolean };
+export type SidebarProject = { title: string; path?: string };
+export type SidebarChat = { title: string; active?: boolean; time?: number };
 
-/** Левая колонка: логотип, главная кнопка, разделы «Проекты»/«Чаты», подвал.
- *  Строка списка и её состояние «активный» — SidebarItem. */
+const DAY = 24 * 60 * 60 * 1000;
+
+/** Местная полночь метки времени: группы считаются по локальной дате, не по часам. */
+const localDay = (ms: number): number => {
+  const date = new Date(ms);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+};
+
+/** Название группы чата по её дате (спека «Состав основы»): сегодня, вчера,
+ *  последние 7 дней, старше. Чат без времени — «РАНЕЕ». Одно место решает,
+ *  в какой группе строка; теперь — момент снимка страницы, для проверки. */
+export function chatGroupOf(time: number | undefined, now: number): string {
+  if (!time) {
+    return "РАНЕЕ";
+  }
+  const passed = (localDay(now) - localDay(time)) / DAY;
+  if (passed <= 0) {
+    return "СЕГОДНЯ";
+  }
+  if (passed === 1) {
+    return "ВЧЕРА";
+  }
+  return passed < 7 ? "НА ЭТОЙ НЕДЕЛЕ" : "РАНЕЕ";
+}
+
+/** Вторая линия строки чата — время (спека «Тексты»): сегодня — часы и минуты,
+ *  вчера — «Вчера», старше — день и месяц кратко. */
+export function chatTimeOf(chat: SidebarChat, now: number): string {
+  if (!chat.time) {
+    return "";
+  }
+  const passed = (localDay(now) - localDay(chat.time)) / DAY;
+  if (passed <= 0) {
+    const date = new Date(chat.time);
+    return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+  }
+  if (passed === 1) {
+    return "Вчера";
+  }
+  const date = new Date(chat.time);
+  return `${date.getDate()} ${MONTHS[date.getMonth()]}`;
+}
+
+/** Группы чатов по датам в порядке ленты: группа без чатов не рисуется. */
+function groupsOf(chats: SidebarChat[], now: number): { title: string; chats: SidebarChat[] }[] {
+  const order = ["СЕГОДНЯ", "ВЧЕРА", "НА ЭТОЙ НЕДЕЛЕ", "РАНЕЕ"];
+  return order
+    .map((title) => ({ title, chats: chats.filter((chat) => chatGroupOf(chat.time, now) === title) }))
+    .filter((group) => group.chats.length > 0);
+}
+
+/** Левая колонка: логотип, быстрые действия («+ Новый проект», «Новый чат»,
+ *  «Плагины»), разделы «Проекты»/«Чаты» с датами, подвал. Строка списка и её
+ *  состояние «активный» — SidebarItem. */
 export function Sidebar({
   projects,
   chats,
@@ -18,7 +73,7 @@ export function Sidebar({
   onOpenPlugins,
   onOpenChat,
 }: {
-  projects: string[];
+  projects: SidebarProject[];
   chats: SidebarChat[];
   theme: Theme;
   onToggleTheme: () => void;
@@ -29,6 +84,8 @@ export function Sidebar({
   /** Возврат в чат кликом по строке чата: страница раздела размонтируется. */
   onOpenChat: () => void;
 }) {
+  const now = Date.now();
+  const groups = groupsOf(chats, now);
   return (
     <nav className="sidebar" data-testid="sidebar">
       <div className="sidebar__logo">
@@ -45,20 +102,33 @@ export function Sidebar({
       <div className="sidebar__lists">
         <div className="sidebar__section-title">Проекты</div>
         {projects.length ? (
-          projects.map((title) => <SidebarItem key={title} title={title} />)
+          projects.map((project) => (
+            <SidebarItem
+              key={project.title}
+              title={project.title}
+              sub={project.path}
+              testid="sidebar-project"
+            />
+          ))
         ) : (
           <SidebarItem title="Пока нет проектов" />
         )}
         <div className="sidebar__section-title">Чаты</div>
-        {chats.length ? (
-          chats.map((chat) => (
-            <SidebarItem
-              key={chat.title}
-              title={chat.title}
-              active={chat.active}
-              testid={chat.active ? "chat-active" : undefined}
-              onClick={chat.active ? onOpenChat : undefined}
-            />
+        {groups.length ? (
+          groups.map((group) => (
+            <div key={group.title}>
+              <div className="sidebar__section-title">{group.title}</div>
+              {group.chats.map((chat) => (
+                <SidebarItem
+                  key={chat.title}
+                  title={chat.title}
+                  sub={chatTimeOf(chat, now)}
+                  active={chat.active}
+                  testid={chat.active ? "chat-active" : undefined}
+                  onClick={chat.active ? onOpenChat : undefined}
+                />
+              ))}
+            </div>
           ))
         ) : (
           <SidebarItem title="Пока нет чатов" />

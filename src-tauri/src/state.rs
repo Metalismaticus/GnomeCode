@@ -65,6 +65,9 @@ pub struct AppState {
     /// показывает имя, запрос движку несёт идентификатор. Нет — умолчание нового
     /// чата (`DEFAULT_MODEL` интерфейса, `src/appstate.ts`).
     pub chat_model: Option<ChatModel>,
+    /// Время начала текущего чата (unix-миллисекунды): группы дат сайдбара
+    /// строятся по нему; пишется тем же патчем, что и титул первого вопроса.
+    pub chat_time: Option<i64>,
 }
 
 /// Правка состояния: названные поля меняются, остальные остаются как были.
@@ -78,6 +81,7 @@ pub struct StatePatch {
     pub plugin_favorites: Option<Vec<String>>,
     pub plugin_recent: Option<Vec<String>>,
     pub chat_model: Option<ChatModel>,
+    pub chat_time: Option<i64>,
 }
 
 impl AppState {
@@ -91,6 +95,7 @@ impl AppState {
             plugin_favorites: patch.plugin_favorites.clone().or_else(|| self.plugin_favorites.clone()),
             plugin_recent: patch.plugin_recent.clone().or_else(|| self.plugin_recent.clone()),
             chat_model: patch.chat_model.clone().or_else(|| self.chat_model.clone()),
+            chat_time: patch.chat_time.or(self.chat_time),
         }
     }
 }

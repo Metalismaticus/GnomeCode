@@ -9,6 +9,7 @@
 // данные владельца.
 
 import type { FeedEvent, RowKind } from "./bridge";
+import type { SidebarChat, SidebarProject } from "./components/Sidebar";
 import type { ContextSection } from "./components/ContextPanel";
 import { ROOT, project } from "./fixtureTree";
 import { params } from "./viewparams";
@@ -27,6 +28,42 @@ const DONE = "Ответ модели получен";
 const LONG_PROJECT = "Открыть проект из Documents без переименования 2026";
 const LONG_PATH = "C:\\Users\\Metalismatic\\Documents\\GnomeCode.wt\\shots\\2026-10-04-p2-r1";
 const ACTIVE_CHAT = "Разбор главного окна";
+
+/** Ответ разбора (спека §3, «чат с ответом»): вступление → ступень «1 …» →
+ *  ступень «2 …» → ступень с код-блоком внутри. Содержимое — наше, не чужое:
+ *  заголовки без номеров — номер ступени считает разбор. */
+const RAZBOR_QUESTION = "Посмотри структуру проекта и предложи улучшения";
+const RAZBOR = `Смотрю структуру папки. Мост на месте, сборка зелёная.
+
+## Проблемы
+Перечисляю найденное:
+- строка ответа собирается по кучкам и при обрыве скачет
+- источник инструмента называется только именем файла
+
+## Предлагаемые улучшения
+Начну с простого: источники уже собираются из строк ленты, дальше — знания проекта.
+
+## Пример кода
+\`\`\`ts
+const message = "Длинная строка кода переносится внутри плашки, а не вылезает за край ленты: ${"х".repeat(160)}";
+\`\`\``;
+
+const HOUR = 60 * 60 * 1000;
+
+/** Время чата по номеру: первые — сегодня, дальше вчера, неделя и старше —
+ *  группы дат сайдбара видны на кадре «много» (спека «Состав основы»). */
+const hoursAgo = (index: number): number => {
+  if (index < 4) {
+    return 1 + index * 2;
+  }
+  if (index < 8) {
+    return 26 + (index - 4) * 6;
+  }
+  if (index < 28) {
+    return 72 + (index - 8) * 4.5;
+  }
+  return 240 + (index - 28) * 96;
+};
 
 /** Строка ленты: тот же вид, что отдаёт `FeedEvent::Row` в Rust. */
 const row = (id: string, kind: RowKind, text: string): FeedEvent => ({ type: "row", id, kind, text });
@@ -76,6 +113,16 @@ class Fixture {
     }
     if (params.feed === "error") {
       return [row("engine_down", "notice", UNAVAILABLE)];
+    }
+    if (params.feed === "разбор") {
+      // Разбор своего вопроса: строка вопроса → ответ ступенями с код-блоком →
+      // исполненный вызов инструмента — источник блока «Sources used».
+      return [
+        row("razbor_user", "user", RAZBOR_QUESTION),
+        row("razbor_answer", "assistant", RAZBOR),
+        { type: "row", id: "razbor_tool", kind: "tool", text: "✓ read · src/bridge.ts", file: "src/bridge.ts" },
+        row("razbor_done", "notice", DONE),
+      ];
     }
     if (params.feed === "many" || params.feed.startsWith("сравнение")) {
       // Панель сравнения снимается над лентой с сообщениями — кадр целиком.
@@ -127,8 +174,8 @@ class Fixture {
 }
 
 export type PanelData = {
-  projects: string[];
-  chats: { title: string; active?: boolean }[];
+  projects: SidebarProject[];
+  chats: SidebarChat[];
   sections: ContextSection[];
   engineDown: boolean;
   /** Папка проекта, выбранная до открытия окна: пустая — выбирать ещё нечем. */
@@ -136,15 +183,23 @@ export type PanelData = {
 };
 
 /** Содержимое панелей по состоянию экрана: пусто, ошибка, много данных.
- *  Настоящие строки — те, что в окне бывают на самом деле (спецификация экрана). */
+ *  Настоящие строки — те, что в окне бывают на самом деле (спецификация экрана).
+ *  «Инструменты» и «Безопасность этого чата» панель собирает сама — из живых
+ *  подключений и состояния проекта, фикстуре их выдумывать нечего. */
 export function panels(state: typeof params.feed): PanelData {
   if (state === "empty") {
     return { projects: [], chats: [], sections: baseSections(), engineDown: false, project: "" };
   }
   if (state === "many") {
     return {
-      projects: [LONG_PROJECT],
-      chats: [...Array.from({ length: 99 }, (_, i) => ({ title: `Вопрос ${i + 1}` })), { title: ACTIVE_CHAT, active: true }],
+      projects: [{ title: LONG_PROJECT, path: LONG_PATH }],
+      chats: [
+        ...Array.from({ length: 99 }, (_, i) => ({
+          title: `Вопрос ${i + 1}`,
+          time: Date.now() - hoursAgo(i) * HOUR,
+        })),
+        { title: ACTIVE_CHAT, active: true, time: Date.now() - 2 * HOUR },
+      ],
       sections: [
         {
           title: "Проект",
@@ -153,15 +208,14 @@ export function panels(state: typeof params.feed): PanelData {
             { label: "Файлов", value: "1 284 файла", tone: "mono" },
           ],
         },
-        ...baseSections().slice(1),
       ],
       engineDown: false,
       project: "",
     };
   }
   return {
-    projects: ["GnomeCode"],
-    chats: [{ title: ACTIVE_CHAT, active: true }],
+    projects: [{ title: "GnomeCode" }],
+    chats: [{ title: ACTIVE_CHAT, active: true, time: Date.now() - 2 * HOUR }],
     sections: baseSections(),
     engineDown: state === "error",
     project: project() ?? "",
@@ -169,23 +223,7 @@ export function panels(state: typeof params.feed): PanelData {
 }
 
 function baseSections(): ContextSection[] {
-  return [
-    { title: "Проект", rows: [{ label: "Папка не выбрана", value: "—" }] },
-    {
-      title: "Инструменты",
-      rows: [
-        { label: "Терминал", value: "позже" },
-        { label: "Файловый менеджер", value: "позже" },
-      ],
-    },
-    {
-      title: "Безопасность этого чата",
-      rows: [
-        { label: "Доступ к файловой системе", value: "Выключен", tone: "off" },
-        { label: "Интернет", value: "Выключен", tone: "off" },
-      ],
-    },
-  ];
+  return [{ title: "Проект", rows: [{ label: "Папка не выбрана", value: "—" }] }];
 }
 
 export const fixture = new Fixture();

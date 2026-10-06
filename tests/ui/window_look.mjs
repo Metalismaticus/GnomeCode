@@ -16,8 +16,10 @@ const NARROW = { width: 1024, height: 640 };
 const SIDEBAR_W = 240;
 const SIDEBAR_NARROW_W = 200;
 const CONTEXT_W = 280;
-const EMPTY_TITLE_PX = 20;
+const EMPTY_TITLE_PX = 22;
 const CENTER_TOLERANCE = 4;
+/** Сборка стоит вверху прокручиваемой ленты: паддинг ленты 24 px — запас на него. */
+const TOP_TOLERANCE = 30;
 const FOCUS_RING_PX = "2px";
 
 /** Ширина элемента по странице: null — элемента в кадре нет.
@@ -114,16 +116,17 @@ try {
       done(1, `правая панель при 1440×900 — ${wideContext} px, а не ${CONTEXT_W} px`);
     }
 
-    // --- Акцентных пятен ровно два: главная кнопка и активный чат ---------------------
+    // --- Акцентные пятна — по составу образца: CTA, активный чат, кнопка отправки,
+    // бейдж модели (docs/specs/2026-10-06-11-glavnoe.md, «По чему судить снимок», п. 6) --
+    const SPOTS = ["btn-primary", "chat-active", "send", "model-badge"];
     const spots = await gradientSpots(wide);
-    if (spots.length !== 2) {
-      done(1, `в кадре 1440×900 акцентных пятен ${spots.length}, а не 2 (${spots.join(", ")})`);
+    if (spots.length !== SPOTS.length) {
+      done(1, `в кадре 1440×900 акцентных пятен ${spots.length}, а не ${SPOTS.length} (${spots.join(", ")})`);
     }
-    if (!spots.some((name) => String(name).includes("primary"))) {
-      done(1, `в кадре 1440×900 нет главной кнопки среди акцентных пятен (${spots.join(", ")})`);
-    }
-    if (!spots.some((name) => String(name).includes("chat-active"))) {
-      done(1, `в кадре 1440×900 нет активного чата среди акцентных пятен (${spots.join(", ")})`);
+    for (const part of SPOTS) {
+      if (!spots.some((name) => String(name).includes(part))) {
+        done(1, `в кадре 1440×900 нет «${part}» среди акцентных пятен (${spots.join(", ")})`);
+      }
     }
 
     // --- Темы совпадают по раскладке и различаются по цвету ----------------------------
@@ -274,7 +277,7 @@ try {
     }
     await narrow.close();
 
-    // --- Пустое состояние: по центру ленты, заголовок 20 px ----------------------------
+    // --- Пустое состояние: сборка вверху ленты, заголовок 22 px (спека §3) -------------
     const empty = await browser.newPage({ viewport: WIDE });
     await empty.goto(`${url}?состояние=пусто`, { waitUntil: "networkidle" });
     const emptyBox = await empty.evaluate(() => {
@@ -287,26 +290,32 @@ try {
       return {
         titlePx: parseFloat(getComputedStyle(title).fontSize),
         dx: Math.abs((b.left + b.right) / 2 - (f.left + f.right) / 2),
-        dy: Math.abs((b.top + b.bottom) / 2 - (f.top + f.bottom) / 2),
+        top: b.top - f.top,
       };
     });
     if (!emptyBox) {
-      done(1, "при ?состояние=пусто на экране нет пустого состояния — заголовок, подсказка и карточки");
+      done(1, "при ?состояние=пусто на экране нет приветственной сборки — заголовок и ряды карточек");
     }
     if (emptyBox.titlePx !== EMPTY_TITLE_PX) {
-      done(1, `заголовок пустого состояния ${emptyBox.titlePx} px, а не ${EMPTY_TITLE_PX} px`);
+      done(1, `заголовок приветствия ${emptyBox.titlePx} px, а не ${EMPTY_TITLE_PX} px`);
     }
-    if (emptyBox.dy > CENTER_TOLERANCE || emptyBox.dx > CENTER_TOLERANCE) {
+    if (emptyBox.top > TOP_TOLERANCE) {
       done(
         1,
-        `блок пустого состояния не по центру ленты: по вертикали на ${emptyBox.dy.toFixed(1)} px, по горизонтали на ${emptyBox.dx.toFixed(1)} px (допуск ${CENTER_TOLERANCE} px)`,
+        `приветственная сборка висит на ${emptyBox.top.toFixed(1)} px ниже верха ленты (допуск ${TOP_TOLERANCE} px) — сборка стоит вверху прокручиваемой области`,
+      );
+    }
+    if (emptyBox.dx > CENTER_TOLERANCE) {
+      done(
+        1,
+        `сборка не по центру ленты по горизонтали: на ${emptyBox.dx.toFixed(1)} px (допуск ${CENTER_TOLERANCE} px)`,
       );
     }
     await empty.close();
 
     done(
       0,
-      `раскладка ${SIDEBAR_W}/${SIDEBAR_NARROW_W}/${CONTEXT_W} px, оверлей по ☰ с Esc, кликом снаружи и кнопкой, шапка с кнопкой панели и переключателем темы доступна под оверлеем, пустое состояние по центру с заголовком ${EMPTY_TITLE_PX} px, акцентных пятен 2, темы совпали по раскладке и разошлись по цвету, фокус ${FOCUS_RING_PX}`,
+      `раскладка ${SIDEBAR_W}/${SIDEBAR_NARROW_W}/${CONTEXT_W} px, оверлей по ☰ с Esc, кликом снаружи и кнопкой, шапка с кнопкой панели и переключателем темы доступна под оверлеем, приветственная сборка вверху ленты с заголовком ${EMPTY_TITLE_PX} px, акцентных пятен ${SPOTS.length}, темы совпали по раскладке и разошлись по цвету, фокус ${FOCUS_RING_PX}`,
     );
   } finally {
     await browser.close();

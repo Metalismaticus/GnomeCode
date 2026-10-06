@@ -20,6 +20,8 @@ export type FixtureState = {
   pluginRecent: string[];
   /** Модель текущего чата: выбор панели сравнения (имя + идентификатор). */
   chatModel: { name: string; id: string } | null;
+  /** Время начала текущего чата: группы дат сайдбара строятся по нему. */
+  chatTime: number | null;
 };
 
 const KEY = "gnomecode-fixture-state";
@@ -53,6 +55,7 @@ export function readFixtureState(): FixtureState {
           pluginFavorites: pluginIds(held.pluginFavorites),
           pluginRecent: pluginIds(held.pluginRecent),
           chatModel: chatModelOf(held.chatModel),
+          chatTime: typeof held.chatTime === "number" ? held.chatTime : null,
         };
       }
     }
@@ -66,6 +69,7 @@ export function readFixtureState(): FixtureState {
     pluginFavorites: [],
     pluginRecent: [],
     chatModel: null,
+    chatTime: null,
   };
 }
 

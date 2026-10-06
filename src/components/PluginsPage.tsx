@@ -11,7 +11,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { CatalogEntry } from "../catalog";
 import type { Plugin, PluginScope } from "../bridge";
 import { useCatalog } from "../features/plugins/useCatalog";
-import { usePlugins } from "../features/plugins/usePlugins";
+import type { PluginsState } from "../features/plugins/usePlugins";
 import { CatalogPicker } from "./CatalogPicker";
 import { PluginConfig } from "./PluginConfig";
 import { PluginSummary } from "./PluginSummary";
@@ -34,7 +34,7 @@ const TITLES: Record<Exclude<Tab, "installed"> | "installed", string> = {
 
 const TABS: Tab[] = ["installed", "available", "updates", "disabled"];
 
-export function PluginsPage() {
+export function PluginsPage({ plugins }: { plugins: PluginsState }) {
   /** Состояние «плагины-обновления» открывает раздел прямо на Updates — карточки
    *  обновлений проверяемый экран; обычный вход — Installed. */
   const [tab, setTab] = useState<Tab>(params.feed === "plugins-updates" ? "updates" : "installed");
@@ -43,7 +43,6 @@ export function PluginsPage() {
   const [pending, setPending] = useState<CatalogEntry | undefined>(undefined);
   /** Запись обновления, чью сводку новых прав открыли с карточки Updates. */
   const [updateSummary, setUpdateSummary] = useState<CatalogEntry | undefined>(undefined);
-  const plugins = usePlugins();
   const catalog = useCatalog(catalogOpen);
   /** Окно подтверждения удаления: id карточки, с которой кликнули по Uninstall. */
   const [confirm, setConfirm] = useState<string | undefined>(undefined);

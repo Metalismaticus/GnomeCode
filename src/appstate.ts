@@ -22,6 +22,8 @@ export type WindowState = {
   pluginRecent: string[] | null;
   /** Модель текущего чата, выбранная в панели сравнения; нет — умолчание. */
   chatModel: ChatModelChoice | null;
+  /** Время начала текущего чата: группы дат сайдбара строятся по нему. */
+  chatTime: number | null;
 };
 
 /** Правка состояния: названные поля меняются, остальное — как было. */
@@ -33,6 +35,7 @@ export type WindowPatch = {
   pluginFavorites?: string[];
   pluginRecent?: string[];
   chatModel?: ChatModelChoice;
+  chatTime?: number;
 };
 
 export function loadState(): Promise<WindowState | null> {

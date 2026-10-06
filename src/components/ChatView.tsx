@@ -5,9 +5,9 @@ import type { CatalogEntry } from "../catalog";
 import type { CompareModel } from "../compare";
 import { useFeed } from "../chat";
 import { useCompare } from "../features/compare/useCompare";
-import { useApproval } from "../features/plugins/useApproval";
+import type { ApprovalState } from "../features/plugins/useApproval";
 import { useCatalog } from "../features/plugins/useCatalog";
-import { usePlugins } from "../features/plugins/usePlugins";
+import type { PluginsState } from "../features/plugins/usePlugins";
 import { useToolsets } from "../features/plugins/useToolsets";
 import type { ProjectState } from "../features/project/useProject";
 import { params, type Theme } from "../viewparams";
@@ -92,6 +92,9 @@ export function ChatView({
   onOpenPluginsPage,
   model,
   onChooseModel,
+  plugins,
+  approval,
+  counts,
 }: {
   title: string;
   theme: Theme;
@@ -108,6 +111,12 @@ export function ChatView({
   model: string;
   /** «Выбрать» в панели сравнения: модель чата меняется и запоминается. */
   onChooseModel: (choice: ChatModelChoice) => void;
+  /** Плагины чата — общие с правой панелью (App держит одно состояние). */
+  plugins: PluginsState;
+  /** Окно одобрения вызова — общее с правой панелью. */
+  approval: ApprovalState;
+  /** Счётчики приветственной сборки: длина списков чатов и проектов. */
+  counts: { chats: number; projects: number };
 }) {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -119,11 +128,9 @@ export function ChatView({
   /** Карточка, чью сводку прав открыли: решение ещё не принято. */
   const [pending, setPending] = useState<CatalogEntry | undefined>(undefined);
   const { rows, error, send } = useFeed();
-  const plugins = usePlugins();
   const toolsets = useToolsets();
   const catalog = useCatalog(overlay === "catalog");
   const compare = useCompare(overlay === "compare");
-  const approval = useApproval();
   /** Развёрнутая строка снимка: `?состояние=сравнение-раскрыто` открывает панель
    *  с подробностями North Mini Code вместо клика — кадр без действий владельца. */
   const initialExpanded = params.feed === "сравнение-раскрыто" ? "cohere/north-mini-code-1-0" : null;
@@ -321,7 +328,14 @@ export function ChatView({
             onSourcePlugin={onOpenPluginsPage}
           />
         ) : (
-          <EmptyChat />
+          <EmptyChat
+            counts={counts}
+            plugins={plugins}
+            model={model}
+            onOpenProject={project.pick}
+            onConnectPlugin={onOpenPluginsPage}
+            onCompare={() => setOverlay("compare")}
+          />
         )}
       </div>
       <Composer

@@ -36,17 +36,23 @@
   padding: var(--space-2) 0;
 }
 
-.composer__send--ready {
+/* Кнопка отправки — акцентный элемент образца: градиент всегда (docs/specs/
+   2026-10-06-11-glavnoe.md, «Состояния»); на пустом поле выключена и приглушена. */
+.composer__send {
   background: var(--accent-gradient);
   color: var(--on-accent);
   border-color: transparent;
 }
 
-.composer__send--ready:hover:not(:disabled) {
+.composer__send:disabled {
+  opacity: 0.55;
+}
+
+.composer__send:hover:not(:disabled) {
   filter: brightness(1.12);
 }
 
-.composer__send--ready:active:not(:disabled) {
+.composer__send:active:not(:disabled) {
   filter: brightness(1.04);
 }
 

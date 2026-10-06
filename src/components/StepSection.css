@@ -1,0 +1,56 @@
+/* Ступень разбора: номер в плитке 20×20 (--bg-panel-2, радиус 6, моно 12),
+   заголовок 13 px/600; паддинг ступени 8×0 (спека «Размеры»). Заголовок —
+   кнопка: наведение подсвечивает, клик сворачивает. */
+
+.step {
+  padding: var(--space-2) 0;
+}
+
+.step__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.step__head:hover .step__title {
+  color: var(--accent);
+}
+
+.step__number {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text);
+}
+
+.step__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.step__mark {
+  margin-left: auto;
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.step__body {
+  padding-top: var(--space-1);
+}

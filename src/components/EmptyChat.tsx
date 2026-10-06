@@ -1,27 +1,137 @@
-import { Button } from "./Button";
+// Приветственная сборка пустого чата (docs/specs/2026-10-06-11-glavnoe.md, §3/§5):
+// H1 с подзаголовком, ряд счётчиков из настоящих данных, ряды провайдеров и моделей
+// из каталога, который продукт знает, и ровно 4 карточки сценариев. Ряд без данных
+// не рисуется вовсе; ноль счётчика — честный. Сборка стоит вверху прокручиваемой
+// ленты; композер — не часть сборки и не едет.
+import { useMemo } from "react";
+
+import { knownModels, providersOf } from "../markdown";
+import { useCompare } from "../features/compare/useCompare";
+import type { PluginsState } from "../features/plugins/usePlugins";
+import { ChatGlyph, FolderGlyph, PuzzleGlyph, ScalesGlyph } from "./glyphs";
 
 import "./EmptyChat.css";
 
-const CARDS = ["Прототипировать идея", "Проверить код", "Открыть проект"];
+const TITLE = "Добро пожаловать в GnomeCode";
+const SUBTITLE = "Опишите задачу, приложите файл или выберите сценарий";
+const MANAGE = "Управление моделями →";
+const MODEL_OF_CHAT = "модель этого чата";
 
-/** Пустое состояние чата: заголовок, подсказка, три карточки-сценария.
- *  Блок стоит по центру ленты, а не прижат к верху. */
-export function EmptyChat() {
+type WelcomeCounts = { chats: number; projects: number };
+
+/** Сценарии: константа — действия реальные, те же, что кнопки шапки сайдбара.
+ *  «Новый чат» ведёт себя как кнопка сайдбара: machinery нового чата появится
+ *  с возобновляемыми сессиями (см. plugins_scopes), карточка держит место образца. */
+const SCENARIOS = [
+  { key: "open-project", title: "Открыть проект", sub: "Выбрать папку с кодом", Glyph: FolderGlyph },
+  { key: "new-chat", title: "Новый чат", sub: "Начать с чистого листа", Glyph: ChatGlyph },
+  { key: "connect-plugin", title: "Подключить плагин", sub: "Каталог и права", Glyph: PuzzleGlyph },
+  { key: "compare-models", title: "Сравнить модели", sub: "Выбрать для этого чата", Glyph: ScalesGlyph },
+] as const;
+
+export function EmptyChat({
+  counts,
+  plugins,
+  model,
+  onOpenProject,
+  onConnectPlugin,
+  onCompare,
+}: {
+  counts: WelcomeCounts;
+  plugins: PluginsState;
+  model: string;
+  /** Клик по карточке сценария: папка проекта, каталог плагинов, панель сравнения. */
+  onOpenProject: () => void;
+  onConnectPlugin: () => void;
+  onCompare: () => void;
+}) {
+  const compare = useCompare(true);
+  const models = useMemo(() => knownModels(model, compare.models), [model, compare.models]);
+  const providers = useMemo(() => providersOf(models), [models]);
+  const usage = useMemo(
+    () => plugins.plugins.reduce((sum, plugin) => sum + (plugin.usage?.count ?? 0), 0),
+    [plugins.plugins],
+  );
+  const counters: { label: string; value: number }[] = [
+    { label: "ЧАТЫ", value: counts.chats },
+    { label: "ПРОЕКТЫ", value: counts.projects },
+    { label: "ПЛАГИНЫ", value: plugins.plugins.length },
+    { label: "ВЫЗОВЫ", value: usage },
+  ];
+  const actionOf = (key: (typeof SCENARIOS)[number]["key"]): (() => void) | undefined => {
+    if (key === "open-project") {
+      return onOpenProject;
+    }
+    if (key === "connect-plugin") {
+      return onConnectPlugin;
+    }
+    if (key === "compare-models") {
+      return onCompare;
+    }
+    // «Новый чат» — как кнопка «Новый чат» сайдбара: нового чата в продукте ещё нет.
+    return undefined;
+  };
   return (
     <div className="empty" data-testid="empty">
-      <div className="empty__title" data-testid="empty-title">
-        Новый чат
-      </div>
-      <div className="empty__subtitle">
-        Опишите задачу, приложите файл или выберите сценарий
-      </div>
-      <div className="empty__cards">
-        {CARDS.map((card) => (
-          <Button key={card} variant="card" data-testid={`empty-card-${card}`}>
-            {card}
-          </Button>
+      <h1 className="empty__title" data-testid="empty-title">
+        {TITLE}
+      </h1>
+      <div className="empty__subtitle">{SUBTITLE}</div>
+
+      <div className="empty__row">
+        {counters.map((counter) => (
+          <div className="welcome-card" key={counter.label} data-testid="welcome-counter">
+            <span className="counter__value">{counter.value.toLocaleString("ru-RU")}</span>
+            <span className="counter__label">{counter.label}</span>
+          </div>
         ))}
       </div>
+
+      {providers.length ? (
+        <div className="empty__row" data-testid="welcome-providers">
+          {providers.map((provider) => (
+            <div className="welcome-card" key={provider.lab} data-testid="welcome-provider">
+              <span className="welcome-card__name">{provider.lab}</span>
+              <span className="welcome-card__sub">{provider.count} моделей</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="empty__row empty__row--scenarios" data-testid="welcome-scenarios">
+        {SCENARIOS.map((scenario) => (
+          <button
+            key={scenario.key}
+            type="button"
+            className="welcome-scenario"
+            data-testid="welcome-scenario"
+            title={scenario.title}
+            onClick={actionOf(scenario.key)}
+          >
+            <scenario.Glyph className="welcome-scenario__glyph" />
+            <span className="welcome-scenario__text">
+              <span className="welcome-scenario__title">{scenario.title}</span>
+              <span className="welcome-scenario__sub">{scenario.sub}</span>
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {models.length ? (
+        <>
+          <div className="empty__row" data-testid="welcome-models">
+            {models.map((known, index) => (
+              <div className="welcome-card" key={`${known.name}-${index}`} data-testid="welcome-model">
+                <span className="welcome-card__name">{known.name}</span>
+                <span className="welcome-card__sub">{known.lab || MODEL_OF_CHAT}</span>
+              </div>
+            ))}
+          </div>
+          <button type="button" className="empty__manage" data-testid="welcome-manage" onClick={onCompare}>
+            {MANAGE}
+          </button>
+        </>
+      ) : null}
     </div>
   );
 }

@@ -3,18 +3,21 @@ import { useCallback, useEffect, useState } from "react";
 import { ChatView } from "./components/ChatView";
 import { ContextPanel } from "./components/ContextPanel";
 import { PluginsPage } from "./components/PluginsPage";
-import { Sidebar } from "./components/Sidebar";
+import { Sidebar, type SidebarChat, type SidebarProject } from "./components/Sidebar";
 import { panels } from "./fixture";
 import type { ChatModelChoice } from "./bridge";
 import { chatTitleOf, loadState, patchState, DEFAULT_MODEL, type WindowState } from "./appstate";
+import { useApproval } from "./features/plugins/useApproval";
+import { usePlugins } from "./features/plugins/usePlugins";
 import { useProject } from "./features/project/useProject";
 import { params, type Theme } from "./viewparams";
 
 import "./styles/app.css";
 
 /** Что открыто в окне: чат или раздел «Плагины» (docs/SPEC/plugins.md, сцена A).
- *  Страницы размонтируют друг друга: возврат в чат заново читает список плагинов,
- *  и кнопки команд в шапке пересчитываются с учётом выключенных. */
+ *  Страницы размонтируют друг друга — черновик композера и оверлеи чата гаснут при
+ *  выходе; список плагинов при этом один на окно (App держит его сам), и кнопки
+ *  команд в шапке пересчитываются сразу, в том числе после Enable/Disable раздела. */
 type Page = "chat" | "plugins";
 
 /** Ширина, ниже которой правая панель складывается в кнопку `☰` (docs/DESIGN.md, раздел 5). */
@@ -117,7 +120,15 @@ export default function App() {
   const [chatTitle, setChatTitle] = useState("");
   /** Модель текущего чата: из состояния окна, иначе — умолчание нового чата. */
   const [model, setModel] = useState<string>(DEFAULT_MODEL);
+  /** Время начала текущего чата: группы дат сайдбара строятся по нему. */
+  const [chatTime, setChatTime] = useState<number | null>(null);
   const project = useProject(projectRoot);
+  /** Плагины и окно одобрения живут на уровне окна: их показывают и шапка чата,
+   *  и правая панель — строки команд панели идут через тот же ход одобрения.
+   *  Исполненный вызов растит счётчик (usage.json): список перечитывается,
+   *  иначе карточка раздела «Плагины» показала бы счётчик прошлого запуска. */
+  const plugins = usePlugins();
+  const approval = useApproval(plugins.refresh);
 
   // Состояние прошлого запуска — один запрос при старте: см. useSavedState.
   const applySaved = useCallback((saved: WindowState) => {
@@ -133,18 +144,24 @@ export default function App() {
     if (saved.chatModel) {
       setModel(saved.chatModel.name);
     }
+    if (saved.chatTime) {
+      setChatTime(saved.chatTime);
+    }
   }, []);
   useSavedState(applySaved);
 
-  /** Титул чата: первый вопрос. Повторные вопросы титул не меняют. */
+  /** Титул чата: первый вопрос. Повторные вопросы титул не меняют; время начала
+   *  чата пишется тем же патчем — группы дат сайдбара строятся по нему. */
   const rememberChat = useCallback(
     (question: string) => {
       if (chatTitle) {
         return;
       }
       const title = chatTitleOf(question);
+      const now = Date.now();
       setChatTitle(title);
-      void patchState({ chatTitle: title });
+      setChatTime(now);
+      void patchState({ chatTitle: title, chatTime: now });
     },
     [chatTitle],
   );
@@ -159,11 +176,14 @@ export default function App() {
   // Оверлей правой панели закрывается сам — см. usePanelOverlay.
   usePanelOverlay(narrow, panelOpen, setPanelOpen);
 
+  const chats = chatsList(data, chatTitle, chatTime);
+  const projects = projectsList(data, projectRoot);
+
   return (
     <div className="app">
       <Sidebar
-        projects={projectsList(data, projectRoot)}
-        chats={chatsList(data, chatTitle)}
+        projects={projects}
+        chats={chats}
         theme={theme}
         onToggleTheme={toggleTheme}
         onPickFolder={project.pick}
@@ -171,7 +191,7 @@ export default function App() {
         onOpenChat={() => setPage("chat")}
       />
       {page === "plugins" ? (
-        <PluginsPage />
+        <PluginsPage plugins={plugins} />
       ) : (
         <ChatView
           title={chatTitle || "Новый чат"}
@@ -184,27 +204,43 @@ export default function App() {
           onOpenPluginsPage={() => setPage("plugins")}
           model={model}
           onChooseModel={chooseModel}
+          plugins={plugins}
+          approval={approval}
+          counts={{ chats: chats.length, projects: projects.length }}
         />
       )}
       {narrow && !panelOpen ? null : (
-        <ContextPanel sections={data.sections} engineDown={data.engineDown} project={project} />
+        <ContextPanel
+          sections={data.sections}
+          engineDown={data.engineDown}
+          project={project}
+          plugins={plugins}
+          onRunCommand={approval.run}
+          onOpenPluginsPage={() => setPage("plugins")}
+        />
       )}
     </div>
   );
 }
 
-/** Проекты сайдбара: настоящая папка проекта, когда она есть, иначе фикстура. */
-function projectsList(data: ReturnType<typeof panels>, root: string): string[] {
+/** Проекты сайдбара: настоящая папка проекта, когда она есть, иначе фикстура.
+ *  Название — папка, вторая линия — полный путь (спека «Двухстрочные строки»). */
+function baseName(path: string): string {
+  return path.split(/[\\/]/).filter(Boolean).pop() ?? path;
+}
+
+function projectsList(data: ReturnType<typeof panels>, root: string): SidebarProject[] {
   if (root) {
-    return [root];
+    return [{ title: baseName(root), path: root }];
   }
   return data.projects;
 }
 
-/** Чаты сайдбара: настоящий титул, когда он есть, иначе фиксёрный список. */
-function chatsList(data: ReturnType<typeof panels>, title: string) {
+/** Чаты сайдбара: настоящий титул, когда он есть, иначе фиксёрный список;
+ *  время чата несёт вторую линию и группу дат. */
+function chatsList(data: ReturnType<typeof panels>, title: string, time: number | null): SidebarChat[] {
   if (title) {
-    return [{ title, active: true }];
+    return [{ title, active: true, ...(time ? { time } : {}) }];
   }
   return data.chats;
 }

@@ -1,0 +1,94 @@
+/* Код-блок: тёмная плашка в обеих темах (светлая тема — тёмный код-блок, приём
+   паспорта «OpenCode PRO»), радиус 6, паддинг 12; код моно 12 px с переносом
+   длинной строки — горизонтального скролла нет (docs/DESIGN.md, раздел 6).
+   Цвета подсветки — токены: чужую тему highlight.js не подключаем. */
+
+.codeblock {
+  margin: var(--space-2) 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--code-bg);
+  min-width: 0;
+}
+
+.codeblock__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.codeblock__lang {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.codeblock__copy {
+  height: 24px;
+  padding: 0 var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.codeblock__copy:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.codeblock__copy:active {
+  background: var(--bg-hover);
+}
+
+.codeblock__code {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Подсветка синтаксиса токенами: классы highlight.js — на переменные тем. */
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-tag,
+.hljs-name {
+  color: var(--code-keyword);
+}
+
+.hljs-title,
+.hljs-title.function_,
+.hljs-function {
+  color: var(--code-func);
+}
+
+.hljs-string,
+.hljs-regexp {
+  color: var(--success);
+}
+
+.hljs-number,
+.hljs-literal,
+.hljs-symbol {
+  color: var(--warning);
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.hljs-attr,
+.hljs-attribute,
+.hljs-variable,
+.hljs-property,
+.hljs-params {
+  color: var(--text-dim);
+}

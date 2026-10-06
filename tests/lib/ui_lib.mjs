@@ -125,9 +125,10 @@ export const openShotPage = async (browser, url, query, theme) => {
   return { context, page };
 };
 
-/** Текст активного чата в сайдбаре: сценарии перезапуска сверяют его с прошлым циклом. */
+/** Текст активного чата в сайдбаре: сценарии перезапуска сверяют его с прошлым циклом.
+ *  Читается первая линия строки — вторая линия (время чата) не часть титула. */
 export const activeChat = (page) =>
-  page.$eval('[data-testid="chat-active"]', (el) => el.textContent.trim());
+  page.$eval('[data-testid="chat-active"] .sidebar-item__title', (el) => el.textContent.trim());
 
 /** Папка в разделе «Проект» правой панели: видна дереву и вопросу с файлом. */
 export const panelFolder = (page) =>

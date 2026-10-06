@@ -1,34 +1,65 @@
-/* Строка списка сайдбара: длинное имя усекается с «…», полное — в title. */
+/* Строка списка сайдбара: две линии — название 13 px и подпись 11 px приглушённым,
+   высота ~44 px, паддинг 6×8 (спека «Размеры» + приём «Двухстрочная строка»).
+   Длинное имя и путь усекаются с «…», полный текст — в title. */
 
 .sidebar-item {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   width: 100%;
-  text-align: left;
-  padding: var(--space-2);
+  min-width: 0;
+  padding: 6px var(--space-2);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: none;
   color: var(--text-dim);
   font-size: 13px;
+  text-align: left;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sidebar-item__title {
+  min-width: 0;
   line-height: 1.4;
+  color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sidebar-item__sub {
+  min-width: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sidebar-item:hover {
   background: var(--bg-hover);
-  color: var(--text);
 }
 
 .sidebar-item:active {
   background: var(--bg-hover);
 }
 
-/* Активный чат — второе из двух акцентных пятен окна (docs/DESIGN.md, раздел 1). */
+/* Активный чат — второе из акцентных пятен окна (docs/DESIGN.md, раздел 1):
+   мягкая плашка акцента, вторая линия тоже светлая. */
 .sidebar-item--active {
   background: var(--accent-gradient);
+}
+
+.sidebar-item--active .sidebar-item__title,
+.sidebar-item--active .sidebar-item__sub {
   color: var(--on-accent);
-  font-weight: 600;
+}
+
+.sidebar-item--active .sidebar-item__sub {
+  opacity: 0.75;
+}
+
+.sidebar-item--active:hover {
+  filter: brightness(1.08);
 }

@@ -21,7 +21,9 @@
 }
 
 /* Бейдж модели — кнопка входа панели «Сравнение моделей» (пункт 10): те же
-   состояния, что у остальных кнопок шапки — наведение, нажатие, нажатость. */
+   состояния, что у остальных кнопок шапки — наведение, нажатие, нажатость.
+   Полупрозрачный фон акцента + градиентная рамка — приём образца, состояние
+   выбранного (docs/specs/2026-10-06-11-glavnoe.md, «Состояния»). */
 .chat-header__badge {
   display: inline-flex;
   align-items: center;
@@ -29,8 +31,10 @@
   border-radius: 999px;
   font-size: 11px;
   font-weight: 600;
-  background: var(--badge-bg);
-  border: 1px solid var(--badge-border);
+  background:
+    linear-gradient(var(--badge-bg), var(--badge-bg)) padding-box,
+    var(--accent-gradient) border-box;
+  border: 1px solid transparent;
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
@@ -40,8 +44,7 @@
 
 .chat-header__badge:hover,
 .chat-header__badge[aria-pressed="true"] {
-  background: var(--bg-hover);
-  border-color: var(--border-strong);
+  filter: brightness(1.08);
 }
 
 .chat-header__badge:focus-visible {

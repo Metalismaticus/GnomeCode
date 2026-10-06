@@ -13,7 +13,7 @@ export type Theme = "dark" | "light";
  *  «Available» — то, что открывает «Browse plugins…»; одобрение вызова плагина —
  *  окно согласия вместо исполненной кнопки (`?состояние=`); панель сравнения
  *  моделей — открыта, раскрыта, из кэша, с ошибкой сети или в ожидании загрузки. */
-export type FeedState = "feed" | "empty" | "error" | "many" | "project" | "plugins" | "plugins-empty" | "approval" | "catalog" | "plugins-section" | "plugins-updates" | "сравнение" | "сравнение-раскрыто" | "сравнение-кэш" | "сравнение-ошибка" | "сравнение-загрузка";
+export type FeedState = "feed" | "empty" | "error" | "many" | "project" | "plugins" | "plugins-empty" | "approval" | "catalog" | "plugins-section" | "plugins-updates" | "разбор" | "сравнение" | "сравнение-раскрыто" | "сравнение-кэш" | "сравнение-ошибка" | "сравнение-загрузка";
 
 export type ViewParams = {
   theme: Theme;
@@ -36,6 +36,7 @@ const FEEDS: Record<string, FeedState> = {
   "плагины-обновления": "plugins-updates",
   одобрение: "approval",
   каталог: "catalog",
+  разбор: "разбор",
   сравнение: "сравнение",
   "сравнение-раскрыто": "сравнение-раскрыто",
   "сравнение-кэш": "сравнение-кэш",

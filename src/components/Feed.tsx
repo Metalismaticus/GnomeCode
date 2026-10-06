@@ -3,8 +3,11 @@ import type { KeyboardEvent } from "react";
 
 import { DEFAULT_MODEL } from "../appstate";
 import type { FeedRow } from "../bridge";
+import { parseMarkdown, type MarkdownBlock } from "../markdown";
 import { sourceBlocks } from "../sources";
+import { CodeBlock } from "./CodeBlock";
 import { SourcesBlock } from "./SourcesBlock";
+import { StepSection } from "./StepSection";
 
 import "./Feed.css";
 
@@ -51,6 +54,48 @@ function expansion(row: FeedRow, open: boolean, toggle: (id: string) => void) {
   };
 }
 
+/** Ответ модели Markdown-lite (спека «Компоненты»): заголовки — ступени,
+ *  fenced-код — код-блок, списки — строки с маркером; обычный текст — абзацы.
+ *  Во время стрима текст дописывается — разбор пересчитывается сам. */
+function AssistantText({ text }: { text: string }) {
+  const doc = useMemo(() => parseMarkdown(text), [text]);
+  if (!doc.intro.length && !doc.steps.length) {
+    return "…";
+  }
+  return (
+    <>
+      {doc.intro.map((block, index) => (
+        <MarkedBlock key={`intro-${index}`} block={block} />
+      ))}
+      {doc.steps.map((step) => (
+        <StepSection key={step.number} number={step.number} title={step.title}>
+          {step.blocks.map((block, index) => (
+            <MarkedBlock key={index} block={block} />
+          ))}
+        </StepSection>
+      ))}
+    </>
+  );
+}
+
+function MarkedBlock({ block }: { block: MarkdownBlock }) {
+  if (block.type === "code") {
+    return <CodeBlock lang={block.lang} code={block.text} />;
+  }
+  if (block.type === "list") {
+    return (
+      <div className="feed__list">
+        {block.items.map((item, index) => (
+          <div key={index} className="feed__list-item">
+            {item}
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return <div className="feed__para">{block.text}</div>;
+}
+
 /** Лента: строки по порядку, вид строки — по её роли в разговоре. */
 export function Feed({
   rows,
@@ -87,7 +132,7 @@ export function Feed({
               className={`feed__row feed__row--${row.kind}${tone ? ` ${tone}` : ""}${row.plugin ? " feed__row--expandable" : ""}`}
               data-kind={row.kind}
               {...(expansion(row, expanded, toggle) as object)}          >
-              {row.text || "…"}
+              {row.kind === "assistant" ? <AssistantText text={row.text} /> : row.text || "…"}
               {expanded ? <RowDetails row={row} chatTitle={chatTitle} /> : null}
             </div>
             {block ? (
