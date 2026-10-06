@@ -375,9 +375,9 @@ pub fn plugin_run(
     let folder = data_dir(&app);
     let category = category_of(&plugin, &command, &folder);
     let held = rules::at(&rules::file(folder.clone()));
-    let rule = category
-        .as_deref()
-        .and_then(|name| rules::value_of(&held, &plugin, name));
+    // Правило плагина старше умолчания настроек: своё — решает, чужого —
+    // решает секция умолчаний, нет и её — умолчание ask (rules::resolved).
+    let rule = category.as_deref().and_then(|name| rules::resolved(&held, &plugin, name));
     match rules::decide(rule, !grants.sensitive(&command)) {
         Decision::Deny => {
             chat.denied(&plugin, &label)?;
@@ -406,12 +406,7 @@ pub fn plugin_set_rule(
     category: String,
     value: String,
 ) -> Result<Vec<Plugin>, String> {
-    if !rules::CATEGORIES.contains(&category.as_str()) {
-        return Err(format!("неизвестная категория «{category}»: их четыре — Read, Write, Network, Terminal"));
-    }
-    if !rules::VALUES.contains(&value.as_str()) {
-        return Err(format!("неизвестное значение «{value}»: allow, ask или deny"));
-    }
+    check_category(&category, &value)?;
     rules::set(&rules::file(data_dir(&app)), &plugin, &category, &value)?;
     plugin_list(app, chat, registry, store)
 }
@@ -442,4 +437,101 @@ pub fn plugin_decide(
         "deny" => chat.refused(&plugin, &label),
         other => Err(format!("Неизвестный ответ одобрения «{other}»: выбора из окна три")),
     }
+}
+
+/// Окно настроек: секция умолчаний прав (docs/specs/
+/// 2026-10-06-12-nastrojki.md, «Решено за вас» №8) и ключи провайдеров между
+/// разделами «Плагины» и «Модели». Правило плагина старше умолчания —
+/// plugin_run читает секцию после правил плагина.
+
+/// Умолчания прав секции rules.json (строки Read/Write/Network/Terminal).
+#[tauri::command]
+pub fn settings_defaults(app: AppHandle) -> Result<Vec<rules::PermissionEntry>, String> {
+    let held = rules::global_at(&rules::file(data_dir(&app)));
+    Ok(rules::CATEGORIES
+        .iter()
+        .map(|category| rules::PermissionEntry {
+            category: (*category).to_string(),
+            value: held.get(*category).cloned().unwrap_or_else(|| rules::DEFAULT.to_string()),
+        })
+        .collect())
+}
+
+/// Сменить умолчание одной категории: запись в секцию умолчаний rules.json —
+/// следующий вызов любой команды этой категории без собственного правила ведёт
+/// себя по-новому без перезапуска (тот же файл, тот же перечёт plugin_run).
+#[tauri::command]
+pub fn settings_set_default(app: AppHandle, category: String, value: String) -> Result<Vec<rules::PermissionEntry>, String> {
+    check_category(&category, &value)?;
+    let file = rules::file(data_dir(&app));
+    rules::set(&file, rules::GLOBAL, &category, &value)?;
+    settings_defaults_inner(&file)
+}
+
+/// Общая проверка категории и значения: та же в plugin_set_rule.
+fn check_category(category: &str, value: &str) -> Result<(), String> {
+    if !rules::CATEGORIES.contains(&category) {
+        return Err(format!("неизвестная категория «{category}»: их четыре — Read, Write, Network, Terminal"));
+    }
+    if !rules::VALUES.contains(&value) {
+        return Err(format!("неизвестное значение «{value}»: allow, ask или deny"));
+    }
+    Ok(())
+}
+
+fn settings_defaults_inner(file: &std::path::Path) -> Result<Vec<rules::PermissionEntry>, String> {
+    let held = rules::global_at(file);
+    Ok(rules::CATEGORIES
+        .iter()
+        .map(|category| rules::PermissionEntry {
+            category: (*category).to_string(),
+            value: held.get(*category).cloned().unwrap_or_else(|| rules::DEFAULT.to_string()),
+        })
+        .collect())
+}
+
+/// Пометка ключа провайдера: «задан» / «не задан»; секрет не возвращается
+/// никогда (docs/specs/2026-10-06-12-nastrojki.md, «Решено за вас» №3).
+#[tauri::command]
+pub fn key_status(provider: String) -> Result<bool, String> {
+    crate::providers::status(&provider)
+}
+
+/// Сохранить ключ провайдера и тихо перезапустить движок: ключи читаются
+/// только при старте (provider.rs движка), сессия переживает рестарт.
+#[tauri::command]
+pub fn key_save(chat: State<'_, Chat>, provider: String, secret: String) -> Result<bool, String> {
+    crate::providers::save(&provider, &secret)?;
+    chat.restart()?;
+    crate::providers::status(&provider)
+}
+
+/// Убрать ключ провайдера: рестарта не нужно — движок ничего не знает
+/// о ключе, которого у него уже нет (пезапуск вернёт 401 заметки).
+#[tauri::command]
+pub fn key_remove(provider: String) -> Result<bool, String> {
+    crate::providers::remove(&provider)?;
+    Ok(false)
+}
+
+/// Провайдеры движка списком: id, имя и число моделей — строки раздела
+/// «Модели» окна настроек. Подключённость движок считает сам; строка
+/// «не подключён» на экране не показывается (спека, «Где снимать»).
+#[tauri::command]
+pub fn provider_list(chat: State<'_, Chat>) -> Result<serde_json::Value, String> {
+    let endpoint = chat
+        .endpoint()
+        .ok_or_else(|| "Движок OpenCode не запущен: список провайдеров недоступен".to_string())?;
+    Api::new(&endpoint).providers()
+}
+
+/// Полный путь папки данных (вкладка «Папка данных»): показывает, где лежит
+/// state.json и плагины. Смену пути окно не делает (Решено №9) — папку задаёт
+/// запуск приложения: переменная проверок или папка данных Tauri.
+#[tauri::command]
+pub fn data_folder(app: AppHandle) -> Result<String, String> {
+    let folder = std::env::var_os(crate::state::DATA_DIR_VAR)
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| data_dir(&app));
+    Ok(folder.to_string_lossy().to_string())
 }

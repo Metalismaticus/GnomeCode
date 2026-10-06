@@ -53,3 +53,13 @@ export function ScalesGlyph({ className }: GlyphProps) {
     </svg>
   );
 }
+
+/** Шестерёнка — вход в настройки (docs/specs/2026-10-06-12-nastrojki.md). */
+export function SettingsGlyph({ className }: GlyphProps) {
+  return (
+    <svg {...base} className={className}>
+      <circle cx="8" cy="8" r="2.2" />
+      <path d="M8 1.6v1.9M8 12.5v1.9M1.6 8h1.9M12.5 8h1.9M3.5 3.5l1.35 1.35M11.15 11.15l1.35 1.35M12.5 3.5l-1.35 1.35M4.85 11.15 3.5 12.5" />
+    </svg>
+  );
+}

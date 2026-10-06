@@ -2,6 +2,7 @@ import type { Theme } from "../viewparams";
 import { MONTHS } from "../compare";
 import { Button } from "./Button";
 import { SidebarItem } from "./SidebarItem";
+import { SettingsGlyph } from "./glyphs";
 import { ThemeSwitch } from "./ThemeSwitch";
 
 import logoMark from "../../docs/refs/owner-2026-10-05-4-logo.png";
@@ -64,8 +65,8 @@ function groupsOf(chats: SidebarChat[], now: number): { title: string; chats: Si
 }
 
 /** Левая колонка: логотип, быстрые действия («+ Новый проект», «Новый чат»,
- *  «Плагины»), разделы «Проекты»/«Чаты» с датами, подвал. Строка списка и её
- *  состояние «активный» — SidebarItem. */
+ *  «Плагины», «Настройки»), разделы «Проекты»/«Чаты» с датами, подвал. Строка
+ *  списка и её состояние «активный» — SidebarItem. */
 export function Sidebar({
   projects,
   chats,
@@ -73,6 +74,8 @@ export function Sidebar({
   onToggleTheme,
   onPickFolder,
   onOpenPlugins,
+  onOpenSettings,
+  settingsOpen,
   onOpenChat,
 }: {
   projects: SidebarProject[];
@@ -83,6 +86,10 @@ export function Sidebar({
   onPickFolder: () => void;
   /** Раздел «Плагины» из главной левой навигации (docs/SPEC/plugins.md, сцена A). */
   onOpenPlugins: () => void;
+  /** Страница настроек из главной левой навигации (docs/specs/2026-10-06-12-nastrojki.md). */
+  onOpenSettings: () => void;
+  /** Страница настроек открыта: шестерёнка подсвечена постоянно (aria-current="page"). */
+  settingsOpen: boolean;
   /** Возврат в чат кликом по строке чата: страница раздела размонтируется. */
   onOpenChat: () => void;
 }) {
@@ -101,6 +108,14 @@ export function Sidebar({
         Новый чат
       </Button>
       <SidebarItem title="Плагины" testid="sidebar-plugins" onClick={onOpenPlugins} />
+      <SidebarItem
+        title="Настройки"
+        glyph={<SettingsGlyph />}
+        testid="sidebar-settings"
+        active={settingsOpen}
+        page
+        onClick={onOpenSettings}
+      />
       <div className="sidebar__lists">
         <div className="sidebar__section-title">Проекты</div>
         {projects.length ? (

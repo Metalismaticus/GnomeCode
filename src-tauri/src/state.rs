@@ -68,6 +68,10 @@ pub struct AppState {
     /// Время начала текущего чата (unix-миллисекунды): группы дат сайдбара
     /// строятся по нему; пишется тем же патчем, что и титул первого вопроса.
     pub chat_time: Option<i64>,
+    /// Модель по умолчанию для новых чатов: свой выбор настроек. Нет —
+    /// умолчание интерфейса (`DEFAULT_MODEL`, `src/appstate.ts`); serde-умолчание
+    /// старые state.json без поля не ломает.
+    pub default_model: Option<ChatModel>,
 }
 
 /// Правка состояния: названные поля меняются, остальные остаются как были.
@@ -82,6 +86,8 @@ pub struct StatePatch {
     pub plugin_recent: Option<Vec<String>>,
     pub chat_model: Option<ChatModel>,
     pub chat_time: Option<i64>,
+    /// Модель по умолчанию для новых чатов (окно настроек).
+    pub default_model: Option<ChatModel>,
 }
 
 impl AppState {
@@ -96,6 +102,7 @@ impl AppState {
             plugin_recent: patch.plugin_recent.clone().or_else(|| self.plugin_recent.clone()),
             chat_model: patch.chat_model.clone().or_else(|| self.chat_model.clone()),
             chat_time: patch.chat_time.or(self.chat_time),
+            default_model: patch.default_model.clone().or_else(|| self.default_model.clone()),
         }
     }
 }

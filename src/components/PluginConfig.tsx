@@ -10,14 +10,50 @@ import "./PluginConfig.css";
 
 /** Категории прав — те же четыре, что у слоя прав (src-tauri/src/plugins/rules.rs);
  *  копия стерегётся сценарием plugin_config (четыре строки в панели). */
-const CATEGORIES = ["Read", "Write", "Network", "Terminal"] as const;
+export const CATEGORIES = ["Read", "Write", "Network", "Terminal"] as const;
+
+/** Значения правила категории — тот же порядок, что у rules::VALUES. */
+export const VALUES = ["allow", "ask", "deny"] as const;
 
 /** Что говорит каждая кнопка значения — словами продукта, в title. */
-const VALUE_HINT: Record<string, string> = {
+export const VALUE_HINT: Record<string, string> = {
   allow: "исполнять молча, без вопроса",
   ask: "спрашивать окном одобрения на каждый вызов",
   deny: "никогда не исполнять: в ленте строка «⚠ … denied»",
 };
+
+/** Кнопки значения правила: ряд allow/ask/deny с одним источником подсказок.
+ *  Панель Configure и страница настроек — оба потребителя (пункт 12). */
+export function RuleButtons({
+  category,
+  value,
+  prefix,
+  onSet,
+}: {
+  category: string;
+  value: string;
+  /** Начало тестидов кнопок: `config-rule-read` → `config-rule-read-allow`. */
+  prefix: string;
+  onSet: (value: string) => void;
+}) {
+  return (
+    <span className="plugin-config__values">
+      {VALUES.map((one) => (
+        <button
+          type="button"
+          key={one}
+          className={`plugin-config__btn${value === one ? " plugin-config__btn--on" : ""}`}
+          data-testid={`${prefix}-${one}`}
+          title={`${category}: ${VALUE_HINT[one]}`}
+          aria-pressed={value === one}
+          onClick={() => onSet(one)}
+        >
+          {one}
+        </button>
+      ))}
+    </span>
+  );
+}
 
 export type PluginConfigProps = {
   plugin: Plugin;
@@ -47,21 +83,12 @@ export function PluginConfig({ plugin, onSetRule, onClose }: PluginConfigProps) 
           return (
             <div className="plugin-config__row" key={category} data-testid={`config-row-${category.toLowerCase()}`}>
               <span className="plugin-config__category">{category}</span>
-              <span className="plugin-config__values">
-                {["allow", "ask", "deny"].map((one) => (
-                  <button
-                    type="button"
-                    key={one}
-                    className={`plugin-config__btn${value === one ? " plugin-config__btn--on" : ""}`}
-                    data-testid={`config-rule-${category.toLowerCase()}-${one}`}
-                    title={`${category}: ${VALUE_HINT[one]}`}
-                    aria-pressed={value === one}
-                    onClick={() => onSetRule(category, one)}
-                  >
-                    {one}
-                  </button>
-                ))}
-              </span>
+              <RuleButtons
+                category={category}
+                value={value}
+                prefix={`config-rule-${category.toLowerCase()}`}
+                onSet={(one) => onSetRule(category, one)}
+              />
             </div>
           );
         })}

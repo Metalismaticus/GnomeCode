@@ -22,6 +22,7 @@ import {
 import { params } from "./viewparams";
 import { entries as fixtureCatalog, install as installFixture } from "./fixtureCatalog";
 import { list as fixtureCompare } from "./fixtureCompare";
+import { providers as settingsProviders, keyRows as keyFixture, saveKey as saveKeyFixture, removeKey as removeKeyFixture, defaultsList as defaultsFixture, setDefault as setDefaultFixture, DATA_FOLDER } from "./fixtureSettings";
 import {
   granted as fixtureGranted,
   launch as fixtureLaunch,
@@ -154,6 +155,14 @@ export type PluginRun =
 /** Ответ владельца в окне одобрения: один вызов, правило на чат или отказ. */
 export type ApprovalDecision = "allow" | "chat" | "deny";
 
+/** Провайдер движка (GET /api/provider, строка раздела «Модели»): имя на строке,
+ *  идентификатор — он же имя записи ключа в Credential Manager; модели —
+ *  сколько отдаёт список движка (число в статусе «Ключ принят — …»). */
+export type ProviderRow = { id: string; name: string; models: number };
+
+/** Строка умолчаний прав (секция «default» rules.json): категория и значение. */
+export type RuleEntry = { category: string; value: string };
+
 type Listener = (event: FeedEvent) => void;
 
 type Bridge = {
@@ -215,6 +224,20 @@ type Bridge = {
   stateGet(): Promise<WindowState>;
   /** Правка названных полей состояния: тема папку и чат не затирает. */
   statePatch(patch: WindowPatch): Promise<WindowState>;
+  /** Провайдеры движка: строки раздела «Модели» настроек; ошибка — движок не отвечает. */
+  providerList(): Promise<ProviderRow[]>;
+  /** Статусы ключей: «задан» у провайдера или нет; секрет наружу не идёт. */
+  keyStatuses(providers: string[]): Promise<Record<string, boolean>>;
+  /** Сохранить ключ и тихо перезапустить движок — читается только при старте. */
+  saveKey(provider: string, secret: string): Promise<Record<string, boolean>>;
+  /** Убрать ключ провайдера; нет записи — уже чисто, а не ошибка. */
+  removeKey(provider: string): Promise<Record<string, boolean>>;
+  /** Умолчания прав секции rules.json: строка на категорию. */
+  defaults(): Promise<RuleEntry[]>;
+  /** Сменить умолчание одной категории: действует на следующий вызов плагина. */
+  setDefault(category: string, value: string): Promise<RuleEntry[]>;
+  /** Полный путь папки данных: показ вкладки «Папка данных»; смены пути здесь нет. */
+  dataFolder(): Promise<string>;
 };
 
 /** Канал Tauri, по которому лента получает строки (src-tauri/src/opencode/mod.rs). */
@@ -304,6 +327,45 @@ const tauriBridge = (): Bridge => ({
   },
   async statePatch(patch: WindowPatch) {
     return (await invoke<WindowState>("state_patch", { patch })) as WindowState;
+  },
+  async providerList() {
+    // `/api/provider` отдаёт {all, connected}; строкам настроек нужны все
+    // — ключ заводят и у ещё не подключённого провайдера.
+    const raw = await invoke<{ all?: { id: string; name?: string; models?: Record<string, unknown> }[] }>(
+      "provider_list",
+    );
+    return (raw.all ?? []).map((one) => ({
+      id: one.id,
+      name: one.name ?? one.id,
+      models: one.models ? Object.keys(one.models).length : 0,
+    }));
+  },
+  async keyStatuses(providers: string[]) {
+    // Проверка ключа — по одному провайдеру: мост знает только запись целиком.
+    const held: Record<string, boolean> = {};
+    await Promise.all(
+      providers.map(async (id) => {
+        held[id] = await invoke<boolean>("key_status", { provider: id });
+      }),
+    );
+    return held;
+  },
+  async saveKey(provider: string, secret: string) {
+    await invoke<boolean>("key_save", { provider, secret });
+    return { [provider]: true };
+  },
+  async removeKey(provider: string) {
+    await invoke<boolean>("key_remove", { provider });
+    return { [provider]: false };
+  },
+  async defaults() {
+    return (await invoke<RuleEntry[]>("settings_defaults")) as RuleEntry[];
+  },
+  async setDefault(category: string, value: string) {
+    return (await invoke<RuleEntry[]>("settings_set_default", { category, value })) as RuleEntry[];
+  },
+  async dataFolder() {
+    return (await invoke<string>("data_folder")) as string;
   },
 });
 
@@ -430,6 +492,7 @@ const fixtureBridge = (): Bridge => ({
       pluginFavorites: saved.pluginFavorites,
       pluginRecent: saved.pluginRecent,
       chatModel: saved.chatModel || null,
+      defaultModel: saved.defaultModel || null,
       chatTime: saved.chatTime || null,
     };
   },
@@ -442,6 +505,7 @@ const fixtureBridge = (): Bridge => ({
       pluginFavorites: patch.pluginFavorites ?? saved.pluginFavorites,
       pluginRecent: patch.pluginRecent ?? saved.pluginRecent,
       chatModel: patch.chatModel ?? saved.chatModel,
+      defaultModel: patch.defaultModel ?? saved.defaultModel,
       chatTime: patch.chatTime ?? saved.chatTime,
     };
     writeFixtureState(next);
@@ -453,8 +517,30 @@ const fixtureBridge = (): Bridge => ({
       pluginFavorites: next.pluginFavorites,
       pluginRecent: next.pluginRecent,
       chatModel: next.chatModel || null,
+      defaultModel: next.defaultModel || null,
       chatTime: next.chatTime || null,
     };
+  },
+  async providerList() {
+    return settingsProviders();
+  },
+  async keyStatuses(ids: string[]) {
+    return keyFixture(ids);
+  },
+  async saveKey(provider: string, secret: string) {
+    return saveKeyFixture(provider, secret);
+  },
+  async removeKey(provider: string) {
+    return removeKeyFixture(provider);
+  },
+  async defaults() {
+    return defaultsFixture();
+  },
+  async setDefault(category: string, value: string) {
+    return setDefaultFixture(category, value);
+  },
+  async dataFolder() {
+    return DATA_FOLDER;
   },
 });
 

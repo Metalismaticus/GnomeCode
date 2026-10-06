@@ -22,6 +22,8 @@ export type WindowState = {
   pluginRecent: string[] | null;
   /** Модель текущего чата, выбранная в панели сравнения; нет — умолчание. */
   chatModel: ChatModelChoice | null;
+  /** Модель по умолчанию для новых чатов (строка настроек «Модели»); нет — константа. */
+  defaultModel: ChatModelChoice | null;
   /** Время начала текущего чата: группы дат сайдбара строятся по нему. */
   chatTime: number | null;
 };
@@ -35,6 +37,8 @@ export type WindowPatch = {
   pluginFavorites?: string[];
   pluginRecent?: string[];
   chatModel?: ChatModelChoice;
+  /** Модель по умолчанию для новых чатов: настройки, «Изменить →» и панель. */
+  defaultModel?: ChatModelChoice;
   chatTime?: number;
 };
 

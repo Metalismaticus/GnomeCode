@@ -20,6 +20,8 @@ export type FixtureState = {
   pluginRecent: string[];
   /** Модель текущего чата: выбор панели сравнения (имя + идентификатор). */
   chatModel: { name: string; id: string } | null;
+  /** Модель по умолчанию для новых чатов: выбор настроек (имя + идентификатор). */
+  defaultModel: { name: string; id: string } | null;
   /** Время начала текущего чата: группы дат сайдбара строятся по нему. */
   chatTime: number | null;
 };
@@ -55,6 +57,7 @@ export function readFixtureState(): FixtureState {
           pluginFavorites: pluginIds(held.pluginFavorites),
           pluginRecent: pluginIds(held.pluginRecent),
           chatModel: chatModelOf(held.chatModel),
+          defaultModel: chatModelOf(held.defaultModel),
           chatTime: typeof held.chatTime === "number" ? held.chatTime : null,
         };
       }
@@ -69,6 +72,7 @@ export function readFixtureState(): FixtureState {
     pluginFavorites: [],
     pluginRecent: [],
     chatModel: null,
+    defaultModel: null,
     chatTime: null,
   };
 }

@@ -6,13 +6,14 @@ pub mod compare;
 pub mod opencode;
 pub mod plugins;
 pub mod project;
+pub mod providers;
 pub mod state;
 
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use opencode::{Chat, WindowSink};
-use plugins::commands::{catalog_list, plugin_connect, plugin_decide, plugin_disconnect, plugin_install, plugin_list, plugin_run, plugin_set_enabled, plugin_set_rule, plugin_toolset_connect, plugin_toolset_delete, plugin_toolset_save, plugin_toolsets, plugin_uninstall, plugin_updates_note};
+use plugins::commands::{catalog_list, data_folder, key_remove, key_save, key_status, plugin_connect, plugin_decide, plugin_disconnect, plugin_install, plugin_list, plugin_run, plugin_set_enabled, plugin_set_rule, plugin_toolset_connect, plugin_toolset_delete, plugin_toolset_save, plugin_toolsets, plugin_uninstall, plugin_updates_note, provider_list, settings_defaults, settings_set_default};
 use plugins::commands::data_dir;
 use plugins::permissions::Grants;
 use plugins::registry::Registry;
@@ -85,7 +86,11 @@ fn chat_send(
 ) -> Result<(), String> {
     let files = files.unwrap_or_default();
     let sent = project::request(project.root().as_deref(), &text, &files)?;
-    let model = store.load().chat_model;
+    // Модель запроса: своя модель чата, иначе — модель по умолчанию настроек
+    // (docs/specs/2026-10-06-12-nastrojki.md, «Модель по умолчанию»); нет и её —
+    // как раньше, модели движка.
+    let saved = store.load();
+    let model = saved.chat_model.or(saved.default_model);
     chat.send(&sent.shown, &sent.prompt, &sent.files, model)?;
     // Скоуп «Once» (docs/SPEC/plugins.md, сцена E): соединение служит текущему
     // запросу — следующий вопрос снимает плагин с чата, установка не трогается.
@@ -135,6 +140,13 @@ pub fn run() {
             plugin_updates_note,
             project_pick_folder,
             project_read_tree,
+            key_save,
+            key_remove,
+            key_status,
+            provider_list,
+            data_folder,
+            settings_defaults,
+            settings_set_default,
             state_get,
             state_patch
         ])

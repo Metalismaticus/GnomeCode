@@ -304,6 +304,7 @@ export function ChatView({
         <ComparePanel
           compare={compare}
           currentModel={model}
+          mode="chat"
           initialExpanded={initialExpanded}
           onChoose={chooseModel}
           onClose={closeOverlay}

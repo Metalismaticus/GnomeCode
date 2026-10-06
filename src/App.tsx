@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ChatView } from "./components/ChatView";
 import { ContextPanel } from "./components/ContextPanel";
 import { PluginsPage } from "./components/PluginsPage";
+import { SettingsPage } from "./components/SettingsPage";
 import { Sidebar, type SidebarChat, type SidebarProject } from "./components/Sidebar";
 import { panels } from "./fixture";
 import type { ChatModelChoice } from "./bridge";
@@ -18,7 +19,7 @@ import "./styles/app.css";
  *  Страницы размонтируют друг друга — черновик композера и оверлеи чата гаснут при
  *  выходе; список плагинов при этом один на окно (App держит его сам), и кнопки
  *  команд в шапке пересчитываются сразу, в том числе после Enable/Disable раздела. */
-type Page = "chat" | "plugins";
+type Page = "chat" | "plugins" | "settings";
 
 /** Ширина, ниже которой правая панель складывается в кнопку `☰` (docs/DESIGN.md, раздел 5). */
 const NARROW = "(max-width: 1199px)";
@@ -99,6 +100,86 @@ function useThemeToggle(theme: Theme, setTheme: (theme: Theme) => void): () => v
   }, [theme, setTheme]);
 }
 
+/** Титул и начало чата и модели (своя у чата, по умолчанию — настроек): один
+ *  источник для шапки, сайдбара, страницы настроек и запроса движку. Выбор
+ *  бейджа сразу показывается и уходит в состояние окна; выбор дефолта меняет
+ *  только бейдж чата без своей модели (спека настроек, «Решено за вас» №7). */
+function useChatModels(): {
+  title: string;
+  time: number | null;
+  model: string;
+  defaultModel: string;
+  remember: (question: string) => void;
+  choose: (choice: ChatModelChoice) => void;
+  chooseDefault: (choice: ChatModelChoice) => void;
+  applySaved: (saved: WindowState) => void;
+} {
+  const [title, setTitle] = useState("");
+  const [time, setTime] = useState<number | null>(null);
+  /** Модель текущего чата: из состояния окна; нет — модель по умолчанию
+   *  настроек. Бейдж шапки и запрос движку идут одной строкой. */
+  const [ownModel, setOwnModel] = useState<string | null>(null);
+  /** Модель по умолчанию для новых чатов: настройка страницы «Настройки». */
+  const [defaultModel, setDefaultModel] = useState<string>(DEFAULT_MODEL);
+
+  /** Титул чата: первый вопрос. Повторные вопросы титул не меняют; время начала
+   *  чата пишется тем же патчем — группы дат сайдбара строятся по нему. */
+  const remember = useCallback(
+    (question: string) => {
+      if (title) {
+        return;
+      }
+      const named = chatTitleOf(question);
+      const now = Date.now();
+      setTitle(named);
+      setTime(now);
+      void patchState({ chatTitle: named, chatTime: now });
+    },
+    [title],
+  );
+
+  /** «Выбрать» в панели сравнения: бейдж шапки обновляется сразу, выбор идёт в
+   *  состояние окна — запрос движку несёт идентификатор модели. */
+  const choose = useCallback((choice: ChatModelChoice) => {
+    setOwnModel(choice.name);
+    void patchState({ chatModel: choice });
+  }, []);
+
+  /** «По умолчанию» в панели настроек: дефолт меняется сразу; бейдж обновляется
+   *  только у чата без своей модели — чат со своей моделью не затрагивается. */
+  const chooseDefault = useCallback((choice: ChatModelChoice) => {
+    setDefaultModel(choice.name);
+    void patchState({ defaultModel: choice });
+  }, []);
+
+  /** Модель, титул и время из прошлого запуска; папку и тему берёт App рядом. */
+  const applySaved = useCallback((saved: WindowState) => {
+    if (saved.chatTitle) {
+      setTitle(saved.chatTitle);
+    }
+    if (saved.chatModel) {
+      setOwnModel(saved.chatModel.name);
+    }
+    if (saved.defaultModel) {
+      setDefaultModel(saved.defaultModel.name);
+    }
+    if (saved.chatTime) {
+      setTime(saved.chatTime);
+    }
+  }, []);
+
+  return {
+    title,
+    time,
+    model: ownModel ?? defaultModel,
+    defaultModel,
+    remember,
+    choose,
+    chooseDefault,
+    applySaved,
+  };
+}
+
 /** Главное окно: корень только собирает три колонки, держит тему и оверлей панели.
  *  Тема, титул чата и папка приходят из состояния окна (`src/appstate.ts`): в окне
  *  Tauri они переживают перезапуск, для снимков фикстура показывает свою ленту. */
@@ -108,20 +189,20 @@ export default function App() {
   const [panelOpen, setPanelOpen] = useState(params.right);
   const narrow = useNarrow();
   /** Прямой доступ раздела для снимков и сценария: `?состояние=плагины-раздел`
-   *  и `?состояние=плагины-обновления` (вкладка Updates пункта 4). */
+   *  и `?состояние=плагины-обновления` (вкладка Updates пункта 4), `?состояние=настройки*`
+   *  (страница настроек пункта 12 — вкладки «настройки-модели» и другие). */
   const [page, setPage] = useState<Page>(
-    params.feed === "plugins-section" || params.feed === "plugins-updates" ? "plugins" : "chat",
+    params.feed.startsWith("настройки")
+      ? "settings"
+      : params.feed === "plugins-section" || params.feed === "plugins-updates"
+        ? "plugins"
+        : "chat",
   );
   const data = panels(params.feed);
   // Папка проекта и титул чата: сначала фикстура/пусто, после ответа моста — сохранённые.
   // Титул не берётся из фиксёрного списка: otherwise «known непусто» считает его
   // настоящим чатом и первый вопрос титул не записывает.
   const [projectRoot, setProjectRoot] = useState(data.project);
-  const [chatTitle, setChatTitle] = useState("");
-  /** Модель текущего чата: из состояния окна, иначе — умолчание нового чата. */
-  const [model, setModel] = useState<string>(DEFAULT_MODEL);
-  /** Время начала текущего чата: группы дат сайдбара строятся по нему. */
-  const [chatTime, setChatTime] = useState<number | null>(null);
   const project = useProject(projectRoot);
   /** Плагины и окно одобрения живут на уровне окна: их показывают и шапка чата,
    *  и правая панель — строки команд панели идут через тот же ход одобрения.
@@ -129,6 +210,7 @@ export default function App() {
    *  иначе карточка раздела «Плагины» показала бы счётчик прошлого запуска. */
   const plugins = usePlugins();
   const approval = useApproval(plugins.refresh);
+  const chat = useChatModels();
 
   // Состояние прошлого запуска — один запрос при старте: см. useSavedState.
   const applySaved = useCallback((saved: WindowState) => {
@@ -138,45 +220,23 @@ export default function App() {
     if (saved.theme) {
       setTheme(saved.theme);
     }
-    if (saved.chatTitle) {
-      setChatTitle(saved.chatTitle);
-    }
-    if (saved.chatModel) {
-      setModel(saved.chatModel.name);
-    }
-    if (saved.chatTime) {
-      setChatTime(saved.chatTime);
-    }
-  }, []);
+    chat.applySaved(saved);
+  }, [chat.applySaved]);
   useSavedState(applySaved);
 
-  /** Титул чата: первый вопрос. Повторные вопросы титул не меняют; время начала
-   *  чата пишется тем же патчем — группы дат сайдбара строятся по нему. */
-  const rememberChat = useCallback(
-    (question: string) => {
-      if (chatTitle) {
-        return;
-      }
-      const title = chatTitleOf(question);
-      const now = Date.now();
-      setChatTitle(title);
-      setChatTime(now);
-      void patchState({ chatTitle: title, chatTime: now });
-    },
-    [chatTitle],
-  );
-
-  /** «Выбрать» в панели сравнения: бейдж шапки обновляется сразу, выбор идёт в
-   *  состояние окна — запрос движку несёт идентификатор модели. */
-  const chooseModel = useCallback((choice: ChatModelChoice) => {
-    setModel(choice.name);
-    void patchState({ chatModel: choice });
+  /** Возврат в чат со страницы настроек: фокус — шестерёнке сайдбара
+   *  (спека «Клавиатура», Esc и клик по активной строке ведут его же). */
+  const closeSettings = useCallback(() => {
+    setPage("chat");
+    requestAnimationFrame(() => {
+      (document.querySelector('[data-testid="sidebar-settings"]') as HTMLElement | null)?.focus();
+    });
   }, []);
 
   // Оверлей правой панели закрывается сам — см. usePanelOverlay.
   usePanelOverlay(narrow, panelOpen, setPanelOpen);
 
-  const chats = chatsList(data, chatTitle, chatTime);
+  const chats = chatsList(data, chat.title, chat.time);
   const projects = projectsList(data, projectRoot);
 
   return (
@@ -188,22 +248,32 @@ export default function App() {
         onToggleTheme={toggleTheme}
         onPickFolder={project.pick}
         onOpenPlugins={() => setPage("plugins")}
+        onOpenSettings={() => setPage("settings")}
+        settingsOpen={page === "settings"}
         onOpenChat={() => setPage("chat")}
       />
       {page === "plugins" ? (
         <PluginsPage plugins={plugins} />
+      ) : page === "settings" ? (
+        <SettingsPage
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          defaultModel={chat.defaultModel}
+          onChooseDefault={chat.chooseDefault}
+          onClose={closeSettings}
+        />
       ) : (
         <ChatView
-          title={chatTitle || "Новый чат"}
+          title={chat.title || "Новый чат"}
           theme={theme}
           onToggleTheme={toggleTheme}
           onTogglePanel={() => setPanelOpen(!panelOpen)}
           panelOpen={panelOpen}
           project={project}
-          onFirstQuestion={rememberChat}
+          onFirstQuestion={chat.remember}
           onOpenPluginsPage={() => setPage("plugins")}
-          model={model}
-          onChooseModel={chooseModel}
+          model={chat.model}
+          onChooseModel={chat.choose}
           plugins={plugins}
           approval={approval}
           counts={{ chats: chats.length, projects: projects.length }}

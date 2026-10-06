@@ -15,14 +15,18 @@ export type ComparePanelProps = {
   compare: CompareState;
   /** Модель текущего чата: её строка помечена «Выбрана» (по точному имени). */
   currentModel: string;
+  /** Чьи модели: чат («Выбрать») или новые чаты по умолчанию
+   *  («По умолчанию» из окна настроек — docs/specs/2026-10-06-12-nastrojki.md). */
+  mode: "chat" | "default";
   /** Строка, уже раскрытая при открытии (снимок `сравнение-раскрыто`). */
   initialExpanded?: string | null;
-  /** «Выбрать»: модель меняется, панель закрывает себя. */
+  /** «Выбрать»/«По умолчанию»: модель меняется, панель закрывает себя. */
   onChoose: (model: CompareModel) => void;
   onClose: () => void;
 };
 
 const TITLE = "Сравнение моделей";
+const TITLE_DEFAULT = "Выбор модели по умолчанию";
 const SUBTITLE = "Цена за 1 млн токенов, контекст, бенчмарки. Источник: opencode.ai";
 const SEARCH_PLACEHOLDER = "Поиск модели…";
 const STALE_NOTE = "Сайт недоступен — данные от";
@@ -33,7 +37,7 @@ const ERROR_HINT = "Данные ещё не загружались — нажм
 const NO_BENCHMARKS = "Бенчмарков нет";
 
 /** Панель поверх области чата: шапка с датой и «Обновить», поиск, таблица. */
-export function ComparePanel({ compare, currentModel, initialExpanded, onChoose, onClose }: ComparePanelProps) {
+export function ComparePanel({ compare, currentModel, mode, initialExpanded, onChoose, onClose }: ComparePanelProps) {
   const [expanded, setExpanded] = useState<string | null>(initialExpanded ?? null);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -43,6 +47,7 @@ export function ComparePanel({ compare, currentModel, initialExpanded, onChoose,
     searchRef.current?.focus();
   }, []);
 
+  const title = mode === "default" ? TITLE_DEFAULT : TITLE;
   const body = (() => {
     if (compare.error) {
       return (
@@ -63,6 +68,7 @@ export function ComparePanel({ compare, currentModel, initialExpanded, onChoose,
         key={model.id}
         model={model}
         current={model.name === currentModel}
+        mode={mode}
         expanded={expanded === model.id}
         onToggle={() => setExpanded((open) => (open === model.id ? null : model.id))}
         onChoose={() => onChoose(model)}
@@ -71,8 +77,8 @@ export function ComparePanel({ compare, currentModel, initialExpanded, onChoose,
   })();
 
   return (
-    <div className="compare-panel" data-testid="compare-panel" role="dialog" aria-label={TITLE}>
-      <Head compare={compare} onClose={onClose} />
+    <div className="compare-panel" data-testid="compare-panel" role="dialog" aria-label={title}>
+      <Head compare={compare} mode={mode} onClose={onClose} />
       <input
         ref={searchRef}
         className="compare-panel__search"
@@ -89,11 +95,11 @@ export function ComparePanel({ compare, currentModel, initialExpanded, onChoose,
 }
 
 /** Шапка панели: заголовок, дата снимка, пометка недоступного сайта, кнопки. */
-function Head({ compare, onClose }: { compare: CompareState; onClose: () => void }) {
+function Head({ compare, mode, onClose }: { compare: CompareState; mode: "chat" | "default"; onClose: () => void }) {
   return (
     <div className="compare-panel__head">
       <div className="compare-panel__titles">
-        <div className="compare-panel__title">{TITLE}</div>
+        <div className="compare-panel__title">{mode === "default" ? TITLE_DEFAULT : TITLE}</div>
         <div className="compare-panel__subtitle">{SUBTITLE}</div>
         {compare.fetchedAt ? (
           <div className="compare-panel__date" data-testid="compare-date">
@@ -157,12 +163,14 @@ function Columns() {
 function Row({
   model,
   current,
+  mode,
   expanded,
   onToggle,
   onChoose,
 }: {
   model: CompareModel;
   current: boolean;
+  mode: "chat" | "default";
   expanded: boolean;
   onToggle: () => void;
   onChoose: () => void;
@@ -205,10 +213,10 @@ function Row({
             className="compare-line__choose"
             data-testid="compare-choose"
             data-model={model.id}
-            title="Модель текущего чата"
+            title={mode === "default" ? "Уже по умолчанию" : "Модель текущего чата"}
             disabled
           >
-            Выбрана
+            {mode === "default" ? "Уже по умолчанию" : "Выбрана"}
           </button>
         ) : (
           <button
@@ -216,14 +224,20 @@ function Row({
             className="compare-line__choose"
             data-testid="compare-choose"
             data-model={model.id}
-            title={model.available ? "Сделать моделью текущего чата" : "Модель недоступна у вашего провайдера"}
+            title={
+              !model.available
+                ? "Модель недоступна у вашего провайдера"
+                : mode === "default"
+                  ? "Сделать моделью для новых чатов"
+                  : "Сделать моделью текущего чата"
+            }
             disabled={!model.available}
             onClick={(event) => {
               event.stopPropagation();
               onChoose();
             }}
           >
-            Выбрать
+            {mode === "default" ? "По умолчанию" : "Выбрать"}
           </button>
         )}
       </button>
