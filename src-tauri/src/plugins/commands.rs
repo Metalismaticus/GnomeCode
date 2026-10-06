@@ -19,7 +19,7 @@ use super::registry::Registry;
 use super::{rules, rules::Decision, scopes, toolsets, updates, usage};
 
 /// Папка данных: переменную задаёт проверка или копия, иначе — папка данных Tauri.
-fn data_dir(app: &AppHandle) -> std::path::PathBuf {
+pub(crate) fn data_dir(app: &AppHandle) -> std::path::PathBuf {
     app.path()
         .app_data_dir()
         .unwrap_or_else(|_| std::env::temp_dir())

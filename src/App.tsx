@@ -5,7 +5,8 @@ import { ContextPanel } from "./components/ContextPanel";
 import { PluginsPage } from "./components/PluginsPage";
 import { Sidebar } from "./components/Sidebar";
 import { panels } from "./fixture";
-import { chatTitleOf, loadState, patchState, type WindowState } from "./appstate";
+import type { ChatModelChoice } from "./bridge";
+import { chatTitleOf, loadState, patchState, DEFAULT_MODEL, type WindowState } from "./appstate";
 import { useProject } from "./features/project/useProject";
 import { params, type Theme } from "./viewparams";
 
@@ -114,6 +115,8 @@ export default function App() {
   // настоящим чатом и первый вопрос титул не записывает.
   const [projectRoot, setProjectRoot] = useState(data.project);
   const [chatTitle, setChatTitle] = useState("");
+  /** Модель текущего чата: из состояния окна, иначе — умолчание нового чата. */
+  const [model, setModel] = useState<string>(DEFAULT_MODEL);
   const project = useProject(projectRoot);
 
   // Состояние прошлого запуска — один запрос при старте: см. useSavedState.
@@ -126,6 +129,9 @@ export default function App() {
     }
     if (saved.chatTitle) {
       setChatTitle(saved.chatTitle);
+    }
+    if (saved.chatModel) {
+      setModel(saved.chatModel.name);
     }
   }, []);
   useSavedState(applySaved);
@@ -142,6 +148,13 @@ export default function App() {
     },
     [chatTitle],
   );
+
+  /** «Выбрать» в панели сравнения: бейдж шапки обновляется сразу, выбор идёт в
+   *  состояние окна — запрос движку несёт идентификатор модели. */
+  const chooseModel = useCallback((choice: ChatModelChoice) => {
+    setModel(choice.name);
+    void patchState({ chatModel: choice });
+  }, []);
 
   // Оверлей правой панели закрывается сам — см. usePanelOverlay.
   usePanelOverlay(narrow, panelOpen, setPanelOpen);
@@ -169,6 +182,8 @@ export default function App() {
           project={project}
           onFirstQuestion={rememberChat}
           onOpenPluginsPage={() => setPage("plugins")}
+          model={model}
+          onChooseModel={chooseModel}
         />
       )}
       {narrow && !panelOpen ? null : (

@@ -7,6 +7,7 @@ import { listen } from "@tauri-apps/api/event";
 import { fixture } from "./fixture";
 import type { WindowState, WindowPatch } from "./appstate";
 import type { CatalogEntry } from "./catalog";
+import type { CompareSnapshot } from "./compare";
 import { readFixtureState, writeFixtureState } from "./fixtureState";
 import {
   applyUpdate as applyUpdateFixture,
@@ -20,6 +21,7 @@ import {
 } from "./fixturePlugins";
 import { params } from "./viewparams";
 import { entries as fixtureCatalog, install as installFixture } from "./fixtureCatalog";
+import { list as fixtureCompare } from "./fixtureCompare";
 import {
   granted as fixtureGranted,
   launch as fixtureLaunch,
@@ -36,6 +38,10 @@ import {
   remove as deleteToolsetFixture,
   save as saveToolsetFixture,
 } from "./fixtureToolsets";
+
+/** Выбранная модель чата: имя стоит на бейдже шапки, идентификатор уходит движку
+ *  — та же пара, что у `state.rs::ChatModel` (ADR-0001). */
+export type ChatModelChoice = { name: string; id: string };
 
 export type RowKind = "user" | "assistant" | "tool" | "notice";
 
@@ -188,7 +194,11 @@ type Bridge = {
   setPluginRule(plugin: string, category: string, value: string): Promise<Plugin[]>;
   /** Карточки каталога «Available» — индекс с GitHub (raw, не api.github.com). */
   catalogList(): Promise<CatalogEntry[]>;
-  /** Установить плагин каталога и подключить к текущему чату — «Разрешить»
+  /** Каталог моделей сравнения: свежий с opencode.ai, недоступный сайт — из кэша
+   *  с пометкой (`stale`). Ошибка — кэша нет вовсе, панель сказала об этом. */
+  compareList(): Promise<CompareSnapshot>;
+  /** Перечитать каталог с сайта («Обновить»): тот же путь, что и первый запрос. */
+  compareRefresh(): Promise<CompareSnapshot>;/** Установить плагин каталога и подключить к текущему чату — «Разрешить»
    *  сводки прав: установка, тихий перезапуск движка, подключение, список;
    *  «Keep enabled for this project»/«Enable by default» ставят скоуп сразу. */
   installPlugin(id: string, scope?: PluginScope): Promise<Plugin[]>;
@@ -264,6 +274,12 @@ const tauriBridge = (): Bridge => ({
   },
   async catalogList() {
     return (await invoke<CatalogEntry[]>("catalog_list")) as CatalogEntry[];
+  },
+  async compareList() {
+    return (await invoke<CompareSnapshot>("compare_list")) as CompareSnapshot;
+  },
+  async compareRefresh() {
+    return (await invoke<CompareSnapshot>("compare_refresh")) as CompareSnapshot;
   },
   async installPlugin(id: string, scope?: PluginScope) {
     // «Разрешить» сводки прав — два шага моста: установка (файл + реестр +
@@ -346,6 +362,12 @@ const fixtureBridge = (): Bridge => ({
   async catalogList() {
     return fixtureCatalog();
   },
+  async compareList() {
+    return fixtureCompare();
+  },
+  async compareRefresh() {
+    return fixtureCompare();
+  },
   async installPlugin(id: string, scope?: PluginScope) {
     // В состоянии обновлений «Разрешить» сводки новых прав — принять обновление
     // (Held → Applied), как plugin_install + refresh (src-tauri/src/plugins/updates.rs):
@@ -407,6 +429,7 @@ const fixtureBridge = (): Bridge => ({
       theme,
       pluginFavorites: saved.pluginFavorites,
       pluginRecent: saved.pluginRecent,
+      chatModel: saved.chatModel || null,
     };
   },
   async statePatch(patch: WindowPatch) {
@@ -417,6 +440,7 @@ const fixtureBridge = (): Bridge => ({
       theme: patch.theme ?? saved.theme,
       pluginFavorites: patch.pluginFavorites ?? saved.pluginFavorites,
       pluginRecent: patch.pluginRecent ?? saved.pluginRecent,
+      chatModel: patch.chatModel ?? saved.chatModel,
     };
     writeFixtureState(next);
     return {
@@ -426,6 +450,7 @@ const fixtureBridge = (): Bridge => ({
       theme: windowState(next.theme),
       pluginFavorites: next.pluginFavorites,
       pluginRecent: next.pluginRecent,
+      chatModel: next.chatModel || null,
     };
   },
 });

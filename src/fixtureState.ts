@@ -18,6 +18,8 @@ export type FixtureState = {
   pluginFavorites: string[];
   /** Недавние подключения плагинов: порядок — как подключали. */
   pluginRecent: string[];
+  /** Модель текущего чата: выбор панели сравнения (имя + идентификатор). */
+  chatModel: { name: string; id: string } | null;
 };
 
 const KEY = "gnomecode-fixture-state";
@@ -25,6 +27,17 @@ const KEY = "gnomecode-fixture-state";
 /** Список id плагинов из зеркала: массив строк — иначе пусто (файл могли портить). */
 const pluginIds = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((one): one is string => typeof one === "string") : [];
+
+/** Модель чата из зеркала: пара имя+идентификатор — иначе нет выбора. */
+const chatModelOf = (value: unknown): { name: string; id: string } | null => {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const held = value as Record<string, unknown>;
+    if (typeof held.name === "string" && typeof held.id === "string") {
+      return { name: held.name, id: held.id };
+    }
+  }
+  return null;
+};
 
 export function readFixtureState(): FixtureState {
   try {
@@ -39,13 +52,21 @@ export function readFixtureState(): FixtureState {
           theme: typeof held.theme === "string" ? held.theme : "",
           pluginFavorites: pluginIds(held.pluginFavorites),
           pluginRecent: pluginIds(held.pluginRecent),
+          chatModel: chatModelOf(held.chatModel),
         };
       }
     }
   } catch {
     // Хранилище страницы не всегда доступно — страница работает и без него.
   }
-  return { chatTitle: "", project: "", theme: "", pluginFavorites: [], pluginRecent: [] };
+  return {
+    chatTitle: "",
+    project: "",
+    theme: "",
+    pluginFavorites: [],
+    pluginRecent: [],
+    chatModel: null,
+  };
 }
 
 export function writeFixtureState(state: FixtureState): void {

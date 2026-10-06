@@ -3,6 +3,7 @@
 // (`statePatch`). Форму полей знает Rust (src-tauri/src/state.rs, ADR-0001) —
 // интерфейс зовёт мост и держит структуру, а не файл и папку данных.
 import { bridge } from "./bridge";
+import type { ChatModelChoice } from "./bridge";
 import type { Theme } from "./viewparams";
 
 /** Что окно помнит о себе: те же поля, что у `state.rs::AppState` (ADR-0001). */
@@ -19,6 +20,8 @@ export type WindowState = {
   pluginFavorites: string[] | null;
   /** Недавние подключения плагинов, порядок — как подключали. */
   pluginRecent: string[] | null;
+  /** Модель текущего чата, выбранная в панели сравнения; нет — умолчание. */
+  chatModel: ChatModelChoice | null;
 };
 
 /** Правка состояния: названные поля меняются, остальное — как было. */
@@ -29,6 +32,7 @@ export type WindowPatch = {
   theme?: Theme;
   pluginFavorites?: string[];
   pluginRecent?: string[];
+  chatModel?: ChatModelChoice;
 };
 
 export function loadState(): Promise<WindowState | null> {
@@ -50,8 +54,8 @@ export function patchState(patch: WindowPatch): Promise<WindowState | null> {
 }
 
 /** Модель чата по умолчанию: бейдж шапки и деталь вызова плагина показывают одно
- *  и то же имя (пункт 10 партии сделает её выбираемой — переключение идёт мимо
- *  константы, потому держит одно место). */
+ *  и то же имя; выбор в панели сравнения правит поле chatModel состояния окна,
+ *  а без выбора новый чат открывается этой моделью (одно имя — одно место). */
 export const DEFAULT_MODEL = "GLM-5.3 High";
 
 /** Титул чата: первый вопрос до перевода строк, длинный — с обрывом. */

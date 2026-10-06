@@ -19,6 +19,10 @@ export type ChatHeaderProps = {
   onRunCommand: (plugin: Plugin, command: Plugin["commands"][number]) => void;
   /** Клик по области бейджей (не по кнопке команды): панель «Plugins in this chat». */
   onOpenPlugins?: () => void;
+  /** Клик по бейджу модели: панель «Сравнение моделей» открывается или закрывается. */
+  onToggleCompare?: () => void;
+  /** Панель сравнения открыта: бейдж нажат и держит нажатие. */
+  compareOpen?: boolean;
 };
 
 /** Область бейджей в шапке: кнопки команд подключённых плагинов; клик мимо
@@ -73,14 +77,27 @@ export function ChatHeader({
   plugins = [],
   onRunCommand,
   onOpenPlugins,
+  onToggleCompare,
+  compareOpen = false,
 }: ChatHeaderProps) {
   return (
     <header className="chat-header" data-testid="chat-header">
       <span className="chat-header__title" data-testid="chat-title" title={title}>
         {title}
       </span>
-      {/* Бейдж модели — не действие, поэтому не фокусируется (docs/DESIGN.md, раздел 6). */}
-      <span className="chat-header__badge">{model}</span>
+      {/* Бейдж модели — теперь действие: открывает панель сравнения, поэтому у
+          него все шесть состояний кнопки, в обходе шапки он стоит первым
+          (спека docs/specs/2026-10-06-10-compare.md, «Клавиатура»). */}
+      <button
+        type="button"
+        className="chat-header__badge"
+        data-testid="model-badge"
+        title="Сравнить модели и выбрать для этого чата"
+        aria-pressed={compareOpen}
+        onClick={onToggleCompare}
+      >
+        {model}
+      </button>
       <PluginsArea plugins={plugins} onRunCommand={onRunCommand} onOpenPlugins={onOpenPlugins} />
       <button
         type="button"

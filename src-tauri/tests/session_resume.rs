@@ -166,7 +166,7 @@ fn feed_returns_to_saved_session_from_live_list() {
         Arc::clone(&sink) as Arc<dyn Sink>,
         Some(Arc::new(store)),
     );
-    chat.send(QUESTION, QUESTION, &[]).expect("вопрос ушёл");
+    chat.send(QUESTION, QUESTION, &[], None).expect("вопрос ушёл");
     wait_for(&sink, QUESTION, WAIT);
 
     let prompt = last_prompt.lock().expect("путь отправки").clone();
@@ -202,7 +202,7 @@ fn feed_creates_and_remembers_session_without_saved_one() {
         Arc::clone(&sink) as Arc<dyn Sink>,
         Some(Arc::new(store)),
     );
-    chat.send(QUESTION, QUESTION, &[]).expect("вопрос ушёл");
+    chat.send(QUESTION, QUESTION, &[], None).expect("вопрос ушёл");
     wait_for(&sink, QUESTION, WAIT);
 
     let prompt = last_prompt.lock().expect("путь отправки").clone();

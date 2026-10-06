@@ -2,6 +2,7 @@
 // Каждая команда через Result, ошибки наружу, не panic
 // (docs/TESTING.md, «Здоровье кода»).
 
+pub mod compare;
 pub mod opencode;
 pub mod plugins;
 pub mod project;
@@ -12,6 +13,7 @@ use std::sync::Arc;
 
 use opencode::{Chat, WindowSink};
 use plugins::commands::{catalog_list, plugin_connect, plugin_decide, plugin_disconnect, plugin_install, plugin_list, plugin_run, plugin_set_enabled, plugin_set_rule, plugin_toolset_connect, plugin_toolset_delete, plugin_toolset_save, plugin_toolsets, plugin_uninstall, plugin_updates_note};
+use plugins::commands::data_dir;
 use plugins::permissions::Grants;
 use plugins::registry::Registry;
 use project::Project;
@@ -77,16 +79,34 @@ fn chat_send(
     chat: State<'_, Chat>,
     project: State<'_, Project>,
     registry: State<'_, Registry>,
+    store: State<'_, Arc<Store>>,
     text: String,
     files: Option<Vec<String>>,
 ) -> Result<(), String> {
     let files = files.unwrap_or_default();
     let sent = project::request(project.root().as_deref(), &text, &files)?;
-    chat.send(&sent.shown, &sent.prompt, &sent.files)?;
+    let model = store.load().chat_model;
+    chat.send(&sent.shown, &sent.prompt, &sent.files, model)?;
     // Скоуп «Once» (docs/SPEC/plugins.md, сцена E): соединение служит текущему
     // запросу — следующий вопрос снимает плагин с чата, установка не трогается.
     registry.take_once();
     Ok(())
+}
+
+/// Каталог моделей: свежий с opencode.ai или из кэша (`compare.json` в папке
+/// данных, узор `catalog_list`); доступность у провайдера решает движок.
+#[tauri::command]
+fn compare_list(app: AppHandle, chat: State<'_, Chat>) -> Result<compare::Snapshot, String> {
+    let mut snapshot =
+        compare::load(compare::CATALOG_URL, compare::PRICES_URL, &compare::file(data_dir(&app)))?;
+    compare::availability(chat.endpoint(), &mut snapshot);
+    Ok(snapshot)
+}
+
+/// То же с перечитыванием сайта: узор «Обновить» каталога плагинов — один путь.
+#[tauri::command]
+fn compare_refresh(app: AppHandle, chat: State<'_, Chat>) -> Result<compare::Snapshot, String> {
+    compare_list(app, chat)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -97,6 +117,8 @@ pub fn run() {
             app_version,
             catalog_list,
             chat_send,
+            compare_list,
+            compare_refresh,
             plugin_connect,
             plugin_decide,
             plugin_disconnect,

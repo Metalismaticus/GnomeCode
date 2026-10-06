@@ -898,10 +898,17 @@ impl<'a> Api<'a> {
     }
 
     /// Отправить текст в сессию: ответ придёт событиями, не телом запроса.
-    pub fn prompt(&self, session: &str, text: &str) -> Result<(), String> {
+    /// `model` — модель, выбранная в панели «Сравнение моделей»; нет — модель
+    /// движка по умолчанию, как раньше (замер 2026-10-06: движок принимает
+    /// `model` рядом с текстом и без него).
+    pub fn prompt(&self, session: &str, text: &str, model: Option<&Value>) -> Result<(), String> {
         let path = format!("/api/session/{session}/prompt");
+        let mut body = json!({ "text": text });
+        if let Some(model) = model {
+            body["model"] = model.clone();
+        }
         self.endpoint
-            .call("POST", &path, Some(&json!({ "text": text })))
+            .call("POST", &path, Some(&body))
             .map(|_| ())
     }
 
@@ -929,6 +936,13 @@ impl<'a> Api<'a> {
     /// Команды чата: `GET /api/command` — из них кнопки шапки берут команды плагинов.
     pub fn commands(&self) -> Result<Vec<Value>, String> {
         self.endpoint.call("GET", "/api/command", None).and_then(items)
+    }
+
+    /// Провайдеры и их модели: `GET /api/provider` — по ним панель сравнения
+    /// знает, какие модели доступны у подключённых провайдеров. Форму элемента
+    /// разбирает `compare::with_engine_providers`.
+    pub fn providers(&self) -> Result<Value, String> {
+        self.endpoint.call("GET", "/api/provider", None)
     }
 }
 

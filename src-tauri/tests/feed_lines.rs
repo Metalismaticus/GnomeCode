@@ -324,7 +324,7 @@ fn refusal_shows_a_line_and_does_not_call_the_engine() {
 #[test]
 fn user_row_carries_attached_files_as_a_field() {
     let (chat, sink, _log) = bridge_with_log();
-    chat.send("Проверь", "Проверь", &["src/bridge.ts".to_string()])
+    chat.send("Проверь", "Проверь", &["src/bridge.ts".to_string()], None)
         .expect("вопрос ушёл мосту");
     wait_for(&sink, "Проверь", WAIT);
     let files = sink.rows().into_iter().find_map(|row| match row {

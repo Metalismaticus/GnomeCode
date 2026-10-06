@@ -16,6 +16,8 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
+use serde_json::{json, Value};
+
 use tauri::Emitter;
 
 use client::{Api, EventStream, Feed, FeedEvent, Step};
@@ -47,11 +49,13 @@ impl Sink for WindowSink {
 enum Cmd {
     /// `shown` — строка вопроса в ленте (владелец должен видеть, что отправляет),
     /// `prompt` — текст движку, с приложенными файлами; `files` — те же имена
-    /// полями строки вопроса: по ним блок источников открывает файл.
+    /// полями строки вопроса: по ним блок источников открывает файл. `model` —
+    /// модель чата, выбранная в панели сравнения (`providerID`/`modelID`).
     Prompt {
         shown: String,
         prompt: String,
         files: Vec<String>,
+        model: Option<Value>,
     },
     /// Команда плагина, одобренная слоем прав: строка запуска в ленте, POST — движку.
     Command {
@@ -161,8 +165,15 @@ impl Chat {
 
     /// Отправить текст в сессию: команда уходит в поток ленты, а не блокирует интерфейс.
     /// `files` — приложенные файлы путями от папки проекта: поле строки вопроса,
-    /// по нему блок источников открывает файл (phase2.md, 9.1).
-    pub fn send(&self, shown: &str, prompt: &str, files: &[String]) -> Result<(), String> {
+    /// по нему блок источников открывает файл (phase2.md, 9.1). `model` — модель
+    /// чата из состояния окна: запрос движку идёт ею («Выбрать» в панели сравнения).
+    pub fn send(
+        &self,
+        shown: &str,
+        prompt: &str,
+        files: &[String],
+        model: Option<crate::state::ChatModel>,
+    ) -> Result<(), String> {
         let prompt = prompt.trim();
         if prompt.is_empty() {
             return Err("пустое сообщение отправлять нечем".to_string());
@@ -172,6 +183,7 @@ impl Chat {
                 shown: shown.trim().to_string(),
                 prompt: prompt.to_string(),
                 files: files.to_vec(),
+                model: model.as_ref().and_then(|choice| engine_model(&choice.id)),
             })
             .map_err(|_| "лента закрыта: перезапустите приложение".to_string())
     }
@@ -221,6 +233,14 @@ impl Drop for Chat {
     fn drop(&mut self) {
         let _ = self.tx.send(Cmd::Stop);
     }
+}
+
+/// Модель запроса из идентификатора каталога `лаборатория/модель`: движку уходит
+/// пара `providerID`/`modelID`. Без «/» — идентификатор не движковый, модель не
+/// передаётся (движок возьмёт свою по умолчанию).
+fn engine_model(id: &str) -> Option<Value> {
+    let (provider, model) = id.split_once('/')?;
+    Some(json!({ "providerID": provider, "modelID": model }))
 }
 
 /// Поток ленты: сессия, поток событий, команды пользователя и перезапуск движка.
@@ -394,7 +414,7 @@ fn pump(
                     // Поток событий прошлой жизни движка больше не придёт.
                     return false;
                 }
-                Cmd::Prompt { shown, prompt, files } => {
+                Cmd::Prompt { shown, prompt, files, model } => {
                     *sent += 1;
                     // Идентификатор строки вопроса не переиспользуется: два одинаковых
                     // вопроса — две строки, даже если между ними был обрыв потока.
@@ -406,7 +426,7 @@ fn pump(
                         files: if files.is_empty() { None } else { Some(files) },
                         file: None,
                     });
-                    if let Err(reason) = api.prompt(session, &prompt) {
+                    if let Err(reason) = api.prompt(session, &prompt, model.as_ref()) {
                         sink.emit(FeedEvent::notice(
                             "engine",
                             &format!("Сообщение не ушло: {reason}"),

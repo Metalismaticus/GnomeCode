@@ -77,7 +77,8 @@ class Fixture {
     if (params.feed === "error") {
       return [row("engine_down", "notice", UNAVAILABLE)];
     }
-    if (params.feed === "many") {
+    if (params.feed === "many" || params.feed.startsWith("сравнение")) {
+      // Панель сравнения снимается над лентой с сообщениями — кадр целиком.
       return Fixture.many();
     }
     // Лента не пустает при открытии: строка вызова инструмента видна сразу.

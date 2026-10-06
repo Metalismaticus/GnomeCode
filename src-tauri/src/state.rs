@@ -32,6 +32,16 @@ pub enum Theme {
     Light,
 }
 
+/// Выбранная модель чата (панель «Сравнение моделей»): имя стоит на бейдже шапки,
+/// идентификатор `лаборатория/модель` уходит движку с запросом. Одно поле — два
+/// чтения, поэтому пара внутри типа, а не два объекта рядом.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatModel {
+    pub name: String,
+    pub id: String,
+}
+
 /// Что окно помнит о себе.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -51,6 +61,10 @@ pub struct AppState {
     /// Недавние подключения плагинов к чату: зачем список — подключить привычный
     /// инструмент за два клика (сцена F); порядок — как подключали, свежий сверху.
     pub plugin_recent: Option<Vec<String>>,
+    /// Модель текущего чата, выбранная в панели «Сравнение моделей»: бейдж шапки
+    /// показывает имя, запрос движку несёт идентификатор. Нет — умолчание нового
+    /// чата (`DEFAULT_MODEL` интерфейса, `src/appstate.ts`).
+    pub chat_model: Option<ChatModel>,
 }
 
 /// Правка состояния: названные поля меняются, остальные остаются как были.
@@ -63,6 +77,7 @@ pub struct StatePatch {
     pub theme: Option<Theme>,
     pub plugin_favorites: Option<Vec<String>>,
     pub plugin_recent: Option<Vec<String>>,
+    pub chat_model: Option<ChatModel>,
 }
 
 impl AppState {
@@ -75,6 +90,7 @@ impl AppState {
             theme: patch.theme.or(self.theme),
             plugin_favorites: patch.plugin_favorites.clone().or_else(|| self.plugin_favorites.clone()),
             plugin_recent: patch.plugin_recent.clone().or_else(|| self.plugin_recent.clone()),
+            chat_model: patch.chat_model.clone().or_else(|| self.chat_model.clone()),
         }
     }
 }

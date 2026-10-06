@@ -20,6 +20,8 @@
   text-overflow: ellipsis;
 }
 
+/* Бейдж модели — кнопка входа панели «Сравнение моделей» (пункт 10): те же
+   состояния, что у остальных кнопок шапки — наведение, нажатие, нажатость. */
 .chat-header__badge {
   display: inline-flex;
   align-items: center;
@@ -34,6 +36,17 @@
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 40%;
+}
+
+.chat-header__badge:hover,
+.chat-header__badge[aria-pressed="true"] {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+
+.chat-header__badge:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* Кнопки подключённых плагинов: ряд с бейджем модели, в ряд; при нехватке места

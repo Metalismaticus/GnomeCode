@@ -331,7 +331,7 @@ fn session_and_prompt_go_over_http() {
         session, "ses_created",
         "идентификатор сессии берётся из ответа сервера"
     );
-    api.prompt(&session, "Привет").expect("текст ушёл");
+    api.prompt(&session, "Привет", None).expect("текст ушёл");
     let log = requests.lock().expect("лог запросов").clone();
     assert!(
         log.iter().any(

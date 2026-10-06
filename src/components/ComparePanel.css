@@ -1,0 +1,331 @@
+/* Панель «Сравнение моделей» (docs/specs/2026-10-06-10-compare.md): окно
+   поверх области чата, как у плагинных оверлеев, но шире — таблицу из
+   шести столбцов пикерная ширина не вмещает. Цвет — только токены. */
+
+.compare-panel {
+  position: absolute;
+  /* Под шапкой чата (48 px + 8), у правого края области чата, до низа окна. */
+  top: 56px;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  width: 680px;
+  max-width: calc(100% - 48px);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow);
+}
+
+.compare-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
+}
+
+.compare-panel__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.compare-panel__subtitle {
+  margin-top: var(--space-1);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.compare-panel__date {
+  margin-top: var(--space-1);
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.compare-panel__note {
+  margin-top: var(--space-1);
+  font-size: 11px;
+  color: var(--warning);
+}
+
+.compare-panel__actions {
+  display: flex;
+  gap: var(--space-1);
+  flex: none;
+}
+
+.compare-panel__refresh {
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.compare-panel__refresh:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.compare-panel__refresh:disabled {
+  cursor: default;
+  color: var(--text-faint);
+}
+
+.compare-panel__close {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.compare-panel__close:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.compare-panel__search {
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.compare-panel__search::placeholder {
+  color: var(--text-faint);
+}
+
+.compare-panel__cols,
+.compare-line__row {
+  display: grid;
+  /* Модель тянется, числа моноширинные, «Выбрать» своего края. */
+  grid-template-columns: minmax(0, 1fr) 72px 72px 64px 116px 88px;
+  column-gap: var(--space-2);
+  align-items: center;
+}
+
+.compare-panel__cols {
+  padding: var(--space-2) var(--space-2) var(--space-1);
+}
+
+.compare-panel__col {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.compare-panel__col--num {
+  text-align: right;
+}
+
+.compare-panel__col--score {
+  text-align: right;
+}
+
+.compare-panel__col--choose {
+  text-align: right;
+}
+
+.compare-panel__list {
+  flex: 1;
+  min-height: 0;
+  margin-top: var(--space-1);
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+}
+
+.compare-panel__message {
+  padding: var(--space-4) var(--space-2);
+  font-size: 13px;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.compare-panel__error {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.compare-panel__hint {
+  margin-top: var(--space-2);
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+/* Строка модели: имя с лабой, числа, оценка и «Выбрать». */
+.compare-line__row {
+  position: relative;
+  width: 100%;
+  padding: var(--space-2);
+  border: none;
+  background: none;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  text-align: left;
+}
+
+.compare-line__row:hover {
+  background: var(--bg-hover);
+}
+
+.compare-line__row:focus-visible,
+.compare-panel__refresh:focus-visible,
+.compare-panel__close:focus-visible,
+.compare-panel__search:focus-visible,
+.compare-line__choose:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.compare-line__name-block {
+  min-width: 0;
+}
+
+.compare-line__name {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.compare-line__lab {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.compare-line__unavailable {
+  display: block;
+  font-size: 11px;
+  color: var(--warning);
+}
+
+.compare-line__num {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text);
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.compare-line__score {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text);
+  text-align: right;
+}
+
+.compare-line__score-block {
+  display: block;
+}
+
+.compare-line__score-name {
+  display: block;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.compare-line__choose {
+  justify-self: end;
+  margin: 0;
+  padding: 2px var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 20px;
+  height: 24px;
+  font-family: inherit;
+}
+
+.compare-line__choose:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+
+.compare-line__choose:disabled {
+  cursor: default;
+  color: var(--text-faint);
+  border-color: var(--border);
+}
+
+/* Раскрытие строки: описание, прайс и бенчмарки — текст, не интерактив. */
+.compare-details {
+  margin: 0 var(--space-2) var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel-2);
+}
+
+.compare-details__description {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-dim);
+  overflow-wrap: anywhere;
+}
+
+.compare-details__price {
+  margin-top: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.compare-details__line {
+  margin-top: var(--space-1);
+  font-size: 12px;
+  color: var(--text-dim);
+  overflow-wrap: anywhere;
+}
+
+.compare-details__benchmarks {
+  margin-top: var(--space-2);
+}
+
+.compare-details__benchmark {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-1) 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text);
+}
+
+.compare-details__benchmark-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.compare-details__benchmark-score {
+  white-space: nowrap;
+}
