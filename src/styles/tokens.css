@@ -26,12 +26,12 @@
 /* ---------- Тёмная тема (Codexis) ---------- */
 [data-theme="dark"] {
   --bg: #0a0e1a;
-  --bg-panel: #101627;
-  --bg-panel-2: #161e33;
+  --bg-panel: #212d51;
+  --bg-panel-2: #2c3867;
   --bg-input: #0d1322;
   --bg-hover: #1a2338;
 
-  --border: #232d47;
+  --border: #34436f;
   --border-strong: #303c5e;
 
   --text: #e6eaf5;
@@ -42,6 +42,11 @@
   --accent-2: #9d5cff;
   --accent-gradient: linear-gradient(135deg, #4f7cff 0%, #6d5cff 50%, #9d5cff 100%);
   --on-accent: #ffffff;
+
+  /* Вариант B «Свечение в цвет акцента» (выбор владельца на листе сравнения,
+     docs/specs/2026-10-06-11-glavnoe.md, §8): ореол вокруг кнопки отправки и
+     знака логотипа — только в тёмной теме, светлая остаётся на уровнях A. */
+  --glow: 0 0 24px rgba(109, 92, 255, 0.32);
 
   --success: #34d399;
   --warning: #fbbf24;
@@ -89,6 +94,9 @@
   --code-keyword: #6d28d9;
   --code-func: #7c3aed;
   --shadow: 0 4px 24px rgba(20, 20, 40, 0.08);
+  /* Свечение варианта B — только тёмная тема: светлая остаётся на уровнях A,
+     без ореола (docs/specs/2026-10-06-11-glavnoe.md, §8). */
+  --glow: none;
 }
 
 * {

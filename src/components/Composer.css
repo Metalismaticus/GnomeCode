@@ -37,11 +37,13 @@
 }
 
 /* Кнопка отправки — акцентный элемент образца: градиент всегда (docs/specs/
-   2026-10-06-11-glavnoe.md, «Состояния»); на пустом поле выключена и приглушена. */
+   2026-10-06-11-glavnoe.md, «Состояния»); на пустом поле выключена и приглушена.
+   Ореол вокруг кнопки — часть варианта B (токен --glow, только тёмная тема). */
 .composer__send {
   background: var(--accent-gradient);
   color: var(--on-accent);
   border-color: transparent;
+  box-shadow: var(--glow);
 }
 
 .composer__send:disabled {

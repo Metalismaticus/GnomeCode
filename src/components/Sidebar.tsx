@@ -4,6 +4,8 @@ import { Button } from "./Button";
 import { SidebarItem } from "./SidebarItem";
 import { ThemeSwitch } from "./ThemeSwitch";
 
+import logoMark from "../../docs/refs/owner-2026-10-05-4-logo.png";
+
 import "./Sidebar.css";
 
 export type SidebarProject = { title: string; path?: string };
@@ -89,7 +91,7 @@ export function Sidebar({
   return (
     <nav className="sidebar" data-testid="sidebar">
       <div className="sidebar__logo">
-        <span className="sidebar__logo-mark">G</span>
+        <img className="sidebar__logo-mark" src={logoMark} alt="GnomeCode" />
         <span className="sidebar__logo-name">GnomeCode</span>
       </div>
       <Button variant="primary" data-testid="btn-primary" onClick={onPickFolder}>

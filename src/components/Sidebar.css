@@ -22,18 +22,17 @@
   min-width: 0;
 }
 
-/* Знак логотипа приглушён (docs/DESIGN.md, раздел 1): акцентных пятен на экране ровно два. */
+/* Знак логотипа — маскот владельца (решение о логотипе, DECISIONS; файл
+   docs/refs/owner-2026-10-05-4-logo.png, круг с прозрачными углами): высота по
+   рамке строки, ширина авто. Ореол вокруг знака — часть варианта B (токен
+   --glow, только тёмная тема), сам знак приглушённым элементом остаётся. */
 .sidebar__logo-mark {
-  width: 28px;
   height: 28px;
-  min-width: 28px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-panel-2);
-  border: 1px solid var(--border);
-  display: grid;
-  place-items: center;
-  font-size: 15px;
-  color: var(--text);
+  width: auto;
+  object-fit: contain;
+  border-radius: 50%;
+  box-shadow: var(--glow);
+  display: block;
 }
 
 .sidebar__logo-name {
