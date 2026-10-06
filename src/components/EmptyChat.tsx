@@ -5,7 +5,7 @@
 // ленты; композер — не часть сборки и не едет.
 import { useMemo } from "react";
 
-import { knownModels, providersOf, type KnownModel } from "../markdown";
+import { knownModels, type KnownModel } from "../markdown";
 import { useCompare } from "../features/compare/useCompare";
 import type { PluginsState } from "../features/plugins/usePlugins";
 import { ChatGlyph, FolderGlyph, PuzzleGlyph, ScalesGlyph } from "./glyphs";
@@ -16,6 +16,9 @@ const TITLE = "Добро пожаловать в GnomeCode";
 const SUBTITLE = "Опишите задачу, приложите файл или выберите сценарий";
 const MANAGE = "Управление моделями →";
 const MODEL_OF_CHAT = "модель этого чата";
+/** Ряд моделей — текущая плюс известные, не весь каталог: приветствие не должно
+ *  выкатывать сотни карточек за сгиб (замечание владельца 2026-10-06, живая копия). */
+const MODEL_ROW_LIMIT = 8;
 
 type WelcomeCounts = { chats: number; projects: number };
 
@@ -49,16 +52,27 @@ export function EmptyChat({
   onNewChat: () => void;
 }) {
   const compare = useCompare(true);
-  const models = useMemo(() => knownModels(model, compare.models), [model, compare.models]);
-  const providers = useMemo(() => providersOf(models), [models]);
+  // Ряд моделей: сегодня известные за текущей не выходит за лимит — приветствие
+  // отвечает за сводку, а не за весь каталог (замечание владельца 21:46).
+  const models = useMemo(
+    () => knownModels(model, compare.models).slice(0, MODEL_ROW_LIMIT),
+    [model, compare.models],
+  );
+  // Счётчик «ПЛАГИНЫ» — реестр установленного: записи, которые владелец ставил
+  // сам и которые не выключил. Выключенный плагин кнопок не даёт и в ряду
+  // счётчика не считается — одно число с разделом «Плагины» (карточки).
   const usage = useMemo(
     () => plugins.plugins.reduce((sum, plugin) => sum + (plugin.usage?.count ?? 0), 0),
+    [plugins.plugins],
+  );
+  const installed = useMemo(
+    () => plugins.plugins.filter((plugin) => !plugin.disabled && plugin.uninstallable).length,
     [plugins.plugins],
   );
   const counters: { label: string; value: number }[] = [
     { label: "ЧАТЫ", value: counts.chats },
     { label: "ПРОЕКТЫ", value: counts.projects },
-    { label: "ПЛАГИНЫ", value: plugins.plugins.length },
+    { label: "ПЛАГИНЫ", value: installed },
     { label: "ВЫЗОВЫ", value: usage },
   ];
   const actionOf = (key: (typeof SCENARIOS)[number]["key"]): (() => void) | undefined => {
@@ -90,17 +104,6 @@ export function EmptyChat({
           </div>
         ))}
       </div>
-
-      {providers.length ? (
-        <div className="empty__row" data-testid="welcome-providers">
-          {providers.map((provider) => (
-            <div className="welcome-card" key={provider.lab} data-testid="welcome-provider">
-              <span className="welcome-card__name">{provider.lab}</span>
-              <span className="welcome-card__sub">{provider.count} моделей</span>
-            </div>
-          ))}
-        </div>
-      ) : null}
 
       <div className="empty__row empty__row--scenarios" data-testid="welcome-scenarios">
         {SCENARIOS.map((scenario) => (

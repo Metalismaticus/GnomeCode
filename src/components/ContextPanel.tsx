@@ -19,6 +19,10 @@ export type ContextPanelData = {
   /** Плагины чата: строки подключённых с кнопками команд — тот же ход одобрения,
    *  что у кнопок шапки (спека «Состав основы», «Живая правая панель»). */
   plugins: PluginsState;
+  /** Право чата на файлы: тумблер переключает, вопрос уходит с файлами или без. */
+  fsAllow: boolean;
+  /** Переключить право чата на файлы: тумблер раздела «Безопасность этого чата». */
+  onToggleFs: () => void;
   /** Клик по кнопке команды панели: слой прав решает вопрос одобрения и запуск. */
   onRunCommand: (plugin: Plugin, command: PluginCommand) => void;
   /** «Подключить» и «Browse plugins…» ведут в раздел «Плагины» (существующие ходы). */
@@ -29,25 +33,35 @@ export type ContextPanelData = {
   cluster?: ReactNode;
 };
 
-/** Раздел «Безопасность этого чата» — показатели состояния, а не новые права:
- *  файлы следуют за выбранной папкой, у чата своего сетевого состояния нет —
- *  появится с сетевыми плагинами. Тумблер нового права не выдаёт
- *  (permission-слой не обходится). */
+/** Раздел «Безопасность этого чата»: право чата на файлы — память окна
+ *  (по умолчанию включено, когда папка проекта выбрана); владелец тумблером
+ *  его включает и выключивает. У чата своего сетевого состояния нет —
+ *  появится с сетевыми плагинами; тот тумблер остаётся показателем. */
 const NET_TITLE = "Своего сетевого состояния у чата нет — появится с сетевыми плагинами";
 
-function securityRows(root: string): ContextRowData[] {
+function securityRows(
+  root: string,
+  fsAllow: boolean,
+  onToggleFs: () => void,
+  onPickProject: () => void,
+): ContextRowData[] {
   const on = Boolean(root);
+  const gate = on ? fsAllow : false;
   return [
     {
       label: "Доступ к файловой системе",
-      value: on ? "Только папка проекта" : "Выключен",
-      tone: on ? "success" : "off",
+      value: on ? (gate ? "Только папка проекта" : "Выключен") : "Выключен",
+      tone: on && gate ? "success" : "off",
       testid: "context-row-fs",
+      /** Без папки клик — тот же жест, что строка «Папка»: системный выбор
+       *  папки (project.pick); с папкой — переключение права этого чата.
+       *  Право — память окна, в движок жёсткой меткой не уходит: файлы к
+       *  вопросу гейтит слой отправки (ChatView.ask). */
       switch: {
-        on,
-        disabled: true,
-        title: on ? "Следует за выбранной папкой проекта" : "Папка проекта не выбрана",
+        on: gate,
+        title: on ? (gate ? "Право чата на файлы папки — клик выключит" : "Право выключено — клик включит") : "Выбрать папку проекта",
         testid: "context-toggle-fs",
+        onToggle: on ? onToggleFs : onPickProject,
       },
     },
     {
@@ -98,6 +112,8 @@ export function ContextPanel({
   sections,
   engineDown = false,
   project,
+  fsAllow,
+  onToggleFs,
   plugins,
   onRunCommand,
   onOpenPluginsPage,
@@ -155,7 +171,7 @@ export function ContextPanel({
       </div>
       <div className="context__section">
         <div className="context__section-title">Безопасность этого чата</div>
-        {securityRows(project.root).map((row) => (
+        {securityRows(project.root, fsAllow, onToggleFs, project.pick).map((row) => (
           <ContextRow key={row.label} {...row} />
         ))}
       </div>

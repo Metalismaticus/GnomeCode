@@ -12,12 +12,15 @@ export type ContextButton = {
   command?: string;
 };
 
-/** Тумблер строки-тумблера: показатель состояния чата, причина — в подсказке. */
+/** Тумблер строки-тумблера: показатель состояния чата, причина — в подсказке.
+ *  `onToggle` — нажимаемость: без него тумблер только показывает состояние
+ *  (замечание владельца 2026-10-06 «не нажимаются переключатели»). */
 export type ContextSwitch = {
   on: boolean;
   title?: string;
   disabled?: boolean;
   testid?: string;
+  onToggle?: () => void;
 };
 
 export type ContextRowData = {
@@ -52,6 +55,7 @@ export function ContextRow({ label, value, tone, buttons, switch: toggle, testid
             disabled={toggle.disabled}
             data-testid={toggle.testid}
             title={toggle.title}
+            onClick={toggle.onToggle}
           >
             <span className="context-row__knob" />
           </button>

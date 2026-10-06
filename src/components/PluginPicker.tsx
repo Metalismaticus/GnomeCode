@@ -9,9 +9,8 @@ import type { PluginsState } from "../features/plugins/usePlugins";
 import "./PluginPicker.css";
 
 const SEARCH = "Поиск плагина…";
-const EMPTY = "Плагины не подключены";
-const EMPTY_HINT =
-  "Поставьте плагин в opencode.json проекта и вернитесь сюда — список обновится сам";
+const EMPTY_TITLE = "Плагинов пока нет";
+const EMPTY_HINT = "Откройте каталог и поставьте первый — список обновится сам";
 
 /** Полоса скоупов сцены E: порядок спеки, «Chat» — умолчание подключения. */
 const SCOPES: { kind: PluginScope; label: string; title: string }[] = [
@@ -79,7 +78,7 @@ function body(plugins: PluginsState) {
   if (!plugins.groups.length) {
     return (
       <div className="plugin-picker__empty" data-testid="plugin-picker-empty">
-        <div className="plugin-picker__empty-title">{EMPTY}</div>
+        <div className="plugin-picker__empty-title">{EMPTY_TITLE}</div>
         <div className="plugin-picker__empty-hint">{EMPTY_HINT}</div>
       </div>
     );

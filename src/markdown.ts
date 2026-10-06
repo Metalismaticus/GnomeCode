@@ -103,8 +103,11 @@ export function parseMarkdown(text: string): MarkdownDoc {
 
 export type KnownModel = { name: string; lab: string };
 
-/** Ряд моделей приветственной сборки: модель текущего чата первой, известные за ней;
- *  повтор по имени не дублируется (спека «Настоящие данные»). */
+/** Ряд моделей приветственной сборки: модель текущего чата первой, известные
+ *  за ней; повтор по имени не дублируется (спека «Настоящие данные»). Ряд
+ *  провайдеров удалён: десятки карточек съели сборку до сгиба — список
+ *  провайдеров живёт в «Настройки → Модели» и в панели сравнения
+ *  (замечание владельца 2026-10-06, живая копия 21:46). */
 export function knownModels(current: string, known: CompareModel[]): KnownModel[] {
   const list = known.map((model) => ({ name: model.name, lab: model.lab }));
   if (!list.some((model) => model.name === current)) {
@@ -113,15 +116,3 @@ export function knownModels(current: string, known: CompareModel[]): KnownModel[
   return list;
 }
 
-/** Ряд провайдеров: лаборатории известных моделей — разбор `id` до «/» даёт
- *  CompareModel.lab; сколько провайдеров знает каталог — столько карточек. */
-export function providersOf(models: KnownModel[]): { lab: string; count: number }[] {
-  const counts = new Map<string, number>();
-  for (const model of models) {
-    if (!model.lab) {
-      continue;
-    }
-    counts.set(model.lab, (counts.get(model.lab) ?? 0) + 1);
-  }
-  return [...counts.entries()].map(([lab, count]) => ({ lab, count }));
-}

@@ -296,6 +296,12 @@ export default function App() {
   const chats = chatsList(data, chat.title, chat.time);
   const projects = projectsList(data, projectRoot);
 
+  /** Право этого чата на файлы: включён, раз папка проекта выбрана. Владелец
+   *  тумблером правой панели его выключает и включает (замечание владельца
+   *  2026-10-06: «не нажимаются переключатели») — filесы гейтит слой отправки
+   *  (ChatView.ask), в движок меткой не уходит. */
+  const [fsAllow, setFsAllow] = useState(true);
+
   return (
     <div className="app">
       {/* Кластер кнопок окна (тема + свернуть/развернуть/закрыть) — правый край
@@ -333,6 +339,7 @@ export default function App() {
           project={project}
           onFirstQuestion={chat.remember}
           onOpenPluginsPage={() => setPage("plugins")}
+          fsAllow={fsAllow}
           model={chat.model}
           onChooseModel={chat.choose}
           plugins={plugins}
@@ -346,6 +353,8 @@ export default function App() {
           sections={data.sections}
           engineDown={data.engineDown}
           project={project}
+          fsAllow={fsAllow}
+          onToggleFs={() => setFsAllow((allow) => !allow)}
           plugins={plugins}
           onRunCommand={approval.run}
           onOpenPluginsPage={() => setPage("plugins")}

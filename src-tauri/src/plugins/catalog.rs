@@ -93,6 +93,8 @@ fn card(base: &mut Plugin, connected: bool, entry: &CatalogEntry) -> Plugin {
         description: Some(entry.description.clone()),
         permissions: permissions_of(entry),
         disabled: entry.disabled,
+        // Строка реестра — её и удаляет Uninstall (manage::remove по записи).
+        uninstallable: Some(true),
         rules: None,
         scope: None,
         update: None,
@@ -122,6 +124,8 @@ fn from_entry(entry: &CatalogEntry, connected: bool) -> Plugin {
         description: Some(entry.description.clone()),
         permissions: permissions_of(entry),
         disabled: entry.disabled,
+        // Строка реестра установленного — Uninstall свой.
+        uninstallable: Some(true),
         rules: None,
         scope: None,
         update: None,
@@ -163,6 +167,8 @@ fn plugin(entry: &Value, commands: &[Value], connected: &[String], disabled: &[S
         version: None,
         description: None,
         permissions: vec![],
+        // Плагин движка без записи реестра — Uninstall'а у карточки нет.
+        uninstallable: None,
         rules: None,
         scope: None,
         update: None,
@@ -203,4 +209,77 @@ fn sanitize(name: &str) -> String {
     name.chars()
         .map(|letter| if REPLACED.contains(letter) { letter } else { '_' })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{CatalogEntry, merged, plugins};
+    use crate::plugins::install::CommandSpec;
+    use crate::plugins::model::{Plugin, ACTIVE};
+
+    use serde_json::json;
+
+    /// Запись реестра установленного: карточные поля и Uninstall на месте.
+    fn entry(id: &str) -> CatalogEntry {
+        CatalogEntry {
+            id: id.to_string(),
+            name: "Git".to_string(),
+            description: "diff/commit".to_string(),
+            author: "владелец".to_string(),
+            version: "1.0.0".to_string(),
+            repo: "Metalismaticus/OpenCode_Plagin".to_string(),
+            entry: "git.ts".to_string(),
+            permissions: vec![],
+            commands: vec![CommandSpec {
+                name: "diff".to_string(),
+                description: "показать diff".to_string(),
+                category: None,
+            }],
+            disabled: false,
+        }
+    }
+
+    /// Строка плагина движка: минимум полей, что живой v2 отдаёт.
+    fn engine(id: &str) -> serde_json::Value {
+        json!({ "id": id, "source": "file", "features": [], "state": { "status": "active" } })
+    }
+
+    /// Uninstall у карточки: запись реестра — кнопка есть, движковый плагин —
+    /// её нет (поле None, карточка в UI Uninstall не показывает) — и у
+    /// "движок + реестр" тоже: реестровая строка перекрывает и она удаляема.
+    #[test]
+    fn uninstallable_follows_registry() {
+        let installed = [entry("git")];
+        // Только реестр (движок файловые не перечисляет): Uninstall есть.
+        let from_registry = merged(&[], &[], &[], &[], &installed);
+        assert_eq!(from_registry.len(), 1, "строка реестра в списке: {from_registry:?}");
+        assert_eq!(
+            from_registry[0].uninstallable,
+            Some(true),
+            "запись реестра удаляема — Uninstall у карточки есть"
+        );
+
+        // Движковый плагин вне реестра: Uninstall нет.
+        let engine_only = plugins(&[engine("docs")], &[], &[], &[]);
+        assert_eq!(
+            engine_only[0].uninstallable,
+            None,
+            "у плагина движка записи нет — удалять его кнопкой нельзя"
+        );
+        assert_eq!(engine_only[0].state, ACTIVE, "состояние движка дошло");
+
+        // Движок + реестр один плагин: поля реестра поверх, удаляем.
+        let both = merged(&[engine("git")], &[], &[], &[], &installed);
+        assert_eq!(both.len(), 1, "слияние не задублировало: {both:?}");
+        assert_eq!(both[0].uninstallable, Some(true), "реестровая строка перекрывает — удаляема");
+        assert_eq!(both[0].name.as_deref(), Some("Git"), "карточные поля реестра поверх");
+
+        // Реестр ещё раз — одно сообщение об ошибке на весь список: движковый
+        // рядом с реестровым не теряется.
+        let together = merged(&[engine("docs")], &[], &[], &[], &installed);
+        assert_eq!(together.len(), 2, "движковый и реестровый соседи: {:?}", together);
+        let docs = together.iter().find(|p| p.id == "docs").expect("docs на месте");
+        assert_eq!(docs.uninstallable, None);
+        assert!(docs.name.is_none(), "у движкового карточных полей нет");
+    }
 }

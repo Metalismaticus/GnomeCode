@@ -955,6 +955,45 @@ impl<'a> Api<'a> {
 fn items(value: Value) -> Result<Vec<Value>, String> {
     match value {
         Value::Array(list) => Ok(list),
+        // Список движка приходит в обёртке `{"location": …, "data": [...]}` —
+        // разворачиваем, наружу уходит чистый массив (v2.0.22/23).
+        Value::Object(ref map) if map.contains_key("location") => {
+            match map.get("data") {
+                Some(Value::Array(list)) => Ok(list.clone()),
+                _ => Err("сервер вернул не список".to_string()),
+            }
+        }
         _ => Err("сервер вернул не список".to_string()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::items;
+
+    /// Список движка в обёртке `{"location", "data": [...]}` разворачивается в
+    /// чистый массив (замер живого v2.0.22/23 обёртку возвращает) — и форма без
+    /// обёртки (фикстура и фейковый движок) также читается, не сломалась.
+    #[test]
+    fn wrapper_and_plain_list_unwrap() {
+        let wrapped = json!({ "location": "all", "data": [{ "id": "git" }, { "id": "docs" }] });
+        let list = items(wrapped).expect("обёртка списка не развернулась");
+        assert_eq!(list.len(), 2, "оба элемента обёртки дошли: {list:?}");
+        assert_eq!(list[0]["id"], "git", "первый элемент — из data обёртки");
+
+        let plain = json!([{ "id": "git" }]);
+        let list = items(plain).expect("чистый массив перестал читаться");
+        assert_eq!(list.len(), 1, "чистый массив фейкового движка прошёл как был: {list:?}");
+    }
+
+    /// Обёртка без списка в `data` — честная ошибка, а то и паника целиком.
+    #[test]
+    fn broken_wrapper_reports() {
+        let broken = json!({ "location": "all", "data": 5 });
+        assert!(items(broken).is_err(), "обёртка без списка — ошибка");
+        let junk = json!(5);
+        assert!(items(junk).is_err(), "не список и не обёртка — ошибка");
     }
 }

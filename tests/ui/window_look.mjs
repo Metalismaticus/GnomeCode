@@ -38,6 +38,34 @@ const gradientSpots = (page) =>
       .map((el) => el.getAttribute("data-testid") || el.className || el.tagName),
   );
 
+/** Вычисленные цвета тумблера строки правой панели: дорожка — фон кнопки,
+ *  ручка — её кружок; фон панели рядом, с тем же разбором. Числа, не глаза:
+ *  ручку/дорожку на тёмной теме владелец назвал «ползунок белый» — меряется
+ *  максимумом канала (255 — чистый белый, 210 — порог «не белая»). */
+const switchColors = (page, testid) =>
+  page.evaluate((id) => {
+    const parse = (value) =>
+      value.match(/\d+/g)?.slice(0, 3).map(Number) ?? null;
+    const button = document.querySelector(`[data-testid="${id}"]`);
+    if (!button) return null;
+    const knob = button.querySelector(".context-row__knob");
+    const panel = document.querySelector(".context");
+    return {
+      knob: knob ? parse(getComputedStyle(knob).backgroundColor) : null,
+      track: parse(getComputedStyle(button).backgroundColor),
+      panel: parse(getComputedStyle(panel).backgroundColor),
+    };
+  }, testid);
+
+/** Максимум канала цвета: у белого — 255. */
+const brightest = (components) => (components ? Math.max(...components) : -1);
+
+/** Наибольшая разность каналов двух цветов: рядом тона дают малую разность. */
+const channelGap = (one, other) =>
+  one && other ? Math.max(...one.map((value, i) => Math.abs(value - other[i]))) : -1;
+
+const SWITCH_IDS = ["context-toggle-fs", "context-toggle-net"];
+
 /** Что лежит сверху в центре элемента: сам элемент, его класс или перекрывший его слой.
  *  Оверлей правой панели перехватывает клик раньше шапки — этим меряется доступность `☰`
  *  и переключателя темы при открытой панели. */
@@ -129,6 +157,26 @@ try {
       }
     }
 
+    // --- Тёмная тема: ручка тумблера не белая, различима с дорожкой и панелью -------
+    // Замечание владельца 2026-10-06, живая копия 21:46: «ползунок белый на темной
+    // теме» — ручка выключенного тумблера --on-accent читалась как белый ползунок.
+    for (const id of SWITCH_IDS) {
+      const colors = await switchColors(wide, id);
+      if (!colors || !colors.knob || !colors.track) {
+        done(1, `в правой панели нет тумблера ${id} — цвета нечему мерить`);
+      }
+      if (brightest(colors.knob) >= 210) {
+        done(1, `на тёмной теме ручка выключенного ${id} светла (максимум канала ${brightest(colors.knob)} ≥ 210) — владелец читал её «ползунок белый»`);
+      }
+      const gap = channelGap(colors.knob, colors.track);
+      if (gap < 40) {
+        done(1, `на тёмной теме ручка ${id} не видна на дорожке (разность каналов ${gap} < 40)`);
+      }
+      if (brightest(colors.track) <= brightest(colors.panel)) {
+        done(1, `дорожка ${id} не светлее фона панели (каналы ${colors.track} против панели ${colors.panel}) — тумблер теряется`);
+      }
+    }
+
     // --- Темы совпадают по раскладке и различаются по цвету ----------------------------
     const before = await measure(wide);
     // Кластер кнопок окна живёт в шапке правой панели (WindowCluster.tsx).
@@ -160,6 +208,25 @@ try {
         1,
         `после переключения темы размер шрифта стал ${after.titleFontSize}/${after.bodyFontSize}, был ${before.titleFontSize}/${before.bodyFontSize} — раскладка поехала`,
       );
+    }
+
+    // Светлая тема — пара к тёмной: ручка выключенного тумблера светлая (узнаётся,
+    // не гаснет), дорожка темнее фона панели и различима с ручкой.
+    for (const id of SWITCH_IDS) {
+      const colors = await switchColors(wide, id);
+      if (!colors || !colors.knob || !colors.track) {
+        done(1, `в правой панели светлой темы нет тумблера ${id} — цвета нечему мерить`);
+      }
+      if (brightest(colors.knob) < 200) {
+        done(1, `на светлой теме ручка выключенного ${id} погасла (максимум канала ${brightest(colors.knob)} < 200) — она должна читаться светлой`);
+      }
+      const gap = channelGap(colors.knob, colors.track);
+      if (gap < 40) {
+        done(1, `на светлой теме ручка ${id} не видна на дорожке (разность каналов ${gap} < 40)`);
+      }
+      if (brightest(colors.track) >= brightest(colors.panel)) {
+        done(1, `дорожка ${id} светлой темы не темнее фона панели (каналы ${colors.track} против панели ${colors.panel}) — тумблер теряется`);
+      }
     }
 
     // --- Фокус с клавиатуры: обводка 2 px у главной кнопки и у поля ввода -------------
@@ -316,7 +383,7 @@ try {
 
     done(
       0,
-      `раскладка ${SIDEBAR_W}/${SIDEBAR_NARROW_W}/${CONTEXT_W} px, оверлей по ☰ с Esc, кликом снаружи и кнопкой, шапка с кнопкой панели и переключателем темы доступна под оверлеем, приветственная сборка вверху ленты с заголовком ${EMPTY_TITLE_PX} px, акцентных пятен ${SPOTS.length}, темы совпали по раскладке и разошлись по цвету, фокус ${FOCUS_RING_PX}`,
+      `раскладка ${SIDEBAR_W}/${SIDEBAR_NARROW_W}/${CONTEXT_W} px, оверлей по ☰ с Esc, кликом снаружи и кнопкой, шапка с кнопкой панели и переключателем темы доступна под оверлеем, приветственная сборка вверху ленты с заголовком ${EMPTY_TITLE_PX} px, акцентных пятен ${SPOTS.length}, тумблеры обеих тем читаются (ручка не белая и различима с дорожкой и панелью), темы совпали по раскладке и разошлись по цвету, фокус ${FOCUS_RING_PX}`,
     );
   } finally {
     await browser.close();

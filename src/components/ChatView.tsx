@@ -89,6 +89,7 @@ export function ChatView({
   cluster,
   project,
   onFirstQuestion,
+  fsAllow,
   onOpenPluginsPage,
   model,
   onChooseModel,
@@ -109,6 +110,9 @@ export function ChatView({
   project: ProjectState;
   /** Первый вопрос владельца становится титулом чата (src/appstate.ts). */
   onFirstQuestion?: (question: string) => void;
+  /** Право чата на файлы: выключено — вопрос уходит без файлов, чипы же
+   *  остаются на экране. Тумблер правой панели переключает его (App). */
+  fsAllow: boolean;
   /** Клик по источнику-плагину: раздел «Плагины» открывается вместо чата. */
   onOpenPluginsPage: () => void;
   /** Модель текущего чата: бейдж шапки и строка «Выбрана». */
@@ -147,7 +151,7 @@ export function ChatView({
       setSending(true);
       onFirstQuestion?.(text);
       try {
-        await send(text, project.files.map((file) => file.path));
+        await send(text, fsAllow ? project.files.map((file) => file.path) : []);
         // Скоуп «Once» (сцена E): следующий вопрос снимает плагин с чата —
         // кнопки в шапке пересчитываются свежим списком.
         plugins.refresh();
@@ -155,7 +159,7 @@ export function ChatView({
         setSending(false);
       }
     },
-    [send, project.files, onFirstQuestion, plugins.refresh],
+    [send, project.files, fsAllow, onFirstQuestion, plugins.refresh],
   );
 
   /** Подключение из списка закрывает список: кнопки в шапке — подтверждение,

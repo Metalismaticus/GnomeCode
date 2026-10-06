@@ -224,7 +224,7 @@ try {
       done(1, "при пустом списке плагинов Connect plugin не открыл окно списка — владельцу не сказано, что подключать нечего");
     }
     const emptyText = await empty.$eval(PICKER, (el) => el.textContent.replace(/\s+/g, " ").trim());
-    if (!emptyText.includes("Плагины не подключены")) {
+    if (!emptyText.includes("Плагинов пока нет")) {
       done(1, `пустой список плагинов не объяснён словами: в окне «${emptyText.slice(0, 120)}»`);
     }
     await empty.close();

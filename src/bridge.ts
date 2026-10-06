@@ -32,7 +32,7 @@ import {
   setRule,
   denyByRule,
 } from "./fixtureApprovals";
-import { children as fixtureChildren, project as fixtureProject } from "./fixtureTree";
+import { children as fixtureChildren, project as fixtureProject, ROOT as fixtureRoot } from "./fixtureTree";
 import {
   connect as connectToolsetFixture,
   list as listToolsetsFixture,
@@ -409,7 +409,10 @@ const fixtureBridge = (): Bridge => ({
     return "снапшот интерфейса";
   },
   async pickFolder() {
-    return fixtureProject();
+    // Диалог в фикстуре: владелец выбрал корень фикстуры (тот же путь, что
+    // `project()` отвечает состоянию `?состояние=проект`) — пустое состояние
+    // честно проходит путь выбора папки, как `?состояние=проект` с готовой.
+    return fixtureRoot;
   },
   async readTree(path: string) {
     return fixtureChildren(path);

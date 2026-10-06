@@ -21,6 +21,9 @@ const SCENARIOS = [
   ["Сравнить модели", "Выбрать для этого чата"],
 ];
 const COUNTERS = ["ЧАТЫ", "ПРОЕКТЫ", "ПЛАГИНЫ", "ВЫЗОВЫ"];
+/** Ряд моделей — текущая плюс известные, не весь каталог: приветствие не должно
+ *  выкатывать сотни карточек за сгиб (замечание владельца 2026-10-06, живая копия). */
+const MODEL_ROW_LIMIT = 8;
 const GROUPS = ["СЕГОДНЯ", "ВЧЕРА", "НА ЭТОЙ НЕДЕЛЕ", "РАНЕЕ"];
 const NET_TITLE = "Своего сетевого состояния у чата нет — появится с сетевыми плагинами";
 
@@ -89,16 +92,7 @@ try {
       }
     }
 
-    // Ряды провайдеров и моделей — из каталога, который продукт знает; вторая линия.
-    const providers = await page.$$eval('[data-testid="welcome-provider"]', (cards) =>
-      cards.map((card) => card.textContent.replace(/\s+/g, " ").trim()),
-    ).catch(() => []);
-    if (!providers.length) {
-      done(1, "ряда провайдеров нет — каталог моделей знает провайдеров, ряд должен стоять");
-    }
-    if (!providers.some((text) => text.includes("моделей"))) {
-      done(1, `у карточки провайдера нет второй линии «N моделей» — есть «${providers[0] ?? "—"}»`);
-    }
+    // Ряд моделей — из каталога, который продукт знает: текущая первой, вторая линия.
     const models = await page.$$eval('[data-testid="welcome-model"]', (cards) =>
       cards.map((card) => card.textContent.replace(/\s+/g, " ").trim()),
     ).catch(() => []);
@@ -107,6 +101,36 @@ try {
     }
     if (!models.some((text) => text.includes("GLM-5.3 High"))) {
       done(1, `в ряду моделей нет модели текущего чата «GLM-5.3 High» — есть «${models.join(" | ").slice(0, 100)}»`);
+    }
+    if (models.length > MODEL_ROW_LIMIT) {
+      done(1, `ряд моделей выкатил ${models.length} карточек, а не до ${MODEL_ROW_LIMIT} — приветствие не должно показывать весь каталог`);
+    }
+    // Ряда провайдеров в приветствии больше нет: десятки карточек съели сборку до
+    // сгиба (замечание владельца 2026-10-06, живая копия 21:46) — список провайдеров
+    // живёт в «Настройки → Модели» и в панели сравнения.
+    const providerCards = await page.$$eval('[data-testid="welcome-provider"]', (cards) => cards.length)
+      .catch(() => 0);
+    if (providerCards) {
+      done(1, `в приветствии остался ряд провайдеров (${providerCards} карточки) — перегружает сборку, ряд переехал в настройки`);
+    }
+    // Порядок сборки: H1 → счётчики → 4 сценария → модели (замечание владельца 21:46).
+    const order = await page.$eval('[data-testid="empty"]', (block) => ({
+      title: block.querySelector('[data-testid="empty-title"]')?.getBoundingClientRect().top ?? null,
+      counters: block.querySelector('[data-testid="welcome-counter"]')?.getBoundingClientRect().top ?? null,
+      scenarios: block.querySelector('[data-testid="welcome-scenarios"]')?.getBoundingClientRect().top ?? null,
+      models: block.querySelector('[data-testid="welcome-model"]')?.getBoundingClientRect().top ?? null,
+    }));
+    if (Object.values(order).some((top) => top === null)) {
+      done(1, "приветственной сборки нет целиком: один из рядов потерялся — порядок не проверить");
+    }
+    const sequence = ["title", "counters", "scenarios", "models"];
+    for (let i = 1; i < sequence.length; i += 1) {
+      if (order[sequence[i]] <= order[sequence[i - 1]]) {
+        done(
+          1,
+          `ряд «${sequence[i]}» стоит не ниже «${sequence[i - 1]}» — целое: H1 → счётчики → сценарии → модели, есть «${sequence.map((step) => `${step}=${Math.round(order[step])}`).join(" / ")}»`,
+        );
+      }
     }
 
     // Ряд сценариев: ровно 4, вторая линия, глиф-иконка.
@@ -290,6 +314,72 @@ try {
       done(1, `причина выключенного интернета — «${netToggle.title}», а не «${NET_TITLE}»`);
     }
 
+    // Тумблер «Доступ к файловой системе» нажимается (замечание владельца 21:46:
+    // «безопасность чата - не нажимаются переключатели»). С выбираемой папкой клик
+    // переключает право чата: выключил — вопрос уходит без файлов («Выключен»),
+    // включил — «Только папка проекта» возвращается.
+    const fsState = () =>
+      live.$eval('[data-testid="context-toggle-fs"]', (el) => ({
+        checked: el.getAttribute("aria-checked"),
+        disabled: el.hasAttribute("disabled"),
+      }));
+    const fsFirst = await fsState();
+    if (!fsFirst || fsFirst.disabled) {
+      done(1, `тумблер «Доступ к файловой системе» — ${fsFirst ? "выключен атрибутом disabled" : "строки нет"} — владелец не может им ничего включить`);
+    }
+    if (fsFirst.checked !== "true") {
+      done(1, `до клика тумблер файлов — aria-checked=${fsFirst.checked}, а папка проекта выбрана`);
+    }
+    await live.click('[data-testid="context-toggle-fs"]');
+    try {
+      await live.waitForFunction(
+        () => document.querySelector('[data-testid="context-toggle-fs"]')?.getAttribute("aria-checked") === "false",
+        undefined,
+        { timeout: 5000 },
+      );
+    } catch {
+      done(1, "клик по тумблеру «Доступ к файловой системе» его не выключил — переключатели не нажимаются (замечание владельца)");
+    }
+    const fsOff = await live.$eval('[data-testid="context-row-fs"] .context-row__value', (el) => ({
+      text: el.textContent.trim(),
+      cls: el.className,
+    }));
+    if (fsOff.text !== "Выключен" || !fsOff.cls.includes("off")) {
+      done(1, `после выключения права файлы показывают «${fsOff.text}» без статуса «off» — значение должно смениться вместе с правом`);
+    }
+    await live.click('[data-testid="context-toggle-fs"]');
+    try {
+      await live.waitForFunction(
+        () => document.querySelector('[data-testid="context-toggle-fs"]')?.getAttribute("aria-checked") === "true",
+        undefined,
+        { timeout: 5000 },
+      );
+    } catch {
+      done(1, "повторный клик по тумблеру файлов не вернул доступ — право не переключается одной кнопкой");
+    }
+    // Без папки клик по тумблеру — тот же жест, что «+ Новый проект»: системный выбор
+    // папки (у фикстуры он отвечает своим проектом) — тумблер включается честным действием.
+    const fromEmpty = await browser.newPage({ viewport: WIDE });
+    await fromEmpty.goto(`${iface.url}?состояние=пусто`, { waitUntil: "domcontentloaded", timeout: 90_000 });
+    await fromEmpty.waitForSelector('[data-testid="context-panel"]', { timeout: 90000 });
+    await fromEmpty.click('[data-testid="context-toggle-fs"]');
+    try {
+      await fromEmpty.waitForFunction(
+        () => document.querySelector('[data-testid="context-toggle-fs"]')?.getAttribute("aria-checked") === "true",
+        undefined,
+        { timeout: 5000 },
+      );
+    } catch {
+      done(1, "клик по выключенному тумблеру файлов без папки не привёл к выбору проекта — действие не честное");
+    }
+    const picked = await fromEmpty.$eval('[data-testid="context-panel"]', (el) =>
+      el.textContent.includes("GnomeCode"),
+    );
+    if (!picked) {
+      done(1, "после клика по тумблеру без папки панель не показала выбранный проект — диалог выбора не отработал");
+    }
+    await fromEmpty.close();
+
     // Команды подключённого плагина в панели и ход одобрения: клик по кнопке панели.
     await live.click('[data-testid="composer-add"]');
     await live.click('[data-testid="add-connect-plugin"]');
@@ -319,7 +409,7 @@ try {
 
     done(
       0,
-      `приветственная сборка: H1 ${H1_PX} px/700, счётчики ${COUNTERS.join("/")} с честными нулями и числами ${NUMBER_PX} px/600 табличные, ряды провайдеров и моделей со вторыми линиями, 4 сценария с глифами; разбор: ступени с номерами сворачиваются, код-блок «Копировать→Скопировано» с языком и переносом; сайдбар: группы ${GROUPS.join("/")} и двухстрочные строки; панель: команды плагинов через одобрение, тумблеры со значениями и причинами, «позже» нет`,
+      `приветственная сборка: H1 ${H1_PX} px/700, счётчики ${COUNTERS.join("/")} с честными нулями и числами ${NUMBER_PX} px/600 табличные, без ряда провайдеров, порядок H1 → счётчики → сценарии → модели (ряд до ${MODEL_ROW_LIMIT}), 4 сценария с глифами; разбор: ступени с номерами сворачиваются, код-блок «Копировать→Скопировано» с языком и переносом; сайдбар: группы ${GROUPS.join("/")} и двухстрочные строки; панель: тумблер файлов переключает право чата (без папки — выбор папки проекта), интернет выключен с причиной, команды плагинов через одобрение, «позже» нет`,
     );
   } finally {
     await browser.close();
