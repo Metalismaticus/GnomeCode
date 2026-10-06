@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 
-import type { ApprovalDecision, PluginScope } from "../bridge";
+import type { ApprovalDecision, ChatModelChoice, PluginScope } from "../bridge";
 import type { CatalogEntry } from "../catalog";
+import type { CompareModel } from "../compare";
 import { useFeed } from "../chat";
+import { useCompare } from "../features/compare/useCompare";
 import { useApproval } from "../features/plugins/useApproval";
 import { useCatalog } from "../features/plugins/useCatalog";
 import { usePlugins } from "../features/plugins/usePlugins";
 import { useToolsets } from "../features/plugins/useToolsets";
 import type { ProjectState } from "../features/project/useProject";
-import type { Theme } from "../viewparams";
+import { params, type Theme } from "../viewparams";
+import { ComparePanel } from "./ComparePanel";
 import { ChatHeader } from "./ChatHeader";
 import { ChatPluginsPanel } from "./ChatPluginsPanel";
 import { Composer } from "./Composer";
@@ -23,7 +26,7 @@ import "./ChatView.css";
  *  панель «Plugins in this chat» или ничего. Окно одобрения — не здесь: его
  *  открытость держит `useApproval`; сводку прав установки держит `pending` —
  *  она живёт и при открытом каталоге. */
-type Overlay = "none" | "menu" | "plugins" | "toolsets" | "catalog" | "chat-plugins";
+type Overlay = "none" | "menu" | "plugins" | "toolsets" | "catalog" | "chat-plugins" | "compare";
 
 /** Закрытие открытого оверлея по Esc и клику снаружи — иначе меню и список
  *  висят поверх поля ввода и перехватывают клик по «отправить». Снаружи
@@ -31,14 +34,23 @@ type Overlay = "none" | "menu" | "plugins" | "toolsets" | "catalog" | "chat-plug
  *  после клика по кнопке команды — продолжение клика ещё всплывает до window,
  *  и слушатель click успел бы закрыть то, что этот же клик открыл. mousedown
  *  открывающего жеста всегда раньше подписки, поэтому оверлей переживает свой клик. */
-function useOverlayDismiss(open: boolean, close: () => void): void {
+const MODEL_BADGE = '[data-testid="model-badge"]';
+
+function useOverlayDismiss(
+  open: boolean,
+  /** Клик снаружи: закрытие без возврата фокуса — фокус уводит сам жест. */
+  close: () => void,
+  /** Esc — отдельный жест: панель сравнения возвращает фокус бейджу (спека
+   *  «Клавиатура»), остальным оверлеям возврата нет. */
+  onEscape: () => void,
+): void {
   useEffect(() => {
     if (!open) {
       return;
     }
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        close();
+        onEscape();
       }
     };
     const onMouseDown = (event: MouseEvent) => {
@@ -51,7 +63,9 @@ function useOverlayDismiss(open: boolean, close: () => void): void {
         !target?.closest(".plugin-summary") &&
         !target?.closest(".plugin-approval") &&
         !target?.closest(".chat-plugins") &&
+        !target?.closest(".compare-panel") &&
         !target?.closest('[data-testid="composer-add"]') &&
+        !target?.closest(MODEL_BADGE) &&
         !target?.closest('[data-testid="header-plugins-area"]')
       ) {
         close();
@@ -63,7 +77,7 @@ function useOverlayDismiss(open: boolean, close: () => void): void {
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("mousedown", onMouseDown);
     };
-  }, [open, close]);
+  }, [open, close, onEscape]);
 }
 
 /** Центральная колонка: шапка, лента, композер. Ядро окна — то, что тянется. */
@@ -76,6 +90,8 @@ export function ChatView({
   project,
   onFirstQuestion,
   onOpenPluginsPage,
+  model,
+  onChooseModel,
 }: {
   title: string;
   theme: Theme;
@@ -88,17 +104,29 @@ export function ChatView({
   onFirstQuestion?: (question: string) => void;
   /** Клик по источнику-плагину: раздел «Плагины» открывается вместо чата. */
   onOpenPluginsPage: () => void;
+  /** Модель текущего чата: бейдж шапки и строка «Выбрана». */
+  model: string;
+  /** «Выбрать» в панели сравнения: модель чата меняется и запоминается. */
+  onChooseModel: (choice: ChatModelChoice) => void;
 }) {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
-  const [overlay, setOverlay] = useState<Overlay>("none");
+  // Сравнение на снимках открывается сразу: `?состояние=сравнение*`, строка
+  // `сравнение-раскрыто` несёт строку с уже развёрнутыми подробностями.
+  const [overlay, setOverlay] = useState<Overlay>(
+    params.feed.startsWith("сравнение") ? "compare" : "none",
+  );
   /** Карточка, чью сводку прав открыли: решение ещё не принято. */
   const [pending, setPending] = useState<CatalogEntry | undefined>(undefined);
   const { rows, error, send } = useFeed();
   const plugins = usePlugins();
   const toolsets = useToolsets();
   const catalog = useCatalog(overlay === "catalog");
+  const compare = useCompare(overlay === "compare");
   const approval = useApproval();
+  /** Развёрнутая строка снимка: `?состояние=сравнение-раскрыто` открывает панель
+   *  с подробностями North Mini Code вместо клика — кадр без действий владельца. */
+  const initialExpanded = params.feed === "сравнение-раскрыто" ? "cohere/north-mini-code-1-0" : null;
 
   const ask = useCallback(
     async (text: string) => {
@@ -177,6 +205,16 @@ export function ChatView({
   /** «Отмена» сводки: ничего не ставится, каталог остаётся открытым. */
   const cancelInstall = useCallback(() => setPending(undefined), []);
 
+  /** «Выбрать» в панели сравнения: модель чата меняется у App (бейдж и состояние
+   *  окна), панель закрывается — как подключение плагина закрывает пикер. */
+  const chooseModel = useCallback(
+    (choice: CompareModel) => {
+      onChooseModel({ name: choice.name, id: choice.id });
+      setOverlay((open) => (open === "compare" ? "none" : open));
+    },
+    [onChooseModel],
+  );
+
   /** Esc и клик снаружи закрывают и оверлей, и окно одобрения: закрытое без
    *  ответа окно — не ответ, вызов спросит снова при следующем клике. */
   const dismissAll = useCallback(() => {
@@ -184,7 +222,32 @@ export function ChatView({
     setPending(undefined);
     approval.dismiss();
   }, [approval.dismiss]);
-  useOverlayDismiss(overlay !== "none" || pending !== undefined, dismissAll);
+
+  /** Фокус закрытой панели сравнения возвращается бейджу — открыли им, к нему
+   *  и вернулись (спека «Клавиатура»); один помощник на оба пути закрытия. */
+  const focusModelBadge = useCallback(() => {
+    (document.querySelector(MODEL_BADGE) as HTMLElement | null)?.focus();
+  }, []);
+
+  /** Esc закрывает то же, что и dismissAll, и панель сравнения возвращает фокус
+   *  бейджу — тем же жестом, что и ✕; остальным оверлеям возврата нет. */
+  const dismissOnEscape = useCallback(() => {
+    if (overlay === "compare") {
+      focusModelBadge();
+    }
+    dismissAll();
+  }, [overlay, dismissAll, focusModelBadge]);
+  useOverlayDismiss(overlay !== "none" || pending !== undefined, dismissAll, dismissOnEscape);
+
+  /** Фокус закрытой панели возвращается бейджу: сравнение открыли им, к нему и
+   *  вернулись (спека «Клавиатура»). Узкий случай — открытые пикеры композера
+   *  ведут свой фокус сами, их не трогаем. */
+  const closeOverlay = useCallback(() => {
+    if (overlay === "compare") {
+      focusModelBadge();
+    }
+    setOverlay("none");
+  }, [overlay, focusModelBadge]);
 
   /** Клик по источнику-файлу: панель разворачивается (в узком окне она закрыта)
    *  и файл показан в дереве — источник открыт, а не только назван (phase2.md, 9.1). */
@@ -215,9 +278,12 @@ export function ChatView({
         onToggleTheme={onToggleTheme}
         onTogglePanel={onTogglePanel}
         panelOpen={panelOpen}
+        model={model}
         plugins={plugins.connected}
         onRunCommand={(plugin, command) => void approval.run(plugin, command)}
         onOpenPlugins={() => setOverlay(overlay === "chat-plugins" ? "none" : "chat-plugins")}
+        onToggleCompare={() => setOverlay(overlay === "compare" ? "none" : "compare")}
+        compareOpen={overlay === "compare"}
       />
       {overlay === "chat-plugins" ? (
         <ChatPluginsPanel
@@ -225,6 +291,15 @@ export function ChatView({
           onRemove={removeFromChat}
           onAdd={() => setOverlay("plugins")}
           onClose={() => setOverlay("none")}
+        />
+      ) : null}
+      {overlay === "compare" ? (
+        <ComparePanel
+          compare={compare}
+          currentModel={model}
+          initialExpanded={initialExpanded}
+          onChoose={chooseModel}
+          onClose={closeOverlay}
         />
       ) : null}
       {approval.asked ? (
