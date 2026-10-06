@@ -163,16 +163,23 @@ Reread the «Очередь» in `docs/ROADMAP.md`: the concept chat may have ch
   line of `docs/TESTING.md` directs; for a project with a weekly limit — one); `[ощущение]` —
   no more than one per topic, a second of the same topic waits for the next batch.
 
-Write the batch into `docs/BATCH.md` by the sample in its header: the header lines (with
-«Последний полный прогон: не было», «Волны: —», «Язык коммитов: <from the «Git»
+Write the batch into `docs/BATCH.md` into the **live part of the file** —
+replacing the «Пусто.» line above the sample comment; the sample comment is
+never filled or edited (a batch written into the comment is invisible to the
+protocol). The header lines (with «Последний полный прогон: не было», «Волны:
+<the «Параллельная работа» line of `docs/TESTING.md` as read at take time —
+never carried over from the sample, the comment or the previous batch>»,
+«Язык коммитов: <from the «Git»
 of `AGENTS.md`, or by "Language" in `COMMITS.md`>»); the table — number, wave,
 item with markers, criterion, `ждёт очереди`. The numbers are stable — `/studio/done
 кроме 3` refers to them.
 
 **Waves** — after writing (`scout` reads the batch from the file). `пишут` — from
 the argument, otherwise from «Параллельной работы» of `docs/TESTING.md` (`предел: N` =
-`пишут: N`). More than one item, «проверено» and `пишут` above 1 — a fresh
-`scout` with the numbers and `пишут`; its waves with reasons — verbatim into the header
+`пишут: N`), read at take time — never from the sample, the comment or the
+previous batch's header. More than one item, «проверено» and `пишут` above 1 —
+a fresh `scout` with the numbers and `пишут` is **mandatory, not optional**;
+its waves with reasons — verbatim into the header
 and the «Волна» column; do not assemble other pairs. With «не проверено» the argument
 does not include parallelism; above what is checked — a line in the report. Otherwise
 each item — its own wave.
