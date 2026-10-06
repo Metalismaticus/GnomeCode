@@ -547,6 +547,14 @@ pub enum FeedEvent {
         /// без известного плагина не показывать (не фейкать).
         #[serde(skip_serializing_if = "Option::is_none")]
         plugin: Option<String>,
+        /// Файлы вопроса: источник ответа (phase2.md, 9.1) — блок «Sources used»
+        /// открывает их по клику; у строк не-вопросов его нет.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        files: Option<Vec<String>>,
+        /// Файл, который вызов инструмента читал (ключ `filePath`/`path` входа):
+        /// источник у строки `✓`; у запусков, отказов и чужих вызовов его нет.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        file: Option<String>,
     },
     Append {
         id: String,
@@ -570,6 +578,8 @@ impl FeedEvent {
             kind: RowKind::Notice,
             text: text.to_string(),
             plugin: None,
+            files: None,
+            file: None,
         }
     }
 }
@@ -588,6 +598,8 @@ pub struct Feed {
 struct ToolRow {
     name: String,
     detail: String,
+    /// Файл входа вызова, если инструмент его назвал: живёт до конца вызова.
+    file: Option<String>,
     /// Последняя отданная строка: повтор той же строки ленте не нужен.
     line: String,
 }
@@ -597,6 +609,7 @@ impl Default for ToolRow {
         ToolRow {
             name: UNKNOWN_TOOL.to_string(),
             detail: String::new(),
+            file: None,
             line: String::new(),
         }
     }
@@ -629,22 +642,26 @@ impl Feed {
                     kind: RowKind::Assistant,
                     text: data.text.clone(),
                     plugin: None,
+                    files: None,
+                    file: None,
                 }]
             }
             ServerEvent::ToolInputStarted { data } => {
-                self.tool(&data.id, &data.name, ToolState::Started, "")
+                self.tool(&data.id, &data.name, ToolState::Started, "", None)
             }
             ServerEvent::ToolInputEnded { data } => {
                 let detail = summarize(&data.text);
-                self.tool(&data.id, "", ToolState::Input, &detail)
+                let file = file_of_str(&data.text);
+                self.tool(&data.id, "", ToolState::Input, &detail, file)
             }
             ServerEvent::ToolCalled { data } => {
                 let detail = summarize(&data.input.to_string());
-                self.tool(&data.id, "", ToolState::Running, &detail)
+                let file = file_of(&data.input);
+                self.tool(&data.id, "", ToolState::Running, &detail, file)
             }
-            ServerEvent::ToolSuccess { data } => self.tool(&data.id, "", ToolState::Done, ""),
+            ServerEvent::ToolSuccess { data } => self.tool(&data.id, "", ToolState::Done, "", None),
             ServerEvent::ToolFailed { data } => {
-                self.tool(&data.id, "", ToolState::Failed, &data.error.message)
+                self.tool(&data.id, "", ToolState::Failed, &data.error.message, None)
             }
             ServerEvent::ExecutionSucceeded { .. } => {
                 vec![FeedEvent::notice("engine", NOTICE_DONE)]
@@ -670,10 +687,19 @@ impl Feed {
             kind: RowKind::Assistant,
             text: String::new(),
             plugin: None,
+            files: None,
+            file: None,
         }]
     }
 
-    fn tool(&mut self, id: &str, name: &str, state: ToolState, detail: &str) -> Vec<FeedEvent> {
+    fn tool(
+        &mut self,
+        id: &str,
+        name: &str,
+        state: ToolState,
+        detail: &str,
+        file: Option<String>,
+    ) -> Vec<FeedEvent> {
         let known = self.tools.remove(id).unwrap_or_default();
         let name = if name.is_empty() {
             known.name
@@ -687,6 +713,9 @@ impl Feed {
         } else {
             detail.to_string()
         };
+        // Файл тоже не стирается: он приходит с входом вызова, а живёт до конца —
+        // по нему блок источников открывает файл после строки «✓».
+        let file = file.or(known.file);
         let text = tool_line(&name, state, &detail);
         let same = text == known.line;
         self.tools.insert(
@@ -694,12 +723,16 @@ impl Feed {
             ToolRow {
                 name: name.clone(),
                 detail,
+                file: file.clone(),
                 line: text.clone(),
             },
         );
         if same {
             return Vec::new();
         }
+        // Источник — исполненный вызов: файл идёт только со строкой «✓», запуску
+        // («⧗») и отказу («✗») названный файл не источник.
+        let shown = if state == ToolState::Done { file } else { None };
         vec![FeedEvent::Row {
             id: id.to_string(),
             kind: RowKind::Tool,
@@ -707,6 +740,8 @@ impl Feed {
             // Имя плагина известен ленте позже (команда плагина), а вызовы
             // инструмента движка — не плагины: деталей у них нет.
             plugin: None,
+            files: None,
+            file: shown,
         }]
     }
 }
@@ -770,6 +805,20 @@ pub fn command_refused(plugin: &str, label: &str, why: Refusal) -> String {
 
 /// Имя, когда движок не назвал инструмент: лучше «инструмент», чем пустая строка в ленте.
 const UNKNOWN_TOOL: &str = "инструмент";
+
+/// Файл из входа инструмента — источник ответа (phase2.md, 9.1): ключи `filePath`
+/// и `path`, те же, что дают короткое имя действия. Ключей нет — вызов файла не касался.
+fn file_of(input: &Value) -> Option<String> {
+    ["filePath", "path"]
+        .iter()
+        .find_map(|key| input.get(*key).and_then(Value::as_str))
+        .map(str::to_string)
+}
+
+/// То же по строке входа (`tool.input.ended` несёт вход текстом JSON).
+fn file_of_str(input: &str) -> Option<String> {
+    serde_json::from_str::<Value>(input).ok().and_then(|value| file_of(&value))
+}
 
 /// Короткое «действие» из входа инструмента: путь файла, команда, запрос.
 pub fn summarize(input: &str) -> String {

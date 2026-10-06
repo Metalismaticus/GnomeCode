@@ -10,7 +10,7 @@
 
 import type { FeedEvent, RowKind } from "./bridge";
 import type { ContextSection } from "./components/ContextPanel";
-import { project } from "./fixtureTree";
+import { ROOT, project } from "./fixtureTree";
 import { params } from "./viewparams";
 
 const ANSWER = "Смотрю структуру папки. Мост на месте.";
@@ -38,6 +38,15 @@ const shown = (text: string, files: string[]): string =>
 
 /** Имя файла из полного пути: чипу и строке вопроса нужно имя, движку — содержимое. */
 const nameOf = (path: string): string => path.split(/[\\/]/).filter(Boolean).pop() ?? path;
+
+/** Путь файла от папки проекта: поле `files` строки вопроса несёт его, как и
+ *  `project::request` в окне (src-tauri/src/project/prompt.rs) — по нему блок
+ *  источников открывает файл. */
+const fromRoot = (path: string): string => {
+  const base = ROOT.replace(/\\/g, "/").toLowerCase();
+  const whole = path.replace(/\\/g, "/");
+  return whole.toLowerCase().startsWith(`${base}/`) ? whole.slice(base.length + 1) : whole;
+};
 
 type Listener = (event: FeedEvent) => void;
 
@@ -85,11 +94,12 @@ class Fixture {
 
   /** Вопрос владельца: своя строка, ответ модели дописывается по кучкам.
    *  Прикреплённые файлы видны в строке вопроса именами — как их показывает
-   *  `project::prompt` в ленте окна (src-tauri/src/project/prompt.rs). */
+   *  `project::prompt` в ленте окна (src-tauri/src/project/prompt.rs) — и идут
+   *  полем `files`: по ним блок «Sources used» собирает источники. */
   push(text: string, files: string[]): void {
     this.sent += 1;
     const answerId = `msg_fixture_${this.sent}`;
-    this.emit(row(`user-${this.sent}`, "user", shown(text, files)));
+    this.emit({ type: "row", id: `user-${this.sent}`, kind: "user", text: shown(text, files), files: files.map(fromRoot) });
     this.emit(row(answerId, "assistant", ""));
     for (const part of ANSWER.split(/(?<= )/)) {
       this.emit({ type: "append", id: answerId, delta: part });
@@ -100,7 +110,9 @@ class Fixture {
     if (params.breaks) {
       this.emit(row("stream", "notice", RECONNECT));
     }
-    this.emit(row("call_1", "tool", "✓ read · src/bridge.ts"));
+    // Вызов инструмента с файлом: тот же вид и то же поле `file`, что отдаёт
+    // Feed::tool в окне (src-tauri/src/opencode/client.rs) — источник ответа.
+    this.emit({ type: "row", id: "call_1", kind: "tool", text: "✓ read · src/bridge.ts", file: "src/bridge.ts" });
     this.emit(row("engine", "notice", DONE));
   }
 

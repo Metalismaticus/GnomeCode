@@ -10,17 +10,20 @@ use crate::project::read_source;
 const FILES_HEADING: &str = "Файлы проекта:";
 
 /// Что уходит в ленту окна и что уходит движку: имена файлов интересуют владельца,
-/// содержимое — модель, поэтому строки разные.
+/// содержимое — модель, поэтому строки разные. `files` — те же имена полями, а не
+/// разбором строки «Файлы: …» текстом: по ним блок источников открывает файл.
 #[derive(Debug)]
 pub struct Sent {
     pub shown: String,
     pub prompt: String,
+    /// Приложенные файлы путями от папки проекта — источники ответа (phase2.md, 9.1).
+    pub files: Vec<String>,
 }
 
 /// Запрос владельца с приложенными файлами. Без файлов вопрос уходит без изменений.
 pub fn request(root: Option<&Path>, text: &str, files: &[String]) -> Result<Sent, String> {
     if files.is_empty() {
-        return Ok(Sent { shown: text.to_string(), prompt: text.to_string() });
+        return Ok(Sent { shown: text.to_string(), prompt: text.to_string(), files: Vec::new() });
     }
     let root = root.ok_or("Файлы проекта приложены, а папка проекта не выбрана".to_string())?;
 
@@ -35,6 +38,7 @@ pub fn request(root: Option<&Path>, text: &str, files: &[String]) -> Result<Sent
     Ok(Sent {
         shown: format!("{}\n\nФайлы: {}", text.trim(), names.join(", ")),
         prompt: format!("{}\n\n{FILES_HEADING}\n\n{}", text.trim(), blocks.join("\n\n")),
+        files: names,
     })
 }
 

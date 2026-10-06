@@ -46,8 +46,13 @@ impl Sink for WindowSink {
 
 enum Cmd {
     /// `shown` — строка вопроса в ленте (владелец должен видеть, что отправляет),
-    /// `prompt` — текст движку, с приложенными файлами.
-    Prompt { shown: String, prompt: String },
+    /// `prompt` — текст движку, с приложенными файлами; `files` — те же имена
+    /// полями строки вопроса: по ним блок источников открывает файл.
+    Prompt {
+        shown: String,
+        prompt: String,
+        files: Vec<String>,
+    },
     /// Команда плагина, одобренная слоем прав: строка запуска в ленте, POST — движку.
     Command {
         plugin: String,
@@ -155,7 +160,9 @@ impl Chat {
     }
 
     /// Отправить текст в сессию: команда уходит в поток ленты, а не блокирует интерфейс.
-    pub fn send(&self, shown: &str, prompt: &str) -> Result<(), String> {
+    /// `files` — приложенные файлы путями от папки проекта: поле строки вопроса,
+    /// по нему блок источников открывает файл (phase2.md, 9.1).
+    pub fn send(&self, shown: &str, prompt: &str, files: &[String]) -> Result<(), String> {
         let prompt = prompt.trim();
         if prompt.is_empty() {
             return Err("пустое сообщение отправлять нечем".to_string());
@@ -164,6 +171,7 @@ impl Chat {
             .send(Cmd::Prompt {
                 shown: shown.trim().to_string(),
                 prompt: prompt.to_string(),
+                files: files.to_vec(),
             })
             .map_err(|_| "лента закрыта: перезапустите приложение".to_string())
     }
@@ -348,6 +356,8 @@ fn supervise_missing(rx: Receiver<Cmd>, sink: Arc<dyn Sink>) {
                     text: client::command_refused(&plugin, &label, why),
                     // Отказ — тоже вызов плагина в ленте: детали открываются по нему.
                     plugin: Some(plugin),
+                    files: None,
+                    file: None,
                 });
             }
             // Движка нет — перезапускать нечего: запрос установки уже исполнен,
@@ -384,7 +394,7 @@ fn pump(
                     // Поток событий прошлой жизни движка больше не придёт.
                     return false;
                 }
-                Cmd::Prompt { shown, prompt } => {
+                Cmd::Prompt { shown, prompt, files } => {
                     *sent += 1;
                     // Идентификатор строки вопроса не переиспользуется: два одинаковых
                     // вопроса — две строки, даже если между ними был обрыв потока.
@@ -393,6 +403,8 @@ fn pump(
                         kind: client::RowKind::User,
                         text: shown,
                         plugin: None,
+                        files: if files.is_empty() { None } else { Some(files) },
+                        file: None,
                     });
                     if let Err(reason) = api.prompt(session, &prompt) {
                         sink.emit(FeedEvent::notice(
@@ -410,6 +422,8 @@ fn pump(
                         kind: client::RowKind::Tool,
                         text: client::command_started(&plugin, &label),
                         plugin: Some(plugin),
+                        files: None,
+                        file: None,
                     });
                     if let Err(reason) = api.command(session, &command) {
                         sink.emit(FeedEvent::notice(
@@ -425,6 +439,8 @@ fn pump(
                         kind: client::RowKind::Tool,
                         text: client::command_refused(&plugin, &label, why),
                         plugin: Some(plugin),
+                        files: None,
+                        file: None,
                     });
                 }
             }

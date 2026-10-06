@@ -47,6 +47,7 @@ export function FileTree({ project, tab, onTab }: FileTreeProps) {
             key={row.node.path}
             row={row}
             selected={attached.includes(row.node.path)}
+            flash={project.highlight === row.node.path}
             onToggle={project.toggle}
             onAttach={project.attach}
           />
@@ -56,15 +57,18 @@ export function FileTree({ project, tab, onTab }: FileTreeProps) {
   );
 }
 
-/** Строка дерева: папка раскрывается стрелкой, файл — кликом по строке. */
+/** Строка дерева: папка раскрывается стрелкой, файл — кликом по строке.
+ *  Подсветка (`flash`) — файл открыт из блока «Sources used», не из дерева. */
 function TreeLine({
   row,
   selected,
+  flash,
   onToggle,
   onAttach,
 }: {
   row: TreeRow;
   selected: boolean;
+  flash: boolean;
   onToggle: (node: TreeNode) => void;
   onAttach: (node: TreeNode) => void;
 }) {
@@ -76,7 +80,7 @@ function TreeLine({
   );
   return (
     <div
-      className={`tree__row${selected ? " tree__row--on" : ""}`}
+      className={`tree__row${selected ? " tree__row--on" : ""}${flash ? " tree__row--flash" : ""}`}
       data-testid="tree-row"
       data-name={node.name}
       data-kind={node.kind}

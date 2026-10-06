@@ -114,6 +114,25 @@ fn request_carries_attached_files_into_the_prompt() {
         !sent.prompt.contains(&root.to_string_lossy().to_string()),
         "абсолютный путь наружу не уходит — движок получает путь от папки проекта"
     );
+    assert_eq!(
+        sent.files,
+        vec!["src/bridge.ts".to_string()],
+        "файлы вопроса идут полем, а не разбором строки «Файлы: …» текстом: {:?}",
+        sent.files
+    );
+}
+
+#[test]
+fn request_without_files_carries_no_sources() {
+    let root = sample("no_files");
+    let no_files: &[String] = &[];
+    let sent = request(Some(&root), QUESTION, no_files).expect("запрос без файлов собирается");
+    assert!(
+        sent.files.is_empty(),
+        "без приложенных файлов источников у вопроса нет: {:?}",
+        sent.files
+    );
+    let _ = fs::remove_dir_all(&root);
 }
 
 #[test]

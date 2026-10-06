@@ -75,6 +75,7 @@ export function ChatView({
   panelOpen,
   project,
   onFirstQuestion,
+  onOpenPluginsPage,
 }: {
   title: string;
   theme: Theme;
@@ -85,6 +86,8 @@ export function ChatView({
   project: ProjectState;
   /** Первый вопрос владельца становится титулом чата (src/appstate.ts). */
   onFirstQuestion?: (question: string) => void;
+  /** Клик по источнику-плагину: раздел «Плагины» открывается вместо чата. */
+  onOpenPluginsPage: () => void;
 }) {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -183,6 +186,18 @@ export function ChatView({
   }, [approval.dismiss]);
   useOverlayDismiss(overlay !== "none" || pending !== undefined, dismissAll);
 
+  /** Клик по источнику-файлу: панель разворачивается (в узком окне она закрыта)
+   *  и файл показан в дереве — источник открыт, а не только назван (phase2.md, 9.1). */
+  const revealSource = useCallback(
+    (path: string) => {
+      if (!panelOpen) {
+        onTogglePanel();
+      }
+      project.reveal(path);
+    },
+    [panelOpen, onTogglePanel, project.reveal],
+  );
+
   /** Ответ владельца в окне одобрения: решение сохраняет слой прав; «Отказать»
    *  тоже сообщается — лента получит строку отказа. */
   const decide = useCallback(
@@ -223,7 +238,13 @@ export function ChatView({
       {pending ? <PluginSummary entry={pending} onAllow={allowInstall} onCancel={cancelInstall} /> : null}
       <div className="feed" data-testid="feed">
         {rows.length ? (
-          <Feed rows={rows} error={error} chatTitle={title} />
+          <Feed
+            rows={rows}
+            error={error}
+            chatTitle={title}
+            onSourceFile={revealSource}
+            onSourcePlugin={onOpenPluginsPage}
+          />
         ) : (
           <EmptyChat />
         )}

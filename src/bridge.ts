@@ -41,12 +41,23 @@ export type RowKind = "user" | "assistant" | "tool" | "notice";
 
 /** Строка ленты: `row` — новая строка, `append` — дописать к существующей;
  *  строка вызова плагина несёт его id (`plugin`) — клик по строке открывает
- *  детали вызова (сцена J). */
+ *  детали вызова (сцена J); строка вопроса несёт приложенные файлы (`files`),
+ *  строка исполненного вызова инструмента — прочитанный файл (`file`): это
+ *  источники ответа (phase2.md, раздел 9.1), блок «Sources used» их показывает. */
 export type FeedEvent =
-  | { type: "row"; id: string; kind: RowKind; text: string; plugin?: string }
+  | { type: "row"; id: string; kind: RowKind; text: string; plugin?: string; files?: string[]; file?: string }
   | { type: "append"; id: string; delta: string };
 
-export type FeedRow = { id: string; kind: RowKind; text: string; plugin?: string };
+export type FeedRow = {
+  id: string;
+  kind: RowKind;
+  text: string;
+  plugin?: string;
+  /** Файлы вопроса путями от папки проекта: поле, а не разбор строки «Файлы: …». */
+  files?: string[];
+  /** Файл исполненного вызова инструмента (ключ filePath/path входа). */
+  file?: string;
+};
 
 /** Строка дерева файлов: папка или файл, полный путь — чтобы читать содержимое. */
 export type TreeNode = { name: string; path: string; kind: "dir" | "file"; loaded: boolean };

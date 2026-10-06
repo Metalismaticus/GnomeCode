@@ -57,6 +57,13 @@
   box-shadow: inset 2px 0 0 var(--accent);
 }
 
+/* Файл, открытый из блока «Sources used»: та же обводка, что у выбранного из
+   дерева, но без фона — это указание «где он», а не «он в вопросе». */
+.tree__row--flash {
+  box-shadow: inset 2px 0 0 var(--accent);
+  background: var(--bg-hover);
+}
+
 .tree__toggle {
   background: none;
   border: none;

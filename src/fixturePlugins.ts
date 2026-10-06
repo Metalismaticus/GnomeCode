@@ -193,14 +193,17 @@ const UPDATE_FIXTURE: Record<string, NonNullable<Plugin["update"]>> = {
 /** Список установленных плагинов по состоянию страницы: с плагинами или пустой.
  *  Состояние «одобрение» — тот же список: слой прав не меняет, что установлено;
  *  в состоянии «каталог» список нужен — оттуда и начинается установка; в разделе
- *  «Плагины» — сами карточки. */
+ *  «Плагины» — сами карточки; в состоянии «проект» — тоже: в окне у владельца
+ *  проект и установленные плагины живут вместе (источники ответа называются
+ *  рядом с деревом). */
 export function plugins(): Plugin[] {
   if (
     params.feed !== "plugins" &&
     params.feed !== "approval" &&
     params.feed !== "catalog" &&
     params.feed !== "plugins-section" &&
-    params.feed !== "plugins-updates"
+    params.feed !== "plugins-updates" &&
+    params.feed !== "project"
   ) {
     return [];
   }

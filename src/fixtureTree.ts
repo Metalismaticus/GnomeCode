@@ -5,7 +5,8 @@
 import type { TreeNode } from "./bridge";
 import { params } from "./viewparams";
 
-const ROOT = "C:\\Users\\Metalismatic\\Documents\\GnomeCode";
+/** Папка проекта вне окна: корень дерева фикстуры, его же знает fixture.ts. */
+export const ROOT = "C:\\Users\\Metalismatic\\Documents\\GnomeCode";
 
 /** Узел проекта: путь собирается от корня тем же разделителем, что и в окне. */
 const node = (name: string, kind: TreeNode["kind"], path = ROOT): TreeNode => ({

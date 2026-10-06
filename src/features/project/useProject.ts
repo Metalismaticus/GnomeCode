@@ -19,12 +19,18 @@ export type ProjectState = {
   top: TreeNode[];
   rows: TreeRow[];
   files: ProjectFile[];
+  /** Путь строки дерева, подсвеченной открытием из блока источников; пусто — ничего. */
+  highlight: string;
   /** Ошибка чтения папки — словами в панели, а не пустым деревом. */
   error: string;
   pick: () => void;
   toggle: (node: TreeNode) => void;
   attach: (node: TreeNode) => void;
   detach: (path: string) => void;
+  /** Открыть файл из блока «Sources used»: пройти сегменты пути от корня, раскрывая
+   *  папки, и подсветить его строку. Абсолютный путь чипа — по полному пути, путь
+   *  от вызова инструмента — по суффиксу среди уже прочитанных строк дерева. */
+  reveal: (path: string) => void;
 };
 
 /** Папка проекта: уже выбранная при открытии окна или та, что владелец выбрал сейчас.
@@ -34,6 +40,7 @@ export function useProject(initial: string): ProjectState {
   const [loaded, setLoaded] = useState<Record<string, TreeNode[]>>({});
   const [open, setOpen] = useState<string[]>([]);
   const [files, setFiles] = useState<ProjectFile[]>([]);
+  const [highlight, setHighlight] = useState("");
   const [error, setError] = useState("");
 
   const read = useCallback((path: string) => {
@@ -93,8 +100,51 @@ export function useProject(initial: string): ProjectState {
     setFiles((known) => known.filter((file) => file.path !== path));
   }, []);
 
+  const reveal = useCallback(
+    (path: string) => {
+      if (!root || !path) {
+        return;
+      }
+      // Уже прочитанные строки дерева: путь вызова инструмента может совпасть
+      // по суффиксу с файлом, который виден без раскрытия.
+      const visible = visibleBySuffix(Object.values(loaded).flat(), slashed(path));
+      if (visible) {
+        setHighlight(visible.path);
+        return;
+      }
+      descend(segmentsFrom(root, path), loaded[root] ?? [], loaded, {
+        open: (folder) => setOpen((open) => (open.includes(folder) ? open : [...open, folder])),
+        highlight: setHighlight,
+        read: (folder) =>
+          bridge()
+            .readTree(folder)
+            .then((fresh) => {
+              setLoaded((known) => ({ ...known, [folder]: fresh }));
+              return fresh;
+            })
+            .catch((reason: unknown) => {
+              setError(String(reason));
+              return [];
+            }),
+      });
+    },
+    [root, loaded],
+  );
+
   const top = root ? loaded[root] ?? [] : [];
-  return { root, top, rows: visible(top, loaded, open), files, error, pick, toggle, attach, detach };
+  return {
+    root,
+    top,
+    rows: visible(top, loaded, open),
+    files,
+    highlight,
+    error,
+    pick,
+    toggle,
+    attach,
+    detach,
+    reveal,
+  };
 }
 
 /** Строки дерева на экране: раскрытые папки и их содержимое, остальное скрыто.
@@ -111,4 +161,60 @@ function visible(top: TreeNode[], loaded: Record<string, TreeNode[]>, open: stri
   };
   walk(top, 0);
   return rows;
+}
+
+/** Путь по частям через «/»: дерево и источники сравнивают пути без разницы
+ *  разделителя — чип приходит с «\», вызов инструмента с «/». */
+const slashed = (path: string): string => path.replace(/\\/g, "/").toLowerCase();
+
+/** Сегменты пути от корня дерева: абсолютный путь чипа — отрезаем корень,
+ *  путь от вызова инструмента («src/bridge.ts») идёт как есть. */
+function segmentsFrom(root: string, path: string): string[] {
+  const base = slashed(root).replace(/\/$/, "");
+  const norm = slashed(path);
+  return (norm.startsWith(`${base}/`) ? norm.slice(base.length) : norm)
+    .split("/")
+    .filter(Boolean);
+}
+
+/** Файл среди строк дерева, чей путь совпадает с названным целиком или по суффиксу:
+ *  вызов инструмента называет файл от папки проекта, дерево — полным путём. */
+function visibleBySuffix(nodes: TreeNode[], norm: string): TreeNode | undefined {
+  return nodes.find((node) => {
+    const whole = slashed(node.path);
+    return node.kind === "file" && (whole === norm || whole.endsWith(`/${norm}`));
+  });
+}
+
+/** Шаги спуска по дереву: раскрыть папку, подсветить файл, дочитать папку мостом. */
+type Descend = {
+  open: (path: string) => void;
+  highlight: (path: string) => void;
+  read: (path: string) => Promise<TreeNode[]>;
+};
+
+/** Спуск по сегментам пути от корня: папки раскрываются, файл — подсвечивается.
+ *  Содержимое непрочитанной папки приходит мостом; пути в дереве нет — тихий
+ *  конец: выдумывать нечего. */
+async function descend(
+  segments: string[],
+  nodes: TreeNode[],
+  loaded: Record<string, TreeNode[]>,
+  act: Descend,
+): Promise<void> {
+  const [head, ...rest] = segments;
+  const found = nodes.find((node) => node.name.toLowerCase() === head?.toLowerCase());
+  if (!found) {
+    return;
+  }
+  if (!rest.length) {
+    act.highlight(found.path);
+    return;
+  }
+  if (found.kind !== "dir") {
+    return;
+  }
+  act.open(found.path);
+  const children = loaded[found.path] ?? (await act.read(found.path));
+  await descend(rest, children, loaded, act);
 }

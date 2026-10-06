@@ -106,6 +106,42 @@ fn tool_call_shows_name_and_action() {
     );
 }
 
+/// Файлы строки ленты: у строки `✓` файл, который она прочитала, — источник
+/// ответа (phase2.md, 9.1); у запуска («⧗») его ещё нет.
+fn files_of_kind(kind: RowKind) -> Vec<Option<String>> {
+    feed()
+        .into_iter()
+        .filter_map(|row| match row {
+            FeedEvent::Row { kind: found, file, .. } if found == kind => Some(file),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn done_tool_row_names_the_file_it_read() {
+    let rows = files_of_kind(RowKind::Tool);
+    assert_eq!(
+        rows.last().cloned().flatten().as_deref(),
+        Some("src/bridge.ts"),
+        "строка «✓» несёт файл входа вызова (ключ filePath): {:?}",
+        rows
+    );
+}
+
+#[test]
+fn running_tool_row_is_not_yet_a_source() {
+    let rows = files_of_kind(RowKind::Tool);
+    assert!(
+        rows.iter()
+            .rev()
+            .skip(1)
+            .all(|file| file.is_none()),
+        "файл — источник только у исполненного вызова: {:?}",
+        rows
+    );
+}
+
 #[test]
 fn unknown_event_does_not_break_the_feed() {
     let mut feed = Feed::default();
@@ -282,6 +318,27 @@ fn refusal_shows_a_line_and_does_not_call_the_engine() {
     assert!(
         !seen.contains("/command"),
         "после отказа движку нечего отправлять: {seen:?}"
+    );
+}
+
+#[test]
+fn user_row_carries_attached_files_as_a_field() {
+    let (chat, sink, _log) = bridge_with_log();
+    chat.send("Проверь", "Проверь", &["src/bridge.ts".to_string()])
+        .expect("вопрос ушёл мосту");
+    wait_for(&sink, "Проверь", WAIT);
+    let files = sink.rows().into_iter().find_map(|row| match row {
+        FeedEvent::Row {
+            kind: RowKind::User,
+            files,
+            ..
+        } => files,
+        _ => None,
+    });
+    assert_eq!(
+        files,
+        Some(vec!["src/bridge.ts".to_string()]),
+        "файлы вопроса идут полем строки, а не разбором «Файлы: …» текстом"
     );
 }
 

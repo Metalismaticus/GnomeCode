@@ -1,0 +1,33 @@
+/* Блок «Sources used» под ответом: те же панели, что у деталей вызова, —
+   вкладка разговора, а не отдельное окно (docs/DESIGN.md, разделы 1 и 4). */
+
+.sources {
+  margin-top: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border);
+  max-width: 85%;
+}
+
+.sources__title {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.sources__list {
+  margin-top: var(--space-1);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.sources__item {
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--badge-bg);
+  border: 1px solid var(--badge-border);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}

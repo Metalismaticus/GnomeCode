@@ -64,7 +64,12 @@ function usePanelOverlay(narrow: boolean, panelOpen: boolean, close: (open: bool
     };
     const onClick = (event: MouseEvent) => {
       const target = event.target as Element | null;
-      if (target?.closest(".context") || target?.closest('[data-testid="panel-toggle"]')) {
+      // Источник-файл сам раскрывает панель: тот же клик не должен её закрыть.
+      if (
+        target?.closest(".context") ||
+        target?.closest('[data-testid="panel-toggle"]') ||
+        target?.closest('[data-testid="source-file"]')
+      ) {
         return;
       }
       close(false);
@@ -163,6 +168,7 @@ export default function App() {
           panelOpen={panelOpen}
           project={project}
           onFirstQuestion={rememberChat}
+          onOpenPluginsPage={() => setPage("plugins")}
         />
       )}
       {narrow && !panelOpen ? null : (

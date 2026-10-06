@@ -82,7 +82,7 @@ fn chat_send(
 ) -> Result<(), String> {
     let files = files.unwrap_or_default();
     let sent = project::request(project.root().as_deref(), &text, &files)?;
-    chat.send(&sent.shown, &sent.prompt)?;
+    chat.send(&sent.shown, &sent.prompt, &sent.files)?;
     // Скоуп «Once» (docs/SPEC/plugins.md, сцена E): соединение служит текущему
     // запросу — следующий вопрос снимает плагин с чата, установка не трогается.
     registry.take_once();

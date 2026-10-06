@@ -16,12 +16,16 @@ export function foldFeed(events: FeedEvent[]): FeedRow[] {
   for (const event of events) {
     if (event.type === "row") {
       // Строка целиком: поле `plugin` при замене живёт — оно и есть кликабельность
-      // строки вызова плагина; потеря поля оставила бы строку без деталей.
+      // строки вызова плагина; потеря поля оставила бы строку без деталей. Так же
+      // живут поля источников (`files` вопроса, `file` вызова) — блок «Sources used»
+      // собирался бы из пустых строк.
       const row: FeedRow = {
         id: event.id,
         kind: event.kind,
         text: event.text,
         ...(event.plugin ? { plugin: event.plugin } : {}),
+        ...(event.files?.length ? { files: event.files } : {}),
+        ...(event.file ? { file: event.file } : {}),
       };
       const at = index.get(event.id);
       if (at === undefined) {
