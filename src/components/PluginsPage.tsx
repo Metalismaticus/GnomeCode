@@ -16,6 +16,7 @@ import { CatalogPicker } from "./CatalogPicker";
 import { PluginConfig } from "./PluginConfig";
 import { PluginSummary } from "./PluginSummary";
 import { PluginUpdates } from "./PluginUpdates";
+import { WindowButtons } from "./WindowButtons";
 import { params } from "../viewparams";
 
 import "./PluginsPage.css";
@@ -145,8 +146,8 @@ export function PluginsPage({ plugins }: { plugins: PluginsState }) {
 
   return (
     <main className="plugins-page" data-testid="plugins-page">
-      <div className="plugins-page__head">
-        <h1 className="plugins-page__title">Плагины</h1>
+      <div className="plugins-page__head" data-tauri-drag-region>
+        <h1 className="plugins-page__title" data-tauri-drag-region>Плагины</h1>
         <div className="plugins-page__tabs" role="tablist" aria-label="Разделы плагинов">
           {TABS.map((one) => (
             <button
@@ -162,6 +163,7 @@ export function PluginsPage({ plugins }: { plugins: PluginsState }) {
             </button>
           ))}
         </div>
+        <WindowButtons />
       </div>
       <div className="plugins-page__body">
         {tab === "installed" ? (

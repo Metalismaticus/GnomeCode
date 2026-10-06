@@ -118,7 +118,7 @@ export function ContextPanel({
   const rest = projectRows.filter((row) => !row.label.startsWith("Папка"));
   return (
     <aside className="context" data-testid="context-panel">
-      <div className="context__header">Контекст проекта</div>
+      <div className="context__header" data-tauri-drag-region>Контекст проекта</div>
       <FileTree project={project} tab={tab} onTab={setTab} />
       <div className="context__section">
         <div className="context__section-title">Проект</div>

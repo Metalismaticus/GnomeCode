@@ -3,6 +3,7 @@ import { DEFAULT_MODEL } from "../appstate";
 import type { Theme } from "../viewparams";
 import { PluginButton } from "./PluginButton";
 import { ThemeSwitch } from "./ThemeSwitch";
+import { WindowButtons } from "./WindowButtons";
 
 import "./ChatHeader.css";
 
@@ -81,8 +82,18 @@ export function ChatHeader({
   compareOpen = false,
 }: ChatHeaderProps) {
   return (
-    <header className="chat-header" data-testid="chat-header">
-      <span className="chat-header__title" data-testid="chat-title" title={title}>
+    <header
+      className="chat-header"
+      data-testid="chat-header"
+      data-tauri-drag-region
+      title="Перетащить окно"
+    >
+      <span
+        className="chat-header__title"
+        data-testid="chat-title"
+        title={title}
+        data-tauri-drag-region
+      >
         {title}
       </span>
       {/* Бейдж модели — теперь действие: открывает панель сравнения, поэтому у
@@ -110,6 +121,7 @@ export function ChatHeader({
         ☰
       </button>
       <ThemeSwitch theme={theme} onToggle={onToggleTheme} />
+      <WindowButtons />
     </header>
   );
 }

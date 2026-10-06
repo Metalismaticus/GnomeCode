@@ -238,6 +238,11 @@ type Bridge = {
   setDefault(category: string, value: string): Promise<RuleEntry[]>;
   /** Полный путь папки данных: показ вкладки «Папка данных»; смены пути здесь нет. */
   dataFolder(): Promise<string>;
+  /** Свои кнопки окна без рамки: системные действия текущего окна. */
+  windowMinimize(): Promise<void>;
+  /** Свернуть ↔ вернуть: `true` — окно теперь развёрнуто. */
+  windowToggleMaximize(): Promise<boolean>;
+  windowClose(): Promise<void>;
 };
 
 /** Канал Tauri, по которому лента получает строки (src-tauri/src/opencode/mod.rs). */
@@ -366,6 +371,15 @@ const tauriBridge = (): Bridge => ({
   },
   async dataFolder() {
     return (await invoke<string>("data_folder")) as string;
+  },
+  async windowMinimize() {
+    await invoke("window_minimize");
+  },
+  async windowToggleMaximize() {
+    return (await invoke<boolean>("window_toggle_maximize")) as boolean;
+  },
+  async windowClose() {
+    await invoke("window_close");
   },
 });
 
@@ -542,7 +556,30 @@ const fixtureBridge = (): Bridge => ({
   async dataFolder() {
     return DATA_FOLDER;
   },
+  async windowMinimize() {
+    // Рамку и системные действия страница не показывает (WebView2 Playwright не
+    // водит живое окно) — вызов записывается, сценарий стережёт сам ход кнопки.
+    recordWindowCall("minimize");
+  },
+  async windowToggleMaximize() {
+    recordWindowCall("maximize");
+    return maximizedFixture;
+  },
+  async windowClose() {
+    recordWindowCall("close");
+  },
 });
+
+/** Вызовы кнопок окна, зафиксированные фикстурой: сценарий окна без рамки
+ *  читает их с страницы (`window.__windowCalls`) — иначе клик не заметен. */
+function recordWindowCall(action: string): void {
+  maximizedFixture = action === "maximize" ? !maximizedFixture : maximizedFixture;
+  const holder = window as unknown as { __windowCalls?: string[] };
+  holder.__windowCalls = [...(holder.__windowCalls ?? []), action];
+}
+
+/** Состояние «развёрнуто» у фикстуры: Toggle возвращает его же наизнанку. */
+let maximizedFixture = false;
 
 /** Тема строки зеркала, если она названа. */
 function windowState(theme: string): WindowState["theme"] {

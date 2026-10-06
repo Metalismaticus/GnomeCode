@@ -28,6 +28,36 @@ fn app_version() -> Result<String, String> {
     Ok(env!("CARGO_PKG_VERSION").to_string())
 }
 
+/// Системные действия окна без рамки (docs/ROADMAP.md, «Окно без рамки: своя шапка»):
+/// своя шапка интерфейса зовёт их через мост, `WebviewWindow` — окно вызвавшей
+/// кнопки, его даёт сам Tauri. Обёртки над методами окна, своей логики нет.
+#[tauri::command]
+fn window_minimize(webview_window: tauri::WebviewWindow) -> Result<(), String> {
+    webview_window.minimize().map_err(|reason| reason.to_string())
+}
+
+#[tauri::command]
+fn window_toggle_maximize(webview_window: tauri::WebviewWindow) -> Result<bool, String> {
+    let was_maximized = webview_window
+        .is_maximized()
+        .map_err(|reason| reason.to_string())?;
+    if was_maximized {
+        webview_window
+            .unmaximize()
+            .map_err(|reason| reason.to_string())?;
+    } else {
+        webview_window
+            .maximize()
+            .map_err(|reason| reason.to_string())?;
+    }
+    Ok(!was_maximized)
+}
+
+#[tauri::command]
+fn window_close(webview_window: tauri::WebviewWindow) -> Result<(), String> {
+    webview_window.close().map_err(|reason| reason.to_string())
+}
+
 /// Состояние окна: сессия, титул чата, папка, тема. React знает структуру, не файл.
 #[tauri::command]
 fn state_get(store: State<'_, Arc<Store>>) -> Result<AppState, String> {
@@ -148,7 +178,10 @@ pub fn run() {
             settings_defaults,
             settings_set_default,
             state_get,
-            state_patch
+            state_patch,
+            window_minimize,
+            window_toggle_maximize,
+            window_close
         ])
         .setup(|app| {
             // Данные окна: что переживает перезапуск приложения. Папку данных даёт
