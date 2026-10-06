@@ -92,18 +92,15 @@ try {
       done(1, `вкладка Disabled не пуста до первого Disable: карточки — ${(await cards(page)).join(", ")}`);
     }
 
-    // г) Updates — честная заглушка про автообновление (пункт 4 партии) ----------
+    // г) Updates — честная пустота без обновлений: карточек нет и законно ----------
     await page.click(TAB("updates"));
     try {
-      await page.waitForSelector('[data-testid="plugins-updates-note"]', { timeout: 5000 });
+      await page.waitForSelector('[data-testid="plugin-updates-empty"]', { timeout: 5000 });
     } catch {
-      done(1, `на вкладке Updates нет строки-заглушки: нет [data-testid="plugins-updates-note"]`);
+      done(1, `на вкладке Updates нет честной пустоты: нет [data-testid="plugin-updates-empty"]`);
     }
-    const updates = await text(page, '[data-testid="plugins-updates-note"]');
-    for (const part of ["автообновлени", "пункт 4"]) {
-      if (!updates.includes(part)) {
-        done(1, `вкладка Updates не говорит честно, когда появятся обновления: «${updates}»`);
-      }
+    if ((await page.$$eval('[data-testid="plugin-update-card"]', (els) => els.length)) !== 0) {
+      done(1, "вкладка Updates не пуста без обновлений — карточки показаны без основания");
     }
 
     // д) Available — переход в каталог, его видно и можно закрыть ----------------
@@ -228,7 +225,7 @@ try {
 
     done(
       0,
-      "сайдбар ведёт в раздел «Плагины» со вкладками Installed/Available/Updates/Disabled: карточки показывают имя, автора, версию, описание, права, команды и статус, у карточек из реестра есть Enable/Disable/Uninstall (у плагина движка Uninstall нет), Updates честно упоминает автообновление (пункт 4), Disabled пуст до первого Disable, Available открывает каталог, «Отмена» подтверждения ничего не удаляет, «Удалить» убирает карточку из Installed, Disable убирает кнопки команд из шапки чатов, Enable возвращает",
+      "сайдбар ведёт в раздел «Плагины» со вкладками Installed/Available/Updates/Disabled: карточки показывают имя, автора, версию, описание, права, команды и статус, у карточек из реестра есть Enable/Disable/Uninstall (у плагина движка Uninstall нет), Updates честно пуста без обновлений (пустота законна), Disabled пуст до первого Disable, Available открывает каталог, «Отмена» подтверждения ничего не удаляет, «Удалить» убирает карточку из Installed, Disable убирает кнопки команд из шапки чатов, Enable возвращает",
     );
   } finally {
     await browser.close();

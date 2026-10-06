@@ -14,7 +14,7 @@ use super::manage;
 use super::model::Plugin;
 use super::permissions::Grants;
 use super::registry::Registry;
-use super::{rules, rules::Decision};
+use super::{rules, rules::Decision, updates};
 
 /// Папка данных: переменную задаёт проверка или копия, иначе — папка данных Tauri.
 fn data_dir(app: &AppHandle) -> std::path::PathBuf {
@@ -45,13 +45,33 @@ pub fn plugin_list(
         &installed,
     );
     // Правила категорий от файла правил: панель Configure показывает их на карточке.
-    let held = rules::at(&rules::file(folder));
+    let held = rules::at(&rules::file(folder.clone()));
     for plugin in &mut list {
         if let Some(own) = held.get(&plugin.id) {
             plugin.rules = Some(own.clone());
         }
     }
+    // Обновления из updates.json к карточкам вкладки Updates; запись, чью новую
+    // версию уже установили через «Разрешить» сводки, — «обновлено», ждать нечего.
+    let file = updates::file(folder.clone());
+    let mut notes = updates::at(&file);
+    let before = notes.clone();
+    updates::refresh(&mut notes, &installed);
+    if notes != before {
+        updates::save(&file, &notes)?;
+    }
+    for plugin in &mut list {
+        plugin.update = notes.records.get(&plugin.id).cloned();
+    }
     Ok(list)
+}
+
+/// Пометка последней проверки каталога из updates.json: «каталог недоступен —
+/// работаем на текущих» — строка вкладки Updates, окно при запуске не открывается
+/// (крайний случай автообновления).
+#[tauri::command]
+pub fn plugin_updates_note(app: AppHandle) -> Result<Option<String>, String> {
+    Ok(updates::at(&updates::file(data_dir(&app))).catalog)
 }
 
 /// Отмечено ли владелец включил или выключил плагин — Enable или Disable карточки:

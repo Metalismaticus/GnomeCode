@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use opencode::{Chat, WindowSink};
-use plugins::commands::{catalog_list, plugin_connect, plugin_decide, plugin_install, plugin_list, plugin_run, plugin_set_enabled, plugin_set_rule, plugin_uninstall};
+use plugins::commands::{catalog_list, plugin_connect, plugin_decide, plugin_install, plugin_list, plugin_run, plugin_set_enabled, plugin_set_rule, plugin_uninstall, plugin_updates_note};
 use plugins::permissions::Grants;
 use plugins::registry::Registry;
 use project::Project;
@@ -100,6 +100,7 @@ pub fn run() {
             plugin_set_enabled,
             plugin_set_rule,
             plugin_uninstall,
+            plugin_updates_note,
             project_pick_folder,
             project_read_tree,
             state_get,
@@ -130,6 +131,35 @@ pub fn run() {
                 store,
                 Arc::new(WindowSink(app.handle().clone())),
             ));
+            // Автообновление плагинов (пункт 4 партии): фоновый поток — сеть не
+            // блокирует запуск, окон ничего не открывает. Тихое обновление требует
+            // рестарта (движок читает плагины только при старте), сломанное — отката.
+            let handle = app.handle().clone();
+            std::thread::spawn(move || {
+                use plugins::updates;
+                let chat = handle.state::<Chat>();
+                let folder = std::env::var(state::DATA_DIR_VAR)
+                    .ok()
+                    .map(PathBuf::from)
+                    .unwrap_or_else(|| handle.path().app_data_dir().unwrap_or_else(|_| std::env::temp_dir()));
+                let done = updates::check_and_update(
+                    plugins::install::CATALOG_URL,
+                    &plugins::install::plugins_dir(),
+                    &plugins::install::registry_file(folder.clone()),
+                    &updates::file(folder.clone()),
+                );
+                // Сбой проверки (каталог, диск) — молча: работаем на текущих.
+                let Ok(done) = done else { return };
+                let _ = updates::follow_restart(
+                    &done.applied,
+                    &plugins::install::plugins_dir(),
+                    &plugins::install::registry_file(folder.clone()),
+                    &updates::file(folder.clone()),
+                    updates::log_file(),
+                    &mut || chat.restart(),
+                );
+                // Сбой отката — молча: прежняя пометка «сломано» уже в updates.json.
+            });
             // Реестр плагинов чата: что владелец подключил кнопкой «+».
             app.manage(Registry::default());
             // Слой прав вызовов плагинов: правила этого чата, память окна.

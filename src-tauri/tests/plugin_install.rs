@@ -10,7 +10,6 @@
 
 mod common;
 
-use std::net::TcpListener;
 use std::path::PathBuf;
 
 use gnomecode_lib::opencode::engine::{locate, Engine};
@@ -52,70 +51,22 @@ const INDEX_NEXT: &str = r#"[
 
 const PLUGIN_SRC: &str = "export default {\n  id: \"github\",\n  async setup() {\n    return {}\n  },\n}\n";
 
-/// Фейковый raw.githubusercontent: отвечает на GET путём маршрута, считает запросы.
-struct FakeGithub {
-    /// `адрес хоста:порта` — база каталога для установщика.
-    base: String,
-}
+/// Фейковый raw.githubusercontent на loopback — общий с обновлениями
+/// (tests/common/mod.rs): настоящая проверка с сокетами того же вида.
+use common::FakeGithub;
 
-impl FakeGithub {
-    /// Поднять сервер с двумя маршрутами: индекс каталога и файл плагина.
-    /// Вариант индекса выбирается по содержимому запроса: `index.json` отдаёт оба
-    /// тела по очереди — первая установка читает первое, вторая — второе.
-    fn start(index_bodies: [&'static str; 2]) -> FakeGithub {
-        let listener = TcpListener::bind("127.0.0.1:0").expect("фейковый GitHub поднялся");
-        let base = format!("http://{}", listener.local_addr().expect("адрес фейка"));
-        std::thread::spawn(move || {
-            let mut served = 0usize;
-            for stream in listener.incoming().flatten() {
-                let mut socket = stream;
-                let request = common::read_request(&mut socket);
-                let route = request.lines().next().unwrap_or_default().to_string();
-                let body = if route.contains("index.json") {
-                    index_bodies[served.min(1)]
-                } else {
-                    PLUGIN_SRC
-                };
-                served += 1;
-                let reply = common::json_head(body);
-                use std::io::Write;
-                let _ = socket.write_all(reply.as_bytes());
-                let _ = socket.flush();
-            }
-        });
-        FakeGithub { base }
-    }
-}
-
-/// Своя временная папка на тест: установки проверки не трогают данные владельца.
-struct TempDir(PathBuf);
-
-impl TempDir {
-    fn new(name: &str) -> TempDir {
-        let path = std::env::temp_dir().join(format!("gnomecode-install-{}-{name}", std::process::id()));
-        std::fs::create_dir_all(&path).expect("временная папка создана");
-        TempDir(path)
-    }
-
-    fn join(&self, tail: &str) -> PathBuf {
-        self.0.join(tail)
-    }
-}
-
-impl Drop for TempDir {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
+/// Своя временная папка на тест — общая (tests/common/mod.rs): установки и
+/// обновления проверки не трогают данные владельца.
+use common::TempDir;
 
 #[test]
 fn install_downloads_plugin_file_and_records_it() {
-    let fake = FakeGithub::start([INDEX, INDEX]);
+    let fake = FakeGithub::start(&[INDEX, INDEX], &[PLUGIN_SRC]);
     let plugins = TempDir::new("plugins");
     let data = TempDir::new("data");
     let registry = data.join("installed.json");
 
-    let found = install::fetch(&format!("{}/Metalismaticus/gnomecode-catalog/main/index.json", fake.base))
+    let found = install::fetch(&fake.index_url())
         .expect("индекс каталога прочитан");
     assert_eq!(found.len(), 1, "в индексе один плагин: {:?}", found);
     let entry = &found[0];
@@ -124,7 +75,7 @@ fn install_downloads_plugin_file_and_records_it() {
     assert_eq!(entry.permissions.len(), 2, "права каталога разобраны: {:?}", entry.permissions);
     assert_eq!(entry.commands.len(), 1, "команды каталога разобраны: {:?}", entry.commands);
 
-    install::install(entry, &fake.base, &plugins.0, &registry).expect("плагин установлен");
+    install::install(entry, fake.base(), plugins.path(), &registry).expect("плагин установлен");
 
     let file = plugins.join("github.ts");
     let written = std::fs::read_to_string(&file).expect("файл плагина записан в папку плагинов движка");
@@ -138,15 +89,15 @@ fn install_downloads_plugin_file_and_records_it() {
 
 #[test]
 fn reinstall_updates_the_record() {
-    let fake = FakeGithub::start([INDEX, INDEX_NEXT]);
+    let fake = FakeGithub::start(&[INDEX, INDEX_NEXT], &[PLUGIN_SRC]);
     let plugins = TempDir::new("plugins-2");
     let data = TempDir::new("data-2");
     let registry = data.join("installed.json");
 
     for version in ["1.4.2", "1.5.0"] {
-        let found = install::fetch(&format!("{}/Metalismaticus/gnomecode-catalog/main/index.json", fake.base))
+        let found = install::fetch(&fake.index_url())
             .expect("индекс каталога прочитан");
-        install::install(&found[0], &fake.base, &plugins.0, &registry)
+        install::install(&found[0], fake.base(), plugins.path(), &registry)
             .expect("плагин установлен повторно");
         let record = std::fs::read_to_string(&registry).expect("реестр установленного записан");
         assert!(
@@ -181,10 +132,10 @@ fn engine_loads_the_installed_plugin_from_the_global_folder() {
     // пишут в одно место, данные владельца не задеты.
     let home = TempDir::new("home-engine");
     let data = TempDir::new("data-engine");
-    std::env::set_var("USERPROFILE", &home.0);
-    std::env::set_var("XDG_DATA_HOME", data.join("xdg-data"));
-    std::env::set_var("XDG_CONFIG_HOME", home.join(".config"));
-    std::fs::create_dir_all(data.join("xdg-data")).expect("папка данных движка создана");
+    std::env::set_var("USERPROFILE", home.path());
+    std::env::set_var("XDG_DATA_HOME", data.path().join("xdg-data"));
+    std::env::set_var("XDG_CONFIG_HOME", home.path().join(".config"));
+    std::fs::create_dir_all(data.path().join("xdg-data")).expect("папка данных движка создана");
 
     let dir = install::plugins_dir();
     let file = dir.join("catalog_probe.ts");
@@ -260,6 +211,7 @@ fn merge_lists_installed_plugins_from_the_registry() {
         commands: vec![install::CommandSpec {
             name: "issues".to_string(),
             description: "list issues".to_string(),
+            category: None,
         }],
         disabled: false,
     }];

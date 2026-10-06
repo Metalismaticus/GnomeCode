@@ -73,6 +73,7 @@ fn card(base: &mut Plugin, connected: bool, entry: &CatalogEntry) -> Plugin {
         permissions: permissions_of(entry),
         disabled: entry.disabled,
         rules: None,
+        update: None,
     }
 }
 
@@ -99,11 +100,12 @@ fn from_entry(entry: &CatalogEntry, connected: bool) -> Plugin {
         permissions: permissions_of(entry),
         disabled: entry.disabled,
         rules: None,
+        update: None,
     }
 }
 
 /// Права записи на карточку: «Категория: значение», как в сводке прав установки.
-fn permissions_of(entry: &CatalogEntry) -> Vec<String> {
+pub fn permissions_of(entry: &CatalogEntry) -> Vec<String> {
     entry
         .permissions
         .iter()
@@ -137,6 +139,7 @@ fn plugin(entry: &Value, commands: &[Value], connected: &[String], disabled: &[S
         description: None,
         permissions: vec![],
         rules: None,
+        update: None,
     })
 }
 

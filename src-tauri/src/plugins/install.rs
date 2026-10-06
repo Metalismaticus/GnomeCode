@@ -26,6 +26,13 @@ use crate::state::DATA_DIR_VAR;
 pub const CATALOG_URL: &str =
     "https://raw.githubusercontent.com/Metalismaticus/gnomecode-catalog/main/index.json";
 
+/// База raw-репозитория: адрес без пути к файлу. Файл плагина собирается как
+/// `{база}/{repo}/{ветка}/{entry}`, поэтому для обновлений индекса адрес
+/// переезжает с полного адреса индекса на базу одного места.
+pub fn raw_base(index_url: &str) -> String {
+    index_url.split('/').take(3).collect::<Vec<&str>>().join("/")
+}
+
 /// Файл реестра установленного в папке данных.
 const REGISTRY_NAME: &str = "installed.json";
 const REQUEST_SECONDS: u64 = 30;
@@ -74,6 +81,26 @@ pub struct CatalogEntry {
 /// Что реестр помнит об установленном плагине: вся запись каталога целиком.
 /// Отдельный тип не нужен — форма совпадает с [`CatalogEntry`] один в один.
 type Installed = CatalogEntry;
+
+/// Реестр установленного с файла целиком: `id → запись`; испорченный или
+/// потерянный — пустой, как у [`installed`].
+pub fn records(registry: &Path) -> BTreeMap<String, Installed> {
+    fs::read(registry)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or_default()
+}
+
+fn write(registry: &Path, records: &BTreeMap<String, Installed>) -> Result<(), String> {
+    let json = serde_json::to_string_pretty(records)
+        .map_err(|e| format!("реестр установленного не собрался в JSON: {e}"))?;
+    if let Some(parent) = registry.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| format!("папка данных не создалась {}: {e}", parent.display()))?;
+    }
+    fs::write(registry, json)
+        .map_err(|e| format!("реестр установленного не записан {}: {e}", registry.display()))
+}
 
 /// Индекс каталога по адресу: список записей, ошибки — словами для окна каталога.
 pub fn fetch(source: &str) -> Result<Vec<CatalogEntry>, String> {
@@ -152,17 +179,18 @@ fn get(url: &str) -> Result<String, String> {
 
 /// Запись в реестре: чтение, подмена своей, запись — повторная установка обновляет.
 fn record(registry: &Path, entry: &CatalogEntry) -> Result<(), String> {
-    let mut known: BTreeMap<String, Installed> = fs::read(registry)
-        .ok()
-        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
-        .unwrap_or_default();
+    let mut known = records(registry);
     known.insert(entry.id.clone(), entry.clone());
-    let json = serde_json::to_string(&known)
-        .map_err(|e| format!("реестр установленного не собрался в JSON: {e}"))?;
-    if let Some(parent) = registry.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|e| format!("папка данных не создалась {}: {e}", parent.display()))?;
-    }
-    fs::write(registry, json)
-        .map_err(|e| format!("реестр установленного не записан {}: {e}", registry.display()))
+    write(registry, &known)
+}
+
+/// Вернуть версию плагина в реестре на прежнюю — откат сломавшегося обновления
+/// (updates.rs): запись остаётся, версия уходит на ту, что была до замены файла.
+pub fn revert(registry: &Path, id: &str, version: &str) -> Result<(), String> {
+    let mut known = records(registry);
+    let Some(entry) = known.get_mut(id) else {
+        return Err(format!("в реестре установленного нет записи о плагине «{id}»"));
+    };
+    entry.version = version.to_string();
+    write(registry, &known)
 }

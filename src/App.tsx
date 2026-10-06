@@ -98,8 +98,11 @@ export default function App() {
   const toggleTheme = useThemeToggle(theme, setTheme);
   const [panelOpen, setPanelOpen] = useState(params.right);
   const narrow = useNarrow();
-  /** Прямой доступ раздела для снимков и сценария: `?состояние=плагины-раздел`. */
-  const [page, setPage] = useState<Page>(params.feed === "plugins-section" ? "plugins" : "chat");
+  /** Прямой доступ раздела для снимков и сценария: `?состояние=плагины-раздел`
+   *  и `?состояние=плагины-обновления` (вкладка Updates пункта 4). */
+  const [page, setPage] = useState<Page>(
+    params.feed === "plugins-section" || params.feed === "plugins-updates" ? "plugins" : "chat",
+  );
   const data = panels(params.feed);
   // Папка проекта и титул чата: сначала фикстура/пусто, после ответа моста — сохранённые.
   // Титул не берётся из фиксёрного списка: otherwise «known непусто» считает его

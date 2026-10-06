@@ -27,6 +27,9 @@ export type PluginsState = {
   loading: boolean;
   /** Движок не ответил или плагина нет: причина словами, а не пустота. */
   error: string;
+  /** Пометка последней проверки каталога: не ответил — работаем на текущих;
+   *  `null` — каталог отвечал (src-tauri/src/plugins/updates.rs). */
+  updatesNote: string | null;
   search: (text: string) => void;
   connect: (id: string) => void;
   install: (id: string) => void;
@@ -46,6 +49,7 @@ export function usePlugins(): PluginsState {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [updatesNote, setUpdatesNote] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [recent, setRecent] = useState<string[]>([]);
 
@@ -55,6 +59,10 @@ export function usePlugins(): PluginsState {
       .then(setPlugins)
       .catch((reason: unknown) => setError(String(reason)))
       .finally(() => setLoading(false));
+    bridge()
+      .updatesNote()
+      .then(setUpdatesNote)
+      .catch(() => setUpdatesNote(null));
   }, []);
 
   /** Подключение к чату: плагин уходит в недавние, кнопки появляются в шапке. */
@@ -134,6 +142,7 @@ export function usePlugins(): PluginsState {
     favorites,
     loading,
     error,
+    updatesNote,
     search: setQuery,
     connect,
     install,

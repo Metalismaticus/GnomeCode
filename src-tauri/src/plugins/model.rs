@@ -50,6 +50,40 @@ pub struct Plugin {
     /// категории по умолчанию `ask` (src-tauri/src/plugins/rules.rs).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rules: Option<BTreeMap<String, String>>,
+    /// Что updates.json помнит об обновлении плагина: версии «от → до», пометка
+    /// и новые права; нет — обновления не было или оно давнее (updates.rs).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub update: Option<Update>,
+}
+
+/// Чем кончилось обновление плагина (updates.json, updates.rs).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum UpdateStatus {
+    /// Обновилось молча: права не менялись, файл заменён при запуске.
+    Applied,
+    /// Изменившиеся права: файл прежней версии, сводка прав до включения (сцена K).
+    Held,
+    /// Плагина нет в каталоге: проверить новую версию нечем.
+    Outside,
+    /// Новая версия не запустилась у движка: откат на предыдущую.
+    Broken,
+}
+
+/// Запись об обновлении: версии «от → до» и новые права, если изменились —
+/// то, что карточка вкладки Updates показывает и что сводка прав переносит.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct Update {
+    /// Версия, с которой обновлялись: та, что была в реестре установленного.
+    pub from: String,
+    /// Версия каталога, до которой обновили (или хотели, если обновление держится).
+    pub to: String,
+    /// Чем кончилось.
+    pub status: UpdateStatus,
+    /// Новые права декларации «Категория: значение» — для сводки до включения;
+    /// пусты, если права не менялись.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub permissions: Vec<String>,
 }
 
 /// Состояние движка «плагина работает».

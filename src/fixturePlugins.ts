@@ -108,6 +108,21 @@ const PLUGINS: Plugin[] = [
   ),
 ];
 
+/** Обновления из updates.json в состоянии «плагины-обновления»: git обновился
+ *  молча (права те же — реестр стоит на новой версии), docs ждёт прав (новая
+ *  категория Write — файл прежней версии), browser уже обновился — история.
+ *  Та же форма, что у записи updates.json (src-tauri/src/plugins/updates.rs). */
+const UPDATE_FIXTURE: Record<string, NonNullable<Plugin["update"]>> = {
+  git: { from: "1.0.0", to: "1.1.0", status: "applied" },
+  docs: {
+    from: "0.9.0",
+    to: "1.0.0",
+    status: "held",
+    permissions: ["Read: файлы документации", "Write: ask"],
+  },
+  browser: { from: "0.6.2", to: "0.6.3", status: "applied" },
+};
+
 /** Список установленных плагинов по состоянию страницы: с плагинами или пустой.
  *  Состояние «одобрение» — тот же список: слой прав не меняет, что установлено;
  *  в состоянии «каталог» список нужен — оттуда и начинается установка; в разделе
@@ -117,19 +132,39 @@ export function plugins(): Plugin[] {
     params.feed !== "plugins" &&
     params.feed !== "approval" &&
     params.feed !== "catalog" &&
-    params.feed !== "plugins-section"
+    params.feed !== "plugins-section" &&
+    params.feed !== "plugins-updates"
   ) {
     return [];
   }
+  const updates = params.feed === "plugins-updates";
   return PLUGINS.map((one) => {
     const rules = rulesMap(one.id);
+    const update = updates ? UPDATE_FIXTURE[one.id] : undefined;
     return {
       ...one,
       connected: connected.has(one.id),
       disabled: disabled.has(one.id),
       ...(Object.keys(rules).length ? { rules } : {}),
+      // Обновление молча сдаёт реестр на новую версию — карточка ждёт прав стоит
+      // на прежней (файл не тронут до сводки).
+      ...(update ? { update, version: update.status === "applied" ? update.to : one.version } : {}),
     };
   });
+}
+
+/** «Разрешить» сводки новых прав на вкладке Updates: принять обновленную версию —
+ *  статус «ждёт прав» уходит в «обновлено», права приняты, карточка показывает
+ *  версию `to` (то же, что plugin_install + refresh в окне). Память страницы —
+ *  перезагрузка страницы снова ставит все обновления по местам. */
+export function applyUpdate(id: string): Plugin[] {
+  const update = UPDATE_FIXTURE[id];
+  if (!update || update.status !== "held") {
+    throw new Error(`по плагину «${id}» нет обновления, ждущего прав`);
+  }
+  update.status = "applied";
+  update.permissions = [];
+  return plugins();
 }
 
 /** Подключение к чату: отмечаем плагин и отдаём список заново — как это делает мост. */

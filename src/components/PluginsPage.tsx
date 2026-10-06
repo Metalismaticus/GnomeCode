@@ -3,8 +3,8 @@
  *  с полями сцены A и действиями Enable/Disable/Uninstall — с подтверждением удаления.
  *
  *  Available — переход в готовый каталог «Browse plugins…» (пункт 1 партии): тот же
- *  оверлей CatalogPicker и сводка прав установки. Updates — пока заглушка: автообновление
- *  придёт четвёртым пунктом партии, и вкладка честно об этом говорит. */
+ *  оверлей CatalogPicker и сводка прав установки. Updates — обновления при запуске
+ *  (пункт 4 партии): карточки из updates.json и сводка новых прав — PluginUpdates. */
 
 import { useCallback, useEffect, useState } from "react";
 
@@ -15,8 +15,11 @@ import { usePlugins } from "../features/plugins/usePlugins";
 import { CatalogPicker } from "./CatalogPicker";
 import { PluginConfig } from "./PluginConfig";
 import { PluginSummary } from "./PluginSummary";
+import { PluginUpdates } from "./PluginUpdates";
+import { params } from "../viewparams";
 
 import "./PluginsPage.css";
+import "./PluginUpdates.css";
 
 type Tab = "installed" | "available" | "updates" | "disabled";
 
@@ -32,10 +35,14 @@ const TITLES: Record<Exclude<Tab, "installed"> | "installed", string> = {
 const TABS: Tab[] = ["installed", "available", "updates", "disabled"];
 
 export function PluginsPage() {
-  const [tab, setTab] = useState<Tab>("installed");
+  /** Состояние «плагины-обновления» открывает раздел прямо на Updates — карточки
+   *  обновлений проверяемый экран; обычный вход — Installed. */
+  const [tab, setTab] = useState<Tab>(params.feed === "plugins-updates" ? "updates" : "installed");
   const [catalogOpen, setCatalogOpen] = useState(false);
   /** Карточка каталога, чью сводку прав открыли из вкладки Available. */
   const [pending, setPending] = useState<CatalogEntry | undefined>(undefined);
+  /** Запись обновления, чью сводку новых прав открыли с карточки Updates. */
+  const [updateSummary, setUpdateSummary] = useState<CatalogEntry | undefined>(undefined);
   const plugins = usePlugins();
   const catalog = useCatalog(catalogOpen);
   /** Окно подтверждения удаления: id карточки, с которой кликнули по Uninstall. */
@@ -59,13 +66,14 @@ export function PluginsPage() {
    *  поверхностей свой: хук ChatView про свои окна ничего не знает, общего
    *  места для него нет. */
   useEffect(() => {
-    if (!catalogOpen && !pending && !confirm && !config) {
+    if (!catalogOpen && !pending && !updateSummary && !confirm && !config) {
       return;
     }
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setCatalogOpen(false);
         setPending(undefined);
+        setUpdateSummary(undefined);
         setConfirm(undefined);
         setConfig(undefined);
       }
@@ -83,6 +91,7 @@ export function PluginsPage() {
       }
       setCatalogOpen(false);
       setPending(undefined);
+      setUpdateSummary(undefined);
       setConfirm(undefined);
       setConfig(undefined);
     };
@@ -92,7 +101,7 @@ export function PluginsPage() {
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("mousedown", onMouseDown);
     };
-  }, [catalogOpen, pending, confirm, config]);
+  }, [catalogOpen, pending, updateSummary, confirm, config]);
 
   /** «Разрешить» сводки прав: установка и подключение — как у каталога в чате;
    *  плагин тут же виден во вкладке Installed. */
@@ -107,6 +116,29 @@ export function PluginsPage() {
   );
 
   const installFromCatalog = useCallback((entry: CatalogEntry) => setPending(entry), []);
+
+  /** Кнопка сводки на карточке Updates: запись обновления становится сводкой
+   *  прав — новые права показываются до включения (сцена K). */
+  const openUpdateSummary = useCallback(
+    (id: string) => {
+      const one = plugins.plugins.find((plugin) => plugin.id === id);
+      if (one?.update) {
+        setUpdateSummary(entryFromUpdate(one, one.update));
+      }
+    },
+    [plugins.plugins],
+  );
+
+  /** «Разрешить» сводки обновления: установка версии `to` и подключение — тем же
+   *  путём моста, что у каталога; пометку пересчитает plugin_list (Held → Applied).
+   *  Вкладка Updates остаётся открытой — карточка покажет итог. */
+  const allowUpdate = useCallback(
+    (entry: CatalogEntry) => {
+      setUpdateSummary(undefined);
+      plugins.install(entry.id);
+    },
+    [plugins.install],
+  );
 
   /** Плагин открытой панели Configure из свежего списка: после смены правила
    *  список приходит новый, и панель показывает правило нажатой кнопкой. */
@@ -157,9 +189,11 @@ export function PluginsPage() {
           </div>
         ) : null}
         {tab === "updates" ? (
-          <div className="plugins-page__empty" data-testid="plugins-updates-note">
-            Обновления появятся с автообновлением плагинов при запуске (пункт 4).
-          </div>
+          <PluginUpdates
+            plugins={plugins.plugins}
+            note={plugins.updatesNote}
+            onAllow={openUpdateSummary}
+          />
         ) : null}
         {tab === "disabled" ? (
           <>
@@ -202,8 +236,28 @@ export function PluginsPage() {
         <CatalogPicker catalog={catalog} onInstall={installFromCatalog} onClose={closeCatalog} />
       ) : null}
       {pending ? <PluginSummary entry={pending} onAllow={allowInstall} onCancel={() => setPending(undefined)} /> : null}
-    </main>
+      {updateSummary ? <PluginSummary entry={updateSummary} onAllow={allowUpdate} onCancel={() => setUpdateSummary(undefined)} /> : null}    </main>
   );
+}
+
+/** Пометка обновления на форме сводки прав: права вида «Категория: значение»
+ *  приходят строками из updates.json — разобрать их бывает нужно один раз. */
+function entryFromUpdate(plugin: Plugin, update: NonNullable<Plugin["update"]>): CatalogEntry {
+  return {
+    id: plugin.id,
+    name: plugin.name ?? plugin.id,
+    description: plugin.description ?? "",
+    author: plugin.author ?? "",
+    version: update.to,
+    repo: "",
+    entry: "",
+    permissions:
+      update.permissions?.map((line) => {
+        const at = line.indexOf(": ");
+        return { category: line.slice(0, at), value: line.slice(at + 2) };
+      }) ?? [],
+    commands: [],
+  };
 }
 
 /** Статус на карточке словами: выключен / не запустился с причиной / активен. */

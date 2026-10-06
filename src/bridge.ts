@@ -9,12 +9,14 @@ import type { WindowState, WindowPatch } from "./appstate";
 import type { CatalogEntry } from "./catalog";
 import { readFixtureState, writeFixtureState } from "./fixtureState";
 import {
+  applyUpdate as applyUpdateFixture,
   connect as connectFixture,
   disable as disableFixture,
   enable as enableFixture,
   plugins as fixturePlugins,
   uninstall as uninstallFixture,
 } from "./fixturePlugins";
+import { params } from "./viewparams";
 import { entries as fixtureCatalog, install as installFixture } from "./fixtureCatalog";
 import {
   granted as fixtureGranted,
@@ -44,6 +46,22 @@ export type TreeNode = { name: string; path: string; kind: "dir" | "file"; loade
  *  (src-tauri/src/plugins/rules.rs); без категории вызов всегда спрашивает. */
 export type PluginCommand = { name: string; label: string; description: string; category?: string };
 
+/** Чем кончилось обновление плагина (src-tauri/src/plugins/updates.rs): обновлено
+ *  молча; ждёт решения о новых правах; плагина нет в каталоге; новая версия не
+ *  загрузилась — откат на предыдущую. */
+export type PluginUpdateStatus = "applied" | "held" | "outside" | "broken";
+
+/** Запись обновления из updates.json: версии «от → до» и новые права, если
+ *  изменились, — то, что карточка вкладки Updates показывает и что сводка прав
+ *  переносит решением владельца. */
+export type PluginUpdate = {
+  from: string;
+  to: string;
+  status: PluginUpdateStatus;
+  /** Новые права вида «Категория: значение» — изменённые права; пусто — не менялись. */
+  permissions?: string[];
+};
+
 /** Плагин проекта глазами интерфейса: форма движка разобрана в Rust (ADR-0001). */
 export type Plugin = {
   id: string;
@@ -70,6 +88,9 @@ export type Plugin = {
   /** Правила категорий из rules.json: `категория → allow/ask/deny`; нет правила —
    *  панель Configure показывает умолчание ask (src-tauri/src/plugins/rules.rs). */
   rules?: Record<string, string>;
+  /** Что updates.json помнит об обновлении плагина (src-tauri/src/plugins/updates.rs):
+   *  версии «от → до», пометка и новые права; нет — обновлений не было. */
+  update?: PluginUpdate;
 };
 
 /** Что сказал слой прав о вызове команды плагина (docs/SPEC/plugins.md,
@@ -106,6 +127,9 @@ type Bridge = {
   setPluginEnabled(disabled: boolean, id: string): Promise<Plugin[]>;
   /** Удалить плагин после подтверждения: запись реестра и файл плагина уходят. */
   uninstallPlugin(id: string): Promise<Plugin[]>;
+  /** Пометка последней проверки каталога: «каталог недоступен — работаем на
+   *  текущих»; `null` — каталог отвечал, пометки нет. */
+  updatesNote(): Promise<string | null>;
   /** Сменить правило категории плагина (панель Configure): действует на следующий
    *  вызов без перезапуска — слой прав перечитывает правила на каждом вызове. */
   setPluginRule(plugin: string, category: string, value: string): Promise<Plugin[]>;
@@ -162,6 +186,9 @@ const tauriBridge = (): Bridge => ({
   },
   async uninstallPlugin(id: string) {
     return (await invoke<Plugin[]>("plugin_uninstall", { id })) as Plugin[];
+  },
+  async updatesNote() {
+    return (await invoke<string | null>("plugin_updates_note")) ?? null;
   },
   async setPluginRule(plugin: string, category: string, value: string) {
     return (await invoke<Plugin[]>("plugin_set_rule", { plugin, category, value })) as Plugin[];
@@ -225,10 +252,20 @@ const fixtureBridge = (): Bridge => ({
   async uninstallPlugin(id: string) {
     return uninstallFixture(fixturePlugins(), id);
   },
+  async updatesNote() {
+    // Каталог в состоянии фикстуры отвечал: пометки о недоступности нет.
+    return null;
+  },
   async catalogList() {
     return fixtureCatalog();
   },
   async installPlugin(id: string) {
+    // В состоянии обновлений «Разрешить» сводки новых прав — принять обновление
+    // (Held → Applied), как plugin_install + refresh (src-tauri/src/plugins/updates.rs):
+    // живой путь тот же мост, вне окна — память фикстуры.
+    if (params.feed === "plugins-updates") {
+      return applyUpdateFixture(id);
+    }
     return installFixture(id);
   },
   async runPlugin(plugin: string, command: string, label: string) {
