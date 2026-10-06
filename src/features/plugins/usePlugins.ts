@@ -33,6 +33,9 @@ export type PluginsState = {
   favorite: (id: string) => void;
   /** Enable/Disable карточки раздела «Плагины»: кнопки команд уходят из всех чатов. */
   setEnabled: (disabled: boolean, id: string) => void;
+  /** Сменить правило категории плагина (панель Configure): действует на следующий
+   *  вызов без перезапуска — список обновляется, панель показывает нажатую кнопку. */
+  setRule: (id: string, category: string, value: string) => void;
   /** Uninstall после подтверждения: запись реестра и файл плагина уходят. */
   uninstall: (id: string) => void;
 };
@@ -109,6 +112,19 @@ export function usePlugins(): PluginsState {
       .catch((reason: unknown) => setError(String(reason)));
   }, []);
 
+  /** Смена правила категории в панели Configure: мост пишет правило, список
+   *  свежий — панель показывает правило нажатой кнопкой (критерий готовности:
+   *  следующий вызов ведёт себя по-новому, перезапуск не нужен). */
+  const setRule = useCallback((id: string, category: string, value: string) => {
+    bridge()
+      .setPluginRule(id, category, value)
+      .then((list) => {
+        setPlugins(list);
+        setError("");
+      })
+      .catch((reason: unknown) => setError(String(reason)));
+  }, []);
+
   const found = useMemo(() => foundIn(plugins, query), [plugins, query]);
   return {
     plugins,
@@ -123,6 +139,7 @@ export function usePlugins(): PluginsState {
     install,
     favorite,
     setEnabled,
+    setRule,
     uninstall,
   };
 }

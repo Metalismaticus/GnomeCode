@@ -42,6 +42,11 @@ pub struct Permission {
 pub struct CommandSpec {
     pub name: String,
     pub description: String,
+    /// Категория прав команды (`Read`, `Write`, `Network`, `Terminal`) — по ней
+    /// слой прав ищет правило; без категории вызов всегда спрашивает (deny к
+    /// нему неприменим). Декларации её не знали — читается как None (serde default).
+    #[serde(default)]
+    pub category: Option<String>,
 }
 
 /// Запись каталога: карточка плагина и всё, что нужно для установки.
@@ -111,13 +116,18 @@ pub fn plugins_dir() -> PathBuf {
     config.join("opencode").join("plugins")
 }
 
-/// Файл реестра установленного: папку данных даёт переменная (проверки и копии),
-/// иначе — папка данных приложения.
-pub fn registry_file(fallback: PathBuf) -> PathBuf {
+/// Файл данных по имени: папку данных даёт переменная (проверки и копии), иначе —
+/// папка данных приложения. Реестр установленного и правила — оба на ней.
+pub fn data_file(fallback: PathBuf, name: &str) -> PathBuf {
     std::env::var_os(DATA_DIR_VAR)
         .map(PathBuf::from)
         .unwrap_or(fallback)
-        .join(REGISTRY_NAME)
+        .join(name)
+}
+
+/// Файл реестра установленного в папке данных.
+pub fn registry_file(fallback: PathBuf) -> PathBuf {
+    data_file(fallback, REGISTRY_NAME)
 }
 
 /// Что реестр помнит: записи каталога. Испорченный или потерянный файл — пустой

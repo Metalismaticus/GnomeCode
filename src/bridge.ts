@@ -21,6 +21,9 @@ import {
   launch as fixtureLaunch,
   remember as fixtureRemember,
   refuse as fixtureRefuse,
+  ruleOf,
+  setRule,
+  denyByRule,
 } from "./fixtureApprovals";
 import { children as fixtureChildren, project as fixtureProject } from "./fixtureTree";
 
@@ -36,8 +39,10 @@ export type FeedRow = { id: string; kind: RowKind; text: string };
 /** Строка дерева файлов: папка или файл, полный путь — чтобы читать содержимое. */
 export type TreeNode = { name: string; path: string; kind: "dir" | "file"; loaded: boolean };
 
-/** Команда плагина: `name` зовёт движок, `label` стоит на кнопке в шапке. */
-export type PluginCommand = { name: string; label: string; description: string };
+/** Команда плагина: `name` зовёт движок, `label` стоит на кнопке в шапке;
+ *  `category` — категория прав из декларации, по ней слой прав ищет правило
+ *  (src-tauri/src/plugins/rules.rs); без категории вызов всегда спрашивает. */
+export type PluginCommand = { name: string; label: string; description: string; category?: string };
 
 /** Плагин проекта глазами интерфейса: форма движка разобрана в Rust (ADR-0001). */
 export type Plugin = {
@@ -62,6 +67,9 @@ export type Plugin = {
   /** Выключен владельцем: карточка во вкладке Disabled, кнопок команд в чатах нет,
    *  сам плагин установлен. */
   disabled?: boolean;
+  /** Правила категорий из rules.json: `категория → allow/ask/deny`; нет правила —
+   *  панель Configure показывает умолчание ask (src-tauri/src/plugins/rules.rs). */
+  rules?: Record<string, string>;
 };
 
 /** Что сказал слой прав о вызове команды плагина (docs/SPEC/plugins.md,
@@ -70,7 +78,10 @@ export type PluginRun =
   /** Разрешено: команда уходит движку, строка запуска идёт в ленту. */
   | { kind: "started" }
   /** Вызов чувствительный: окно одобрения ждёт ответа владельца. */
-  | { kind: "approval" };
+  | { kind: "approval" }
+  /** Запрещено правилом категории: строка «⚠ … denied» уже в ленте,
+   *  окна одобрения не будет — denied-категории не спрашиваются никогда. */
+  | { kind: "denied" };
 
 /** Ответ владельца в окне одобрения: один вызов, правило на чат или отказ. */
 export type ApprovalDecision = "allow" | "chat" | "deny";
@@ -95,6 +106,9 @@ type Bridge = {
   setPluginEnabled(disabled: boolean, id: string): Promise<Plugin[]>;
   /** Удалить плагин после подтверждения: запись реестра и файл плагина уходят. */
   uninstallPlugin(id: string): Promise<Plugin[]>;
+  /** Сменить правило категории плагина (панель Configure): действует на следующий
+   *  вызов без перезапуска — слой прав перечитывает правила на каждом вызове. */
+  setPluginRule(plugin: string, category: string, value: string): Promise<Plugin[]>;
   /** Карточки каталога «Available» — индекс с GitHub (raw, не api.github.com). */
   catalogList(): Promise<CatalogEntry[]>;
   /** Установить плагин каталога и подключить к текущему чату — «Разрешить»
@@ -148,6 +162,9 @@ const tauriBridge = (): Bridge => ({
   },
   async uninstallPlugin(id: string) {
     return (await invoke<Plugin[]>("plugin_uninstall", { id })) as Plugin[];
+  },
+  async setPluginRule(plugin: string, category: string, value: string) {
+    return (await invoke<Plugin[]>("plugin_set_rule", { plugin, category, value })) as Plugin[];
   },
   async catalogList() {
     return (await invoke<CatalogEntry[]>("catalog_list")) as CatalogEntry[];
@@ -215,12 +232,28 @@ const fixtureBridge = (): Bridge => ({
     return installFixture(id);
   },
   async runPlugin(plugin: string, command: string, label: string) {
-    const allowed = fixtureGranted(command);
-    if (allowed) {
+    // Зеркало plugin_run (src-tauri/src/plugins/commands.rs): deny по категории
+    // старше всего — строка «denied» и конец; грант чата или allow — молча;
+    // иначе окно одобрения (правила нет — умолчание ask).
+    const category = fixturePlugins().find((one) => one.id === plugin)?.commands.find(
+      (one) => one.name === command,
+    )?.category;
+    const rule = category ? ruleOf(plugin, category) : undefined;
+    if (rule === "deny") {
+      denyByRule(plugin, label);
+      return { kind: "denied" };
+    }
+    if (fixtureGranted(command) || rule === "allow") {
       fixtureLaunch(plugin, label);
       return { kind: "started" };
     }
     return { kind: "approval" };
+  },
+  async setPluginRule(plugin: string, category: string, value: string) {
+    // Правила — память страницы: карточка получит свежие правила тем же списком,
+    // каким мост отвечает на Enable/Disable.
+    setRule(plugin, category, value);
+    return fixturePlugins();
   },
   async decidePlugin(
     plugin: string,

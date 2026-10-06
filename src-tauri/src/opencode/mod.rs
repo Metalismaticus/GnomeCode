@@ -54,9 +54,13 @@ enum Cmd {
         label: String,
         command: String,
     },
-    /// Владелец отказал в одобрении: строка отказа в ленте, движку нечего
-    /// отправлять (docs/SPEC/plugins.md, «Утверждённый UX одобрения»).
-    Refused { plugin: String, label: String },
+    /// Владелец отказал в одобрении или правило запрещает: строка отказа в ленте,
+    /// движку нечего отправлять (docs/SPEC/plugins.md, «Утверждённый UX одобрения»).
+    Refused {
+        plugin: String,
+        label: String,
+        why: client::Refusal,
+    },
     Stop,
     /// Установлен плагин из каталога: движок перечитывает плагины только при
     /// старте — лента поднимает его заново, сессия живёт в базе движка.
@@ -177,10 +181,21 @@ impl Chat {
 
     /// Отказ владельца: строка `⚠ … requires approval` в ленте, вызов не идёт.
     pub fn refused(&self, plugin: &str, label: &str) -> Result<(), String> {
+        self.refuse(plugin, label, client::Refusal::Approval)
+    }
+
+    /// Запрещено правилом категории: строка `⚠ … denied` в ленте, вызова не будет.
+    pub fn denied(&self, plugin: &str, label: &str) -> Result<(), String> {
+        self.refuse(plugin, label, client::Refusal::Rule)
+    }
+
+    /// Строку отказа ведёт тот же поток ленты: два отказа — две строки, id не переиспользуется.
+    fn refuse(&self, plugin: &str, label: &str, why: client::Refusal) -> Result<(), String> {
         self.tx
             .send(Cmd::Refused {
                 plugin: plugin.to_string(),
                 label: label.to_string(),
+                why,
             })
             .map_err(|_| "лента закрыта: перезапустите приложение".to_string())
     }
@@ -323,14 +338,14 @@ fn supervise_missing(rx: Receiver<Cmd>, sink: Arc<dyn Sink>) {
                 "engine",
                 &format!("{NOTICE_NO_ENGINE}: поставьте opencode CLI — команда плагина не отправлена"),
             )),
-            // Отказ — решение владельца, оно правдиво и без движка: строка отказа
-            // всё равно появляется, вызова нет.
-            Ok(Cmd::Refused { plugin, label }) => {
+            // Отказ — решение владельца или правило, оно правдиво и без движка:
+            // строка отказа всё равно появляется, вызова нет.
+            Ok(Cmd::Refused { plugin, label, why }) => {
                 refused += 1;
                 sink.emit(FeedEvent::Row {
                     id: format!("refused-{refused}"),
                     kind: client::RowKind::Tool,
-                    text: client::command_refused(&plugin, &label),
+                    text: client::command_refused(&plugin, &label, why),
                 });
             }
             // Движка нет — перезапускать нечего: запрос установки уже исполнен,
@@ -399,12 +414,12 @@ fn pump(
                         ));
                     }
                 }
-                Cmd::Refused { plugin, label } => {
+                Cmd::Refused { plugin, label, why } => {
                     *plugin_rows += 1;
                     sink.emit(FeedEvent::Row {
                         id: format!("plugin-{plugin_rows}"),
                         kind: client::RowKind::Tool,
-                        text: client::command_refused(&plugin, &label),
+                        text: client::command_refused(&plugin, &label, why),
                     });
                 }
             }

@@ -2,6 +2,9 @@
 //! (`source`, `features`) сюда не переносятся: ленте и шапке они не нужны, а
 //! формат движка не должен растекаться по типам (ADR-0001).
 
+/// Категория и её правило — то, что карточка знает о правилах плагина (Configure).
+use std::collections::BTreeMap;
+
 /// Команда плагина: полное имя — как его зовёт движок, подпись — то, что на кнопке.
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct Command {
@@ -43,6 +46,10 @@ pub struct Plugin {
     /// Выключен владельцем: кнопки команд уходят из чатов, установка не тронута.
     /// Плагин движка не выключен никогда: его реестр не задевает.
     pub disabled: bool,
+    /// Правила категорий из rules.json: `категория → allow/ask/deny`; нет — все
+    /// категории по умолчанию `ask` (src-tauri/src/plugins/rules.rs).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rules: Option<BTreeMap<String, String>>,
 }
 
 /// Состояние движка «плагина работает».

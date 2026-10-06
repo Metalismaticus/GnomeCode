@@ -17,6 +17,7 @@ LIMITS = {"quick_build": 150, "harness": 180, "window_shot": 600, "opencode_clie
           "opencode_engine": 180, "chat_stream": 300, "window_look": 300,
           "no_raw_colors": 30, "project_tree": 180, "project_files": 300,
           "plugins": 300, "plugins_section": 300, "catalog": 300, "state_files": 180, "session_resume": 180,
+          "plugin_config": 300, "plugin_rules": 180,
           "full_cycle": 600}  # секунды: замер × 3, одно место
 DEFAULT_LIMIT = 60
 

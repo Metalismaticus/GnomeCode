@@ -65,17 +65,32 @@ export const startInterface = async () => {
   return { url, stop, ok: true, port };
 };
 
+/** Проверка подъёма vite у уже поднятого интерфейса: не отвечает — сценарий выходит. */
+const assertUp = (iface) => {
+  if (!iface.ok) {
+    done(1, `сервер интерфейса не поднялся на порту ${iface.port} — vite не отвечает`);
+  }
+};
+
 /** Открыть страницу проекта в свежем браузере: подъём интерфейса уже проверен, и если
  *  vite не ответил — выход; иначе страница с фикстурой `?состояние=проект`.
  *  Браузер возвращается владельцу: сценарий сам держит свой catch/finally и его закрывает. */
 export const openProjectPage = async (iface) => {
-  const { url, stop, ok, port } = iface;
-  if (!ok) {
-    done(1, `сервер интерфейса не поднялся на порту ${port} — vite не отвечает`);
-  }
+  assertUp(iface);
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-  await page.goto(`${url}?состояние=проект`, { waitUntil: "networkidle" });
+  await page.goto(`${iface.url}?состояние=проект`, { waitUntil: "networkidle" });
+  return { browser, page };
+};
+
+/** Страница раздела по фикстуре `?состояние=<state>`: тот же подъём и проверка vite,
+ *  но domcontentloaded с таймаутом 90 с — networkidle на медленном старте vite
+ *  висит (уборка в «Найдено по ходу» docs/BATCH.md). */
+export const openStatePage = async (iface, state) => {
+  assertUp(iface);
+  const browser = await chromium.launch();
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  await page.goto(`${iface.url}?состояние=${state}`, { waitUntil: "domcontentloaded", timeout: 90_000 });
   return { browser, page };
 };
 

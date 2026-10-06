@@ -17,6 +17,7 @@
 
 import type { Plugin } from "./bridge";
 import { params } from "./viewparams";
+import { rulesMap } from "./fixtureApprovals";
 
 /** Подключённые к чату плагины: то же, что держит реестр чата в окне Tauri. */
 const connected = new Set<string>();
@@ -39,7 +40,7 @@ export type Card = {
 /** Плагин с карточными полями: команды с префиксом `плагин:`, как у движка. */
 const plugin = (
   id: string,
-  commands: { name: string; description: string }[],
+  commands: { name: string; description: string; category?: string }[],
   card: Card = {},
   state: Plugin["state"] = "active",
   error = "",
@@ -48,6 +49,7 @@ const plugin = (
     name: `${id}:${one.name}`,
     label: one.name,
     description: one.description,
+    category: one.category,
   })),
   error,
   id,
@@ -64,8 +66,8 @@ const PLUGINS: Plugin[] = [
   plugin(
     "git",
     [
-      { name: "diff", description: "показать изменения рабочей папки" },
-      { name: "commit", description: "собрать коммит с описанием" },
+      { name: "diff", description: "показать изменения рабочей папки", category: "Network" },
+      { name: "commit", description: "собрать коммит с описанием", category: "Write" },
     ],
     {
       name: "Git",
@@ -78,7 +80,7 @@ const PLUGINS: Plugin[] = [
   ),
   plugin(
     "docs",
-    [{ name: "search", description: "поиск по документации проекта" }],
+    [{ name: "search", description: "поиск по документации проекта", category: "Read" }],
     {
       name: "Docs",
       author: "Metalismaticus",
@@ -91,8 +93,8 @@ const PLUGINS: Plugin[] = [
   plugin(
     "browser",
     [
-      { name: "open", description: "открыть страницу и показать её текст" },
-      { name: "shot", description: "снять страницу картинкой" },
+      { name: "open", description: "открыть страницу и показать её текст", category: "Network" },
+      { name: "shot", description: "снять страницу картинкой", category: "Network" },
     ],
     {
       name: "Browser",
@@ -119,11 +121,15 @@ export function plugins(): Plugin[] {
   ) {
     return [];
   }
-  return PLUGINS.map((one) => ({
-    ...one,
-    connected: connected.has(one.id),
-    disabled: disabled.has(one.id),
-  }));
+  return PLUGINS.map((one) => {
+    const rules = rulesMap(one.id);
+    return {
+      ...one,
+      connected: connected.has(one.id),
+      disabled: disabled.has(one.id),
+      ...(Object.keys(rules).length ? { rules } : {}),
+    };
+  });
 }
 
 /** Подключение к чату: отмечаем плагин и отдаём список заново — как это делает мост. */

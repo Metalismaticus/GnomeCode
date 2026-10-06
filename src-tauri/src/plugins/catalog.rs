@@ -72,6 +72,7 @@ fn card(base: &mut Plugin, connected: bool, entry: &CatalogEntry) -> Plugin {
         description: Some(entry.description.clone()),
         permissions: permissions_of(entry),
         disabled: entry.disabled,
+        rules: None,
     }
 }
 
@@ -97,6 +98,7 @@ fn from_entry(entry: &CatalogEntry, connected: bool) -> Plugin {
         description: Some(entry.description.clone()),
         permissions: permissions_of(entry),
         disabled: entry.disabled,
+        rules: None,
     }
 }
 
@@ -134,6 +136,7 @@ fn plugin(entry: &Value, commands: &[Value], connected: &[String], disabled: &[S
         version: None,
         description: None,
         permissions: vec![],
+        rules: None,
     })
 }
 

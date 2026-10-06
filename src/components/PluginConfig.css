@@ -1,0 +1,92 @@
+/* Панель Configure карточки (docs/SPEC/plugins.md, сцена A): по образцу окна
+   подтверждения удаления — над страницей, по центру (PluginsPage.css). */
+
+.plugin-config {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-3);
+  margin: auto;
+  width: min(460px, calc(100% - var(--space-5)));
+  height: fit-content;
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-panel-2);
+  box-shadow: var(--shadow);
+  z-index: 10;
+}
+
+.plugin-config__title {
+  font-weight: 600;
+}
+
+.plugin-config__hint {
+  color: var(--text-dim);
+}
+
+.plugin-config__rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.plugin-config__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.plugin-config__category {
+  font-weight: 600;
+}
+
+.plugin-config__values {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.plugin-config__btn {
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text-dim);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.plugin-config__btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.plugin-config__btn--on {
+  background: var(--badge-bg);
+  border-color: var(--badge-border);
+  color: var(--text);
+}
+
+.plugin-config__actions {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.plugin-config__close {
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+}
+
+.plugin-config__close:hover {
+  background: var(--bg-hover);
+}

@@ -13,6 +13,7 @@ import type { Plugin } from "../bridge";
 import { useCatalog } from "../features/plugins/useCatalog";
 import { usePlugins } from "../features/plugins/usePlugins";
 import { CatalogPicker } from "./CatalogPicker";
+import { PluginConfig } from "./PluginConfig";
 import { PluginSummary } from "./PluginSummary";
 
 import "./PluginsPage.css";
@@ -39,6 +40,8 @@ export function PluginsPage() {
   const catalog = useCatalog(catalogOpen);
   /** Окно подтверждения удаления: id карточки, с которой кликнули по Uninstall. */
   const [confirm, setConfirm] = useState<string | undefined>(undefined);
+  /** Панель правил Configure: id карточки, с которой кликнули по Configure. */
+  const [config, setConfig] = useState<string | undefined>(undefined);
 
   /** Available открывает каталог оверлеем; после его закрытия владелец снова
    *  видит Installed. */
@@ -51,11 +54,12 @@ export function PluginsPage() {
     setTab("installed");
   }, []);
 
-  /** Esc и клик снаружи закрывают каталог, сводку прав и окно удаления — тот же
-   *  жест, что у ChatView (useOverlayDismiss), но набор поверхностей свой:
-   *  хук ChatView про свои окна ничего не знает, общего места для него нет. */
+  /** Esc и клик снаружи закрывают каталог, сводку прав, окно удаления и панель
+   *  правил — тот же жест, что у ChatView (useOverlayDismiss), но набор
+   *  поверхностей свой: хук ChatView про свои окна ничего не знает, общего
+   *  места для него нет. */
   useEffect(() => {
-    if (!catalogOpen && !pending && !confirm) {
+    if (!catalogOpen && !pending && !confirm && !config) {
       return;
     }
     const onKey = (event: KeyboardEvent) => {
@@ -63,6 +67,7 @@ export function PluginsPage() {
         setCatalogOpen(false);
         setPending(undefined);
         setConfirm(undefined);
+        setConfig(undefined);
       }
     };
     const onMouseDown = (event: MouseEvent) => {
@@ -71,6 +76,7 @@ export function PluginsPage() {
         target?.closest(".catalog-picker") ||
         target?.closest(".plugin-summary") ||
         target?.closest(".plugins-confirm") ||
+        target?.closest(".plugin-config") ||
         target?.closest(".plugins-page")
       ) {
         return;
@@ -78,6 +84,7 @@ export function PluginsPage() {
       setCatalogOpen(false);
       setPending(undefined);
       setConfirm(undefined);
+      setConfig(undefined);
     };
     window.addEventListener("keydown", onKey);
     window.addEventListener("mousedown", onMouseDown);
@@ -85,7 +92,7 @@ export function PluginsPage() {
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("mousedown", onMouseDown);
     };
-  }, [catalogOpen, pending, confirm]);
+  }, [catalogOpen, pending, confirm, config]);
 
   /** «Разрешить» сводки прав: установка и подключение — как у каталога в чате;
    *  плагин тут же виден во вкладке Installed. */
@@ -100,6 +107,10 @@ export function PluginsPage() {
   );
 
   const installFromCatalog = useCallback((entry: CatalogEntry) => setPending(entry), []);
+
+  /** Плагин открытой панели Configure из свежего списка: после смены правила
+   *  список приходит новый, и панель показывает правило нажатой кнопкой. */
+  const configured = config ? plugins.plugins.find((one) => one.id === config) : undefined;
 
   return (
     <main className="plugins-page" data-testid="plugins-page">
@@ -130,6 +141,7 @@ export function PluginsPage() {
                 plugin={one}
                 onDisable={() => plugins.setEnabled(true, one.id)}
                 onUninstall={() => setConfirm(one.id)}
+                onConfigure={() => setConfig(one.id)}
               />
             ))}
             {!plugins.plugins.some((one) => !one.disabled) ? (
@@ -179,6 +191,13 @@ export function PluginsPage() {
         }}
         onNo={() => setConfirm(undefined)}
       /> : null}
+      {configured ? (
+        <PluginConfig
+          plugin={configured}
+          onSetRule={(category, value) => config && plugins.setRule(config, category, value)}
+          onClose={() => setConfig(undefined)}
+        />
+      ) : null}
       {catalogOpen ? (
         <CatalogPicker catalog={catalog} onInstall={installFromCatalog} onClose={closeCatalog} />
       ) : null}
@@ -206,12 +225,15 @@ export function Card({
   onEnable,
   onDisable,
   onUninstall,
+  onConfigure,
 }: {
   plugin: Plugin;
   /** Enable есть у выключенного плагина, Disable — у включённого. */
   onEnable?: () => void;
   onDisable?: () => void;
   onUninstall?: () => void;
+  /** Панель правил категорий (Configure) — у включённого плагина. */
+  onConfigure?: () => void;
 }) {
   const name = plugin.name ?? plugin.id;
   return (
@@ -264,6 +286,17 @@ export function Card({
             Disable
           </button>
         )}
+        {onConfigure ? (
+          <button
+            type="button"
+            className="plugin-card__action"
+            data-testid="plugin-configure"
+            title="Правила категорий: allow / ask / deny"
+            onClick={onConfigure}
+          >
+            Configure
+          </button>
+        ) : null}
         {plugin.uninstallable && onUninstall ? (
           <button
             type="button"

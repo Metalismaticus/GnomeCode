@@ -730,10 +730,31 @@ pub fn command_started(plugin: &str, label: &str) -> String {
     format!("⧗ {plugin} · {label}")
 }
 
-/// Строка отказа слоя прав: `⚠ docs · search requires approval` — вызов не идёт
-/// (docs/SPEC/plugins.md, «Утверждённый UX одобрения»).
-pub fn command_refused(plugin: &str, label: &str) -> String {
-    format!("⚠ {plugin} · {label} requires approval")
+/// Отказ в ленте: почему вызов не пошёл. «denied» даёт только правило — denied-
+/// категории не спрашиваются никогда; отказ владельца в окне — «requires approval».
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Refusal {
+    /// Владелец отказал в окне одобрения.
+    Approval,
+    /// Запрещено правилом категории (rules.json).
+    Rule,
+}
+
+impl Refusal {
+    /// Хвост строки отказа: одно место на оба вида отказа.
+    pub fn tail(self) -> &'static str {
+        match self {
+            Refusal::Approval => " requires approval",
+            Refusal::Rule => " denied",
+        }
+    }
+}
+
+/// Строка отказа слоя прав: `⚠ docs · search requires approval` или
+/// `⚠ git · commit denied` — вызов не идёт (docs/SPEC/plugins.md,
+/// «Утверждённый UX одобрения»).
+pub fn command_refused(plugin: &str, label: &str, why: Refusal) -> String {
+    format!("⚠ {plugin} · {label}{}", why.tail())
 }
 
 /// Имя, когда движок не назвал инструмент: лучше «инструмент», чем пустая строка в ленте.
