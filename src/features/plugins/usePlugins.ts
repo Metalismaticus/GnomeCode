@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { bridge, type Plugin } from "../../bridge";
+import { bridge, type Plugin, type PluginScope } from "../../bridge";
 
 /** Раздел списка плагинов: заголовок и плагины в нём. */
 export type PluginGroup = { title: string; plugins: Plugin[] };
@@ -31,8 +31,11 @@ export type PluginsState = {
    *  `null` — каталог отвечал (src-tauri/src/plugins/updates.rs). */
   updatesNote: string | null;
   search: (text: string) => void;
-  connect: (id: string) => void;
-  install: (id: string) => void;
+  /** Подключить со скоупом (сцена E): без скоупа — «этот чат». */
+  connect: (id: string, scope?: PluginScope) => void;
+  /** Снять плагин с чата без деинсталляции (панель «Plugins in this chat»). */
+  disconnect: (id: string) => void;
+  install: (id: string, scope?: PluginScope) => void;
   favorite: (id: string) => void;
   /** Enable/Disable карточки раздела «Плагины»: кнопки команд уходят из всех чатов. */
   setEnabled: (disabled: boolean, id: string) => void;
@@ -41,6 +44,8 @@ export type PluginsState = {
   setRule: (id: string, category: string, value: string) => void;
   /** Uninstall после подтверждения: запись реестра и файл плагина уходят. */
   uninstall: (id: string) => void;
+  /** Свежий список без действий владельца: «Once» снимается после вопроса. */
+  refresh: () => void;
 };
 
 /** Список плагинов проекта: загрузка, поиск, подключение и избранное. */
@@ -53,10 +58,13 @@ export function usePlugins(): PluginsState {
   const [favorites, setFavorites] = useState<string[]>([]);
   const [recent, setRecent] = useState<string[]>([]);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     bridge()
       .listPlugins()
-      .then(setPlugins)
+      .then((list) => {
+        setPlugins(list);
+        setError("");
+      })
       .catch((reason: unknown) => setError(String(reason)))
       .finally(() => setLoading(false));
     bridge()
@@ -65,31 +73,51 @@ export function usePlugins(): PluginsState {
       .catch(() => setUpdatesNote(null));
   }, []);
 
-  /** Подключение к чату: плагин уходит в недавние, кнопки появляются в шапке. */
-  const connect = useCallback((id: string) => {
-    bridge()
-      .connectPlugin(id)
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  /** Один ответ моста: свежий список — в состояние, причина — словами в ошибку.
+   *  Список у всех действий тот же, что и у подключения (usePlugins), — шаг один. */
+  const applied = useCallback((call: Promise<Plugin[]>) => {
+    return call
       .then((list) => {
         setPlugins(list);
         setError("");
-        setRecent((known) => [id, ...known.filter((one) => one !== id)]);
       })
       .catch((reason: unknown) => setError(String(reason)));
   }, []);
 
-  /** Установка из каталога по «Разрешить» сводки прав: мост ставит файл и
-   *  подключает к чату (тихий перезапуск внутри), список обновляется тем же
-   *  состоянием, что и подключение из списка — плагин сразу в кнопках шапки. */
-  const install = useCallback((id: string) => {
-    bridge()
-      .installPlugin(id)
-      .then((list) => {
-        setPlugins(list);
-        setError("");
+  /** Подключение к чату со скоупом (сцена E): плагин уходит в недавние, кнопки
+   *  появляются в шапке. */
+  const connect = useCallback(
+    (id: string, scope?: PluginScope) => {
+      void applied(bridge().connectPlugin(id, scope)).then(() => {
         setRecent((known) => [id, ...known.filter((one) => one !== id)]);
-      })
-      .catch((reason: unknown) => setError(String(reason)));
-  }, []);
+      });
+    },
+    [applied],
+  );
+
+  /** Снять плагин с чата без деинсталляции: кнопки уходят из этого окна. */
+  const disconnect = useCallback(
+    (id: string) => {
+      void applied(bridge().disconnectPlugin(id));
+    },
+    [applied],
+  );
+
+  /** Установка из каталога по кнопкам сводки прав: мост ставит файл и
+   *  подключает к чату с выбранным скоупом (тихий перезапуск внутри), список
+   *  обновляется тем же состоянием, что и подключение из списка. */
+  const install = useCallback(
+    (id: string, scope?: PluginScope) => {
+      void applied(bridge().installPlugin(id, scope)).then(() => {
+        setRecent((known) => [id, ...known.filter((one) => one !== id)]);
+      });
+    },
+    [applied],
+  );
 
   const favorite = useCallback((id: string) => {
     setFavorites((known) =>
@@ -99,39 +127,30 @@ export function usePlugins(): PluginsState {
 
   /** Enable/Disable карточки: мост меняет состояние плагина (список — как после
    *  подключения), кнопки команд в шапках пересчитаются при возврате в чат. */
-  const setEnabled = useCallback((disabled: boolean, id: string) => {
-    bridge()
-      .setPluginEnabled(disabled, id)
-      .then((list) => {
-        setPlugins(list);
-        setError("");
-      })
-      .catch((reason: unknown) => setError(String(reason)));
-  }, []);
+  const setEnabled = useCallback(
+    (disabled: boolean, id: string) => {
+      void applied(bridge().setPluginEnabled(disabled, id));
+    },
+    [applied],
+  );
 
   /** Uninstall после подтверждения: мост удаляет запись и файл, список — свежий. */
-  const uninstall = useCallback((id: string) => {
-    bridge()
-      .uninstallPlugin(id)
-      .then((list) => {
-        setPlugins(list);
-        setError("");
-      })
-      .catch((reason: unknown) => setError(String(reason)));
-  }, []);
+  const uninstall = useCallback(
+    (id: string) => {
+      void applied(bridge().uninstallPlugin(id));
+    },
+    [applied],
+  );
 
   /** Смена правила категории в панели Configure: мост пишет правило, список
    *  свежий — панель показывает правило нажатой кнопкой (критерий готовности:
    *  следующий вызов ведёт себя по-новому, перезапуск не нужен). */
-  const setRule = useCallback((id: string, category: string, value: string) => {
-    bridge()
-      .setPluginRule(id, category, value)
-      .then((list) => {
-        setPlugins(list);
-        setError("");
-      })
-      .catch((reason: unknown) => setError(String(reason)));
-  }, []);
+  const setRule = useCallback(
+    (id: string, category: string, value: string) => {
+      void applied(bridge().setPluginRule(id, category, value));
+    },
+    [applied],
+  );
 
   const found = useMemo(() => foundIn(plugins, query), [plugins, query]);
   return {
@@ -145,11 +164,13 @@ export function usePlugins(): PluginsState {
     updatesNote,
     search: setQuery,
     connect,
+    disconnect,
     install,
     favorite,
     setEnabled,
     setRule,
     uninstall,
+    refresh: load,
   };
 }
 

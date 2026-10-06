@@ -4,9 +4,11 @@
 //! движку, чувствительное возвращает запрос окну, отказ — строка в ленте.
 
 use serde::Serialize;
+use std::sync::Arc;
 use tauri::{AppHandle, Manager, State};
 
 use crate::opencode::{client::Api, Chat};
+use crate::state::Store;
 
 use super::catalog;
 use super::install;
@@ -14,7 +16,7 @@ use super::manage;
 use super::model::Plugin;
 use super::permissions::Grants;
 use super::registry::Registry;
-use super::{rules, rules::Decision, updates};
+use super::{rules, rules::Decision, scopes, updates};
 
 /// Папка данных: переменную задаёт проверка или копия, иначе — папка данных Tauri.
 fn data_dir(app: &AppHandle) -> std::path::PathBuf {
@@ -25,11 +27,15 @@ fn data_dir(app: &AppHandle) -> std::path::PathBuf {
 
 /// Плагины проекта с командами и отметкой «подключён к чату»: движок и реестр
 /// установленного (`installed.json`) — движок файловые плагины не перечисляет.
+/// Подключение чата — реестр окна плюс скоупы (`plugin_scopes.json`) минус
+/// снятые с чата: перезапуск окна — прокси «нового чата», скоуп проекта и
+/// глобальный вернут кнопки, «этот чат» — нет.
 #[tauri::command]
 pub fn plugin_list(
     app: AppHandle,
     chat: State<'_, Chat>,
     registry: State<'_, Registry>,
+    store: State<'_, Arc<Store>>,
 ) -> Result<Vec<Plugin>, String> {
     let endpoint = chat
         .endpoint()
@@ -37,12 +43,23 @@ pub fn plugin_list(
     let api = Api::new(&endpoint);
     let folder = data_dir(&app);
     let installed = install::installed(&install::registry_file(folder.clone()));
-    let mut list = catalog::merged(
-        &api.plugins()?,
-        &api.commands()?,
+    let saved = scopes::at(&scopes::file(folder.clone()));
+    let project = store.load().project.unwrap_or_default();
+    let mut scoped = saved.project.get(&project).cloned().unwrap_or_default();
+    scoped.extend(saved.global.iter().cloned());
+    let effective = scopes::connected_for(&registry.connected(), &registry.opted_out(), &scoped);
+    let mut list = catalog::with_scopes(
+        catalog::merged(
+            &api.plugins()?,
+            &api.commands()?,
+            &effective,
+            &registry.disabled(),
+            &installed,
+        ),
+        &registry.once_ids(),
         &registry.connected(),
-        &registry.disabled(),
-        &installed,
+        &saved.project.get(&project).cloned().unwrap_or_default(),
+        &saved.global,
     );
     // Правила категорий от файла правил: панель Configure показывает их на карточке.
     let held = rules::at(&rules::file(folder.clone()));
@@ -82,6 +99,7 @@ pub fn plugin_set_enabled(
     app: AppHandle,
     chat: State<'_, Chat>,
     registry: State<'_, Registry>,
+    store: State<'_, Arc<Store>>,
     disabled: bool,
     id: String,
 ) -> Result<Vec<Plugin>, String> {
@@ -93,7 +111,7 @@ pub fn plugin_set_enabled(
             registry.enable(&id);
         }
     }
-    plugin_list(app, chat, registry)
+    plugin_list(app, chat, registry, store)
 }
 
 /// Удалить плагин после подтверждения: запись реестра и файл плагина уходят,
@@ -103,25 +121,83 @@ pub fn plugin_uninstall(
     app: AppHandle,
     chat: State<'_, Chat>,
     registry: State<'_, Registry>,
+    store: State<'_, Arc<Store>>,
     id: String,
 ) -> Result<Vec<Plugin>, String> {
     manage::remove(&id, &install::registry_file(data_dir(&app)), &install::plugins_dir())?;
     registry.forget(&id);
     chat.restart()?;
-    plugin_list(app, chat, registry)
+    plugin_list(app, chat, registry, store)
 }
 
-/// Подключить плагин к чату: он появляется кнопками в шапке без перезапуска.
+/// Подключить плагин к чату со скоупом (сцена E): по умолчанию «этот чат»,
+/// «проект» и «глобально» пишутся в файл скоупов и вернут кнопки в новых
+/// чатах, «Once» снимается после следующего вопроса. Идемпотентен только клик
+/// строки без скоупа — у неё полоса скоупов; явный выбор в полосе обновляет
+/// реестр чата (Registry::choose: «Once» встаёт на пометку, «Chat» после
+/// перезапуска возвращает плагин, у которого реестр пуст).
 /// Запись наша — у движка подключения нет (`POST /api/plugin` не существует).
 #[tauri::command]
 pub fn plugin_connect(
     app: AppHandle,
     chat: State<'_, Chat>,
     registry: State<'_, Registry>,
+    store: State<'_, Arc<Store>>,
+    id: String,
+    scope: Option<String>,
+) -> Result<Vec<Plugin>, String> {
+    let kind = scope.as_deref().unwrap_or("chat");
+    if !matches!(kind, "once" | "chat" | "project" | "global") {
+        return Err(format!("неизвестный скоуп «{kind}»: once, chat, project или global"));
+    }
+    let folder = data_dir(&app);
+    let project = store.load().project;
+    let already = scopes::connected_for(
+        &registry.connected(),
+        &registry.opted_out(),
+        &scoped_for(project.as_deref(), folder.clone(), &id),
+    )
+    .iter()
+    .any(|known| known == &id);
+    registry.choose(&id, kind, scope.is_some(), already);
+    match kind {
+        // Повышающий скоуп пишется в файл — вернёт кнопки в новых чатах.
+        "project" | "global" => scopes::set(&scopes::file(folder), kind, project.as_deref(), &id)?,
+        // Выбор в полосе «Этот чат»/«Once» у подключённой строки — откат
+        // повышенного скоупа; клик по строке без скоупа файл не трогает.
+        "chat" | "once" if scope.is_some() => {
+            scopes::set(&scopes::file(folder), kind, project.as_deref(), &id)?
+        }
+        _ => {}
+    }
+    plugin_list(app, chat, registry, store)
+}
+
+/// Скоуповые id плагина в одной папке: список проекта текущей папки плюс
+/// глобальные — то, что знает файл скоупов про этот плагин.
+fn scoped_for(project: Option<&str>, folder: std::path::PathBuf, id: &str) -> Vec<String> {
+    let saved = scopes::at(&scopes::file(folder));
+    let mut ids = project
+        .and_then(|root| saved.project.get(root))
+        .cloned()
+        .unwrap_or_default();
+    ids.extend(saved.global.iter().filter(|known| known.as_str() == id).cloned());
+    ids
+}
+
+/// Снять плагин с чата без деинсталляции (панель «Plugins in this chat»):
+/// кнопки уходят из этого окна, установка и скоупы не трогаются — в других
+/// чатах и после перезапуска плагин остаётся.
+#[tauri::command]
+pub fn plugin_disconnect(
+    app: AppHandle,
+    chat: State<'_, Chat>,
+    registry: State<'_, Registry>,
+    store: State<'_, Arc<Store>>,
     id: String,
 ) -> Result<Vec<Plugin>, String> {
-    registry.connect(&id);
-    plugin_list(app, chat, registry)
+    registry.opt_out_of(&id);
+    plugin_list(app, chat, registry, store)
 }
 
 /// Каталог «Available»: индекс доступных плагинов с GitHub владельца.
@@ -202,6 +278,7 @@ pub fn plugin_set_rule(
     app: AppHandle,
     chat: State<'_, Chat>,
     registry: State<'_, Registry>,
+    store: State<'_, Arc<Store>>,
     plugin: String,
     category: String,
     value: String,
@@ -213,7 +290,7 @@ pub fn plugin_set_rule(
         return Err(format!("неизвестное значение «{value}»: allow, ask или deny"));
     }
     rules::set(&rules::file(data_dir(&app)), &plugin, &category, &value)?;
-    plugin_list(app, chat, registry)
+    plugin_list(app, chat, registry, store)
 }
 
 /// Ответ владельца в окне одобрения: правило на этот чат, один запуск или отказ.
