@@ -25,6 +25,20 @@ const ROW = '[data-testid="plugin-row"]';
 /** Имена строк списка плагинов: тем видно, что осталось после поиска. */
 const rows = (page) => page.$$eval(`${PICKER} ${ROW}`, (els) => els.map((el) => el.getAttribute("data-plugin")));
 
+/** Разделы списка плагинов: тем видно, что осталось после поиска. */
+const pluginGroups = (page) =>
+  page.$$eval(
+    `${PICKER} [data-testid="plugin-group"]`,
+    (els) =>
+      els.map((el) => ({
+        title: el.getAttribute("data-group"),
+        plugins: Array.from(el.querySelectorAll('[data-testid="plugin-row"]')).map((row) => row.getAttribute("data-plugin")),
+      })),
+  );
+/** Разделы одной строкой для строки провала: где чей плагин сейчас. */
+const described = (list) =>
+  list.map((group) => `${group.title}: ${group.plugins.join(", ")}`).join("; ") || "ни одного раздела";
+
 /** Подписи кнопок в шапке по плагину: одна кнопка на команду. */
 const buttons = (page) =>
   page.$$eval('[data-testid="plugin-button"]', (els) =>
@@ -122,9 +136,7 @@ try {
     await page.click('[data-testid="composer-add"]');
     await page.click(CONNECT);
     await page.waitForSelector(PICKER, { timeout: 5000 });
-    const groups = await page.$$eval(`${PICKER} [data-testid="plugin-group"]`, (els) =>
-      els.map((el) => ({ title: el.getAttribute("data-group"), plugins: Array.from(el.querySelectorAll('[data-testid="plugin-row"]')).map((row) => row.getAttribute("data-plugin")) })),
-    );
+    const groups = await pluginGroups(page);
     const recent = groups.find((group) => group.title === "Недавние");
     if (!recent || !recent.plugins.includes(SOLO)) {
       done(1, `подключённый плагин «${SOLO}» не попал в раздел «Недавние»: есть ${groups.map((group) => `${group.title}: ${group.plugins.join(", ")}`).join("; ") || "ни одного раздела"}`);
@@ -136,6 +148,45 @@ try {
     const first = await page.$eval(`${PICKER} [data-testid="plugin-group"]`, (el) => el.getAttribute("data-group"));
     if (first !== "Избранные") {
       done(1, `первым разделом после отметки «в избранное» стал «${first}», а не «Избранные»`);
+    }
+
+    // ё) Пин переживает перезапуск: перезагрузка той же страницы — как у полного цикла,
+    //    тоже окно приложения: тот же контекст хранилища, действий свежего не было
+    await page.reload({ waitUntil: "networkidle" });
+    await page.click('[data-testid="composer-add"]');
+    await page.click(CONNECT);
+    try {
+      await page.waitForSelector(PICKER, { timeout: 5000 });
+    } catch {
+      done(1, `после перезапуска Connect plugin не открыл список плагинов: нет ${PICKER}`);
+    }
+    const kept = await pluginGroups(page);
+    if (!kept.find((group) => group.title === "Избранные")?.plugins.includes(SOLO)) {
+      done(1, `после перезапуска пин «${SOLO}» улетел из «Избранных»: разделы — ${described(kept)}`);
+    }
+    // Владелец передумал и снял пин — снятие тоже помнится при следующем открытии
+    await page.click(`${PICKER} ${ROW}[data-plugin="${SOLO}"] [data-testid="plugin-favorite"]`);
+    await page.click('[data-testid="composer-add"]');
+    await page.click(CONNECT);
+    try {
+      await page.waitForSelector(PICKER, { timeout: 5000 });
+    } catch {
+      done(1, "второе открытие списка плагинов не открыло тот же список");
+    }
+    await page.reload({ waitUntil: "networkidle" });
+    await page.click('[data-testid="composer-add"]');
+    await page.click(CONNECT);
+    try {
+      await page.waitForSelector(PICKER, { timeout: 5000 });
+    } catch {
+      done(1, `после снятия пина Connect plugin не открыл список плагинов: нет ${PICKER}`);
+    }
+    const unpinned = await pluginGroups(page);
+    if (unpinned.find((group) => group.title === "Избранные")?.plugins.includes(SOLO)) {
+      done(1, `после снятия пина «${SOLO}» всё ещё в «Избранных» — снятие пина не запомнилось: разделы — ${described(unpinned)}`);
+    }
+    if (!unpinned.find((group) => group.title === "Недавние")?.plugins.includes(SOLO)) {
+      done(1, `после перезапуска подключённый «${SOLO}» улетел из «Недавних»: разделы — ${described(unpinned)}`);
     }
 
     // ж) Плагин не запущен — в строке причина словами --------------------------------
@@ -288,7 +339,7 @@ try {
 
     done(
       0,
-      `меню «+» с разделами Files/Context/Capabilities, Connect plugin открывает список с поиском, плагин подключается кнопкой в шапке и держится после перерисовки, одна команда — одна кнопка, недавние и избранное по разделам, пустой список объяснён словами, клик по кнопке даёт строку вызова инструмента в ленте, окно одобрения спрашивает [Разрешить/Разрешить для этого чата/Отказать], отказ — строка requires approval без вызова, «для этого чата» исполняет и больше не спрашивает`,
+      `меню «+» с разделами Files/Context/Capabilities, Connect plugin открывает список с поиском, плагин подключается кнопкой в шапке и держится после перерисовки, одна команда — одна кнопка, недавние и избранное по разделам, пин и снятие пина переживут перезапуск, пустой список объяснён словами, клик по кнопке даёт строку вызова инструмента в ленте, окно одобрения спрашивает [Разрешить/Разрешить для этого чата/Отказать], отказ — строка requires approval без вызова, «для этого чата» исполняет и больше не спрашивает`,
     );
   } finally {
     await browser.close();

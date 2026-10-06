@@ -14,9 +14,17 @@ export type FixtureState = {
   project: string;
   /** Тема, если владелец переключал. */
   theme: string;
+  /** Пины плагинов: порядок списка — как пиновал. */
+  pluginFavorites: string[];
+  /** Недавние подключения плагинов: порядок — как подключали. */
+  pluginRecent: string[];
 };
 
 const KEY = "gnomecode-fixture-state";
+
+/** Список id плагинов из зеркала: массив строк — иначе пусто (файл могли портить). */
+const pluginIds = (value: unknown): string[] =>
+  Array.isArray(value) ? value.filter((one): one is string => typeof one === "string") : [];
 
 export function readFixtureState(): FixtureState {
   try {
@@ -29,13 +37,15 @@ export function readFixtureState(): FixtureState {
           chatTitle: typeof held.chatTitle === "string" ? held.chatTitle : "",
           project: typeof held.project === "string" ? held.project : "",
           theme: typeof held.theme === "string" ? held.theme : "",
+          pluginFavorites: pluginIds(held.pluginFavorites),
+          pluginRecent: pluginIds(held.pluginRecent),
         };
       }
     }
   } catch {
     // Хранилище страницы не всегда доступно — страница работает и без него.
   }
-  return { chatTitle: "", project: "", theme: "" };
+  return { chatTitle: "", project: "", theme: "", pluginFavorites: [], pluginRecent: [] };
 }
 
 export function writeFixtureState(state: FixtureState): void {

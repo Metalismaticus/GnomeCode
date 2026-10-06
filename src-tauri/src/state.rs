@@ -1,5 +1,6 @@
 //! Данные окна, которые переживают перезапуск приложения («Один полный цикл»):
-//! открытая сессия движка, титул чата, папка проекта, тема. Один файл JSON в папке
+//! открытая сессия движка, титул чата, папка проекта, тема, пины и недавние
+//! плагинов. Один файл JSON в папке
 //! данных (`GNOMECODE_DATA_DIR` извне или папка данных Tauri); каждая правка —
 //! чтение, подмена поля, запись под Mutex: правка темы чат и папку не затирает.
 //!
@@ -44,6 +45,12 @@ pub struct AppState {
     pub project: Option<String>,
     /// Тема окна: включённый переключатель.
     pub theme: Option<Theme>,
+    /// Пины плагинов (⭐ в списке плагинов): слова самого владельца — общие для всех
+    /// проектов (сцена F спеки плагинов), порядок — как пиновал, новый сверху.
+    pub plugin_favorites: Option<Vec<String>>,
+    /// Недавние подключения плагинов к чату: зачем список — подключить привычный
+    /// инструмент за два клика (сцена F); порядок — как подключали, свежий сверху.
+    pub plugin_recent: Option<Vec<String>>,
 }
 
 /// Правка состояния: названные поля меняются, остальные остаются как были.
@@ -54,6 +61,8 @@ pub struct StatePatch {
     pub chat_title: Option<String>,
     pub project: Option<String>,
     pub theme: Option<Theme>,
+    pub plugin_favorites: Option<Vec<String>>,
+    pub plugin_recent: Option<Vec<String>>,
 }
 
 impl AppState {
@@ -64,6 +73,8 @@ impl AppState {
             chat_title: patch.chat_title.clone().or_else(|| self.chat_title.clone()),
             project: patch.project.clone().or_else(|| self.project.clone()),
             theme: patch.theme.or(self.theme),
+            plugin_favorites: patch.plugin_favorites.clone().or_else(|| self.plugin_favorites.clone()),
+            plugin_recent: patch.plugin_recent.clone().or_else(|| self.plugin_recent.clone()),
         }
     }
 }

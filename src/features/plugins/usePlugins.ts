@@ -2,11 +2,12 @@
 // Разбор формы движка делает мост (ADR-0001) — здесь только состояние окна и
 // действия владельца: «открыть список», «найти», «подключить», «в избранное».
 //
-// Избранное и недавнее живут в окне, на диск не пишутся: данных пользователя в
-// проекте ещё нет (docs/TESTING.md, «Данные пользователя»).
+// Пины и недавние переживают перезапуск приложения: едут в состоянии окна
+// (src-tauri/src/state.rs через мост, ADR-0001), правки пишут его же тем же полям.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { loadState, patchState } from "../../appstate";
 import { bridge, type Plugin, type PluginScope } from "../../bridge";
 
 /** Раздел списка плагинов: заголовок и плагины в нём. */
@@ -75,6 +76,13 @@ export function usePlugins(): PluginsState {
 
   useEffect(() => {
     load();
+    // Пины и недавние с прошлого запуска: до их ответа разделы собираются пустыми.
+    void loadState().then((state) => {
+      if (state) {
+        setFavorites(state.pluginFavorites ?? []);
+        setRecent(state.pluginRecent ?? []);
+      }
+    });
   }, [load]);
 
   /** Один ответ моста: свежий список — в состояние, причина — словами в ошибку.
@@ -88,12 +96,12 @@ export function usePlugins(): PluginsState {
       .catch((reason: unknown) => setError(String(reason)));
   }, []);
 
-  /** Подключение к чату со скоупом (сцена E): плагин уходит в недавние, кнопки
-   *  появляются в шапке. */
+  /** Подключение к чату со скоупом (сцена E): плагин уходит в недавние (и на диск
+   *  в состояние окна), кнопки появляются в шапке. */
   const connect = useCallback(
     (id: string, scope?: PluginScope) => {
       void applied(bridge().connectPlugin(id, scope)).then(() => {
-        setRecent((known) => [id, ...known.filter((one) => one !== id)]);
+        rememberRecent(id);
       });
     },
     [applied],
@@ -113,16 +121,31 @@ export function usePlugins(): PluginsState {
   const install = useCallback(
     (id: string, scope?: PluginScope) => {
       void applied(bridge().installPlugin(id, scope)).then(() => {
-        setRecent((known) => [id, ...known.filter((one) => one !== id)]);
+        rememberRecent(id);
       });
     },
     [applied],
   );
 
-  const favorite = useCallback((id: string) => {
-    setFavorites((known) =>
-      known.includes(id) ? known.filter((one) => one !== id) : [id, ...known],
-    );
+  /** Пин плагина: снять или поставить; правка сразу едёт в состояние окна. */
+  const favorite = useCallback(
+    (id: string) => {
+      setFavorites((known) => {
+        const next = known.includes(id) ? known.filter((one) => one !== id) : [id, ...known];
+        void patchState({ pluginFavorites: next });
+        return next;
+      });
+    },
+    [],
+  );
+
+  /** Плагин в недавние: свежий сверху, повторы не дублируются; запись — в состояние окна. */
+  const rememberRecent = useCallback((id: string) => {
+    setRecent((known) => {
+      const next = [id, ...known.filter((one) => one !== id)];
+      void patchState({ pluginRecent: next });
+      return next;
+    });
   }, []);
 
   /** Enable/Disable карточки: мост меняет состояние плагина (список — как после

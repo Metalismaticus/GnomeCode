@@ -342,6 +342,8 @@ const fixtureBridge = (): Bridge => ({
       chatTitle: saved.chatTitle || null,
       project: saved.project || fixtureProject(),
       theme,
+      pluginFavorites: saved.pluginFavorites,
+      pluginRecent: saved.pluginRecent,
     };
   },
   async statePatch(patch: WindowPatch) {
@@ -350,6 +352,8 @@ const fixtureBridge = (): Bridge => ({
       chatTitle: patch.chatTitle ?? saved.chatTitle,
       project: patch.project ?? saved.project,
       theme: patch.theme ?? saved.theme,
+      pluginFavorites: patch.pluginFavorites ?? saved.pluginFavorites,
+      pluginRecent: patch.pluginRecent ?? saved.pluginRecent,
     };
     writeFixtureState(next);
     return {
@@ -357,6 +361,8 @@ const fixtureBridge = (): Bridge => ({
       chatTitle: next.chatTitle || null,
       project: next.project || fixtureProject(),
       theme: windowState(next.theme),
+      pluginFavorites: next.pluginFavorites,
+      pluginRecent: next.pluginRecent,
     };
   },
 });

@@ -15,6 +15,10 @@ export type WindowState = {
   project: string | null;
   /** Тема, если владелец переключал. */
   theme: Theme | null;
+  /** Пины плагинов (⭐ в списке плагинов), порядок — как пиновал. */
+  pluginFavorites: string[] | null;
+  /** Недавние подключения плагинов, порядок — как подключали. */
+  pluginRecent: string[] | null;
 };
 
 /** Правка состояния: названные поля меняются, остальное — как было. */
@@ -23,6 +27,8 @@ export type WindowPatch = {
   chatTitle?: string;
   project?: string;
   theme?: Theme;
+  pluginFavorites?: string[];
+  pluginRecent?: string[];
 };
 
 export function loadState(): Promise<WindowState | null> {

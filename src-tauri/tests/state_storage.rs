@@ -57,6 +57,43 @@ fn state_survives_restart_and_theme_patch_keeps_the_rest() {
     assert_eq!(state.project, None, "папку не выбирали — поле пусто: {state:?}");
 }
 
+/// Пины и недавние плагинов переживают «перезапуск приложения», правка одного
+/// поля остальное не трогает — та же форма, что у темы и папки.
+#[test]
+fn plugin_pins_and_recent_survive_restart() {
+    let file = scratch("plugins");
+    let running = Store::at(file.clone());
+    running
+        .patch(&StatePatch {
+            plugin_favorites: Some(vec!["git".to_string(), "docs".to_string()]),
+            ..StatePatch::default()
+        })
+        .expect("пины запомнились");
+    running
+        .patch(&StatePatch {
+            plugin_recent: Some(vec!["docs".to_string()]),
+            ..StatePatch::default()
+        })
+        .expect("недавние запомнились");
+
+    let reopened = Store::at(file);
+    let state = reopened.load();
+    assert_eq!(
+        state.plugin_favorites,
+        Some(vec!["git".to_string(), "docs".to_string()]),
+        "пины плагинов после перезапуска: {state:?}"
+    );
+    assert_eq!(
+        state.plugin_recent,
+        Some(vec!["docs".to_string()]),
+        "недавние подключения после перезапуска: {state:?}"
+    );
+    assert_eq!(
+        state.theme, None,
+        "правки плагинов не задевают чат и папку: {state:?}"
+    );
+}
+
 /// Потерянный и испорченный файл — пустое состояние, окно открывается заново без паники.
 #[test]
 fn absent_or_broken_file_gives_defaults_without_panic() {
