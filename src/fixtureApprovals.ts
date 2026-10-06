@@ -22,6 +22,17 @@ const grants = new Set<string>();
  *  держит rules.json в окне (src-tauri/src/plugins/rules.rs). */
 const rules = new Map<string, string>();
 
+/** Счётчики исполненных вызовов страницы: то же, что usage.json в окне
+ *  (src-tauri/src/plugins/usage.rs) — «Вызовов: N» на карточке. Растут только
+ *  от launch: отказ (refuse/denyByRule) вызовом не был, счётчик его не трогает.
+ *  Память страницы — перезагрузка обнуляет, картина как у окна после рестарта. */
+const usage = new Map<string, { count: number; last: number }>();
+
+/** Счётчик плагина для карточки: записи нет — плагин ещё не вызывали. */
+export function usageOf(id: string): { count: number; last: number } | undefined {
+  return usage.get(id);
+}
+
 /** Якорь идентификаторов строк запуска: строка одна, новый запуск — новая строка. */
 let started = 0;
 
@@ -73,26 +84,29 @@ export function rulesMap(plugin: string): Record<string, string> {
   return own;
 }
 
-/** Запуск команды: строка «⧗ плагин · команда» — дальше отвечает движок. */
+/** Запуск команды: строка «⧗ плагин · команда» — дальше отвечает движок.
+ *  Вызов исполнен: счётчик плагина растёт здесь и больше нигде (usage.rs). */
 export function launch(plugin: string, label: string): void {
   started += 1;
-  emit(started, `${STARTED_MARK} ${plugin} · ${label}`);
+  const held = usage.get(plugin) ?? { count: 0, last: 0 };
+  usage.set(plugin, { count: held.count + 1, last: Date.now() });
+  emit(started, `${STARTED_MARK} ${plugin} · ${label}`, plugin);
 }
 
 /** Отказ владельца: строка «⚠ плагин · команда requires approval», вызов не идёт. */
 export function refuse(plugin: string, label: string): void {
   started += 1;
-  emit(started, `${REFUSED_MARK} ${plugin} · ${label}${REFUSED_TAIL}`);
+  emit(started, `${REFUSED_MARK} ${plugin} · ${label}${REFUSED_TAIL}`, plugin);
 }
 
 /** Запрещено правилом категории: строка «⚠ плагин · команда denied» — denied-
  *  категории не спрашиваются никогда, окна одобрения не будет. */
 export function denyByRule(plugin: string, label: string): void {
   started += 1;
-  emit(started, `${REFUSED_MARK} ${plugin} · ${label}${DENIED_TAIL}`);
+  emit(started, `${REFUSED_MARK} ${plugin} · ${label}${DENIED_TAIL}`, plugin);
 }
 
-function emit(number: number, text: string): void {
-  const event: FeedEvent = { type: "row", id: `plugin-${number}`, kind: "tool", text };
+function emit(number: number, text: string, plugin: string): void {
+  const event: FeedEvent = { type: "row", id: `plugin-${number}`, kind: "tool", text, plugin };
   fixture.emit(event);
 }

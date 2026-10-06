@@ -17,7 +17,7 @@
 
 import type { Plugin, PluginScope } from "./bridge";
 import { params } from "./viewparams";
-import { rulesMap } from "./fixtureApprovals";
+import { rulesMap, usageOf } from "./fixtureApprovals";
 
 /** Подключённые к чату плагины: то же, что держит реестр чата в окне Tauri. */
 const connected = new Set<string>();
@@ -209,6 +209,7 @@ export function plugins(): Plugin[] {
     const rules = rulesMap(one.id);
     const update = updates ? UPDATE_FIXTURE[one.id] : undefined;
     const scope = scopeOf(one.id);
+    const usage = usageOf(one.id);
     return {
       ...one,
       connected: isConnected(one.id),
@@ -218,6 +219,7 @@ export function plugins(): Plugin[] {
       // Обновление молча сдаёт реестр на новую версию — карточка ждёт прав стоит
       // на прежней (файл не тронут до сводки).
       ...(update ? { update, version: update.status === "applied" ? update.to : one.version } : {}),
+      ...(usage ? { usage } : {}),
     };
   });
 }

@@ -108,6 +108,23 @@ export const startShot = async (outDir, iface) => {
 export const themeOf = (page) =>
   page.$eval("html", (el) => el.getAttribute("data-theme") ?? "тема не проставлена");
 
+/** Страница-снимок в свежем контексте браузера: адрес состояния и ожидаемая тема
+ *  (атрибут `html[data-theme]` правит и состояние, и переключатель); снимки
+ *  ракурсов одного окна не приносят хранилище страницы друг другу. */
+export const openShotPage = async (browser, url, query, theme) => {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await context.newPage();
+  await page.goto(`${url}${query}`, { waitUntil: "networkidle" });
+  if (theme) {
+    await page.waitForFunction(
+      (wanted) => document.documentElement.dataset.theme === wanted,
+      theme,
+      { timeout: 15000 },
+    );
+  }
+  return { context, page };
+};
+
 /** Текст активного чата в сайдбаре: сценарии перезапуска сверяют его с прошлым циклом. */
 export const activeChat = (page) =>
   page.$eval('[data-testid="chat-active"]', (el) => el.textContent.trim());

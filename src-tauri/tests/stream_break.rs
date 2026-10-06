@@ -65,6 +65,7 @@ fn questions(sink: &ListSink) -> Vec<(String, String)> {
                 id,
                 kind: RowKind::User,
                 text,
+                ..
             } => Some((id, text)),
             _ => None,
         })

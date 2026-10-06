@@ -49,6 +49,11 @@ export function patchState(patch: WindowPatch): Promise<WindowState | null> {
     });
 }
 
+/** Модель чата по умолчанию: бейдж шапки и деталь вызова плагина показывают одно
+ *  и то же имя (пункт 10 партии сделает её выбираемой — переключение идёт мимо
+ *  константы, потому держит одно место). */
+export const DEFAULT_MODEL = "GLM-5.3 High";
+
 /** Титул чата: первый вопрос до перевода строк, длинный — с обрывом. */
 export function chatTitleOf(question: string): string {
   const first = question.trim().split("\n")[0] ?? question.trim();

@@ -124,6 +124,13 @@
   color: var(--text-dim);
 }
 
+/* Счётчик Usage на карточке: сколько исполненных вызовов было у плагина. */
+.plugin-card__usage {
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
 .plugin-card__permissions,
 .plugin-card__commands {
   display: flex;

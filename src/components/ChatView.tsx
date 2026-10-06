@@ -222,7 +222,11 @@ export function ChatView({
       ) : null}
       {pending ? <PluginSummary entry={pending} onAllow={allowInstall} onCancel={cancelInstall} /> : null}
       <div className="feed" data-testid="feed">
-        {rows.length ? <Feed rows={rows} error={error} /> : <EmptyChat />}
+        {rows.length ? (
+          <Feed rows={rows} error={error} chatTitle={title} />
+        ) : (
+          <EmptyChat />
+        )}
       </div>
       <Composer
         draft={draft}

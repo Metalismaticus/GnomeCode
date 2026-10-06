@@ -346,6 +346,8 @@ fn supervise_missing(rx: Receiver<Cmd>, sink: Arc<dyn Sink>) {
                     id: format!("refused-{refused}"),
                     kind: client::RowKind::Tool,
                     text: client::command_refused(&plugin, &label, why),
+                    // Отказ — тоже вызов плагина в ленте: детали открываются по нему.
+                    plugin: Some(plugin),
                 });
             }
             // Движка нет — перезапускать нечего: запрос установки уже исполнен,
@@ -390,6 +392,7 @@ fn pump(
                         id: format!("user-{sent}"),
                         kind: client::RowKind::User,
                         text: shown,
+                        plugin: None,
                     });
                     if let Err(reason) = api.prompt(session, &prompt) {
                         sink.emit(FeedEvent::notice(
@@ -406,6 +409,7 @@ fn pump(
                         id: format!("plugin-{plugin_rows}"),
                         kind: client::RowKind::Tool,
                         text: client::command_started(&plugin, &label),
+                        plugin: Some(plugin),
                     });
                     if let Err(reason) = api.command(session, &command) {
                         sink.emit(FeedEvent::notice(
@@ -420,6 +424,7 @@ fn pump(
                         id: format!("plugin-{plugin_rows}"),
                         kind: client::RowKind::Tool,
                         text: client::command_refused(&plugin, &label, why),
+                        plugin: Some(plugin),
                     });
                 }
             }

@@ -542,6 +542,11 @@ pub enum FeedEvent {
         id: String,
         kind: RowKind,
         text: String,
+        /// Плагин, чьим вызовом родилась строка: клик по ней открывает детали
+        /// (сцена J). У строк движка, ленты и лента-уведомлений его нет — деталей
+        /// без известного плагина не показывать (не фейкать).
+        #[serde(skip_serializing_if = "Option::is_none")]
+        plugin: Option<String>,
     },
     Append {
         id: String,
@@ -564,6 +569,7 @@ impl FeedEvent {
             id: id.to_string(),
             kind: RowKind::Notice,
             text: text.to_string(),
+            plugin: None,
         }
     }
 }
@@ -622,6 +628,7 @@ impl Feed {
                     id: data.message.clone(),
                     kind: RowKind::Assistant,
                     text: data.text.clone(),
+                    plugin: None,
                 }]
             }
             ServerEvent::ToolInputStarted { data } => {
@@ -662,6 +669,7 @@ impl Feed {
             id: message.to_string(),
             kind: RowKind::Assistant,
             text: String::new(),
+            plugin: None,
         }]
     }
 
@@ -696,6 +704,9 @@ impl Feed {
             id: id.to_string(),
             kind: RowKind::Tool,
             text,
+            // Имя плагина известен ленте позже (команда плагина), а вызовы
+            // инструмента движка — не плагины: деталей у них нет.
+            plugin: None,
         }]
     }
 }

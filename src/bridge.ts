@@ -39,12 +39,14 @@ import {
 
 export type RowKind = "user" | "assistant" | "tool" | "notice";
 
-/** Строка ленты: `row` — новая строка, `append` — дописать к существующей. */
+/** Строка ленты: `row` — новая строка, `append` — дописать к существующей;
+ *  строка вызова плагина несёт его id (`plugin`) — клик по строке открывает
+ *  детали вызова (сцена J). */
 export type FeedEvent =
-  | { type: "row"; id: string; kind: RowKind; text: string }
+  | { type: "row"; id: string; kind: RowKind; text: string; plugin?: string }
   | { type: "append"; id: string; delta: string };
 
-export type FeedRow = { id: string; kind: RowKind; text: string };
+export type FeedRow = { id: string; kind: RowKind; text: string; plugin?: string };
 
 /** Строка дерева файлов: папка или файл, полный путь — чтобы читать содержимое. */
 export type TreeNode = { name: string; path: string; kind: "dir" | "file"; loaded: boolean };
@@ -79,6 +81,11 @@ export type PluginScope = "once" | "chat" | "project" | "global";
  *  порядке их подключения к чату (toolsets.json, src-tauri/src/plugins/toolsets.rs). */
 export type ToolSet = { name: string; ids: string[] };
 
+/** Счётчик из usage.json (src-tauri/src/plugins/usage.rs): сколько исполненных
+ *  вызовов было у плагина и когда последний (unix-миллисекунды, формат для
+ *  человека делает карточка). */
+export type PluginUsage = { count: number; last: number };
+
 /** Плагин проекта глазами интерфейса: форма движка разобрана в Rust (ADR-0001). */
 export type Plugin = {
   id: string;
@@ -111,6 +118,9 @@ export type Plugin = {
   /** Что updates.json помнит об обновлении плагина (src-tauri/src/plugins/updates.rs):
    *  версии «от → до», пометка и новые права; нет — обновлений не было. */
   update?: PluginUpdate;
+  /** Счётчик исполненных вызовов (usage.json): карточка показывает «Вызовов: N»;
+   *  нет — плагин ещё ни разу не вызывали (src-tauri/src/plugins/usage.rs). */
+  usage?: PluginUsage;
 };
 
 /** Что сказал слой прав о вызове команды плагина (docs/SPEC/plugins.md,

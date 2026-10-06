@@ -15,13 +15,21 @@ export function foldFeed(events: FeedEvent[]): FeedRow[] {
   const index = new Map<string, number>();
   for (const event of events) {
     if (event.type === "row") {
+      // Строка целиком: поле `plugin` при замене живёт — оно и есть кликабельность
+      // строки вызова плагина; потеря поля оставила бы строку без деталей.
+      const row: FeedRow = {
+        id: event.id,
+        kind: event.kind,
+        text: event.text,
+        ...(event.plugin ? { plugin: event.plugin } : {}),
+      };
       const at = index.get(event.id);
       if (at === undefined) {
         index.set(event.id, rows.length);
-        rows.push({ id: event.id, kind: event.kind, text: event.text });
+        rows.push(row);
         continue;
       }
-      rows[at] = { id: event.id, kind: event.kind, text: event.text };
+      rows[at] = row;
       continue;
     }
     const at = index.get(event.id);

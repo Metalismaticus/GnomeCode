@@ -308,6 +308,11 @@ export function Card({
             ))}
           </div>
         ) : null}
+        {plugin.usage ? (
+          <div className="plugin-card__usage" data-testid="plugin-card-usage">
+            Вызовов: {plugin.usage.count}
+          </div>
+        ) : null}
         {plugin.commands.length ? (
           <div className="plugin-card__commands" data-testid="plugin-card-commands">
             {plugin.commands.map((command) => (

@@ -58,6 +58,20 @@ pub struct Plugin {
     /// и новые права; нет — обновления не было или оно давнее (updates.rs).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub update: Option<Update>,
+    /// Счётчик вызовов из usage.json к карточке: «Вызовов: N» (usage.rs);
+    /// нет — плагин ещё ни разу не вызывали.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub usage: Option<Usage>,
+}
+
+/// Счётчик вызовов плагина из usage.json (usage.rs): сколько исполненных вызовов
+/// было и когда последний (unix-миллисекунды — формат для человека держит фронт).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct Usage {
+    /// Исполненных вызовов: отказы в счёте нет — вызова не было (plugin_run).
+    pub count: u64,
+    /// Последний вызов, unix-миллисекунды; ноль — отметки нет.
+    pub last: u64,
 }
 
 /// Чем кончилось обновление плагина (updates.json, updates.rs).

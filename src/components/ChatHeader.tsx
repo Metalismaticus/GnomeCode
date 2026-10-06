@@ -1,4 +1,5 @@
 import type { Plugin } from "../bridge";
+import { DEFAULT_MODEL } from "../appstate";
 import type { Theme } from "../viewparams";
 import { PluginButton } from "./PluginButton";
 import { ThemeSwitch } from "./ThemeSwitch";
@@ -68,7 +69,7 @@ export function ChatHeader({
   onToggleTheme,
   onTogglePanel,
   panelOpen = false,
-  model = "GLM-5.3 High",
+  model = DEFAULT_MODEL,
   plugins = [],
   onRunCommand,
   onOpenPlugins,

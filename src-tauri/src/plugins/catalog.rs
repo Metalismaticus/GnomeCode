@@ -96,6 +96,7 @@ fn card(base: &mut Plugin, connected: bool, entry: &CatalogEntry) -> Plugin {
         rules: None,
         scope: None,
         update: None,
+        usage: None,
     }
 }
 
@@ -124,6 +125,7 @@ fn from_entry(entry: &CatalogEntry, connected: bool) -> Plugin {
         rules: None,
         scope: None,
         update: None,
+        usage: None,
     }
 }
 
@@ -164,6 +166,7 @@ fn plugin(entry: &Value, commands: &[Value], connected: &[String], disabled: &[S
         rules: None,
         scope: None,
         update: None,
+        usage: None,
     })
 }
 

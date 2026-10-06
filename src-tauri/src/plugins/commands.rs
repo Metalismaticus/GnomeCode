@@ -16,7 +16,7 @@ use super::manage;
 use super::model::Plugin;
 use super::permissions::Grants;
 use super::registry::Registry;
-use super::{rules, rules::Decision, scopes, toolsets, updates};
+use super::{rules, rules::Decision, scopes, toolsets, updates, usage};
 
 /// Папка данных: переменную задаёт проверка или копия, иначе — папка данных Tauri.
 fn data_dir(app: &AppHandle) -> std::path::PathBuf {
@@ -79,6 +79,11 @@ pub fn plugin_list(
     }
     for plugin in &mut list {
         plugin.update = notes.records.get(&plugin.id).cloned();
+    }
+    // Счётчики вызовов из usage.json к карточкам — «Вызовов: N» на карточке.
+    let usage = usage::at(&usage::file(folder.clone()));
+    for plugin in &mut list {
+        plugin.usage = usage.get(&plugin.id).cloned();
     }
     Ok(list)
 }
@@ -369,7 +374,7 @@ pub fn plugin_run(
 ) -> Result<PluginRun, String> {
     let folder = data_dir(&app);
     let category = category_of(&plugin, &command, &folder);
-    let held = rules::at(&rules::file(folder));
+    let held = rules::at(&rules::file(folder.clone()));
     let rule = category
         .as_deref()
         .and_then(|name| rules::value_of(&held, &plugin, name));
@@ -378,9 +383,13 @@ pub fn plugin_run(
             chat.denied(&plugin, &label)?;
             Ok(PluginRun::Denied)
         }
-        Decision::Run => chat
-            .command(&plugin, &label, &command)
-            .map(|_| PluginRun::Started),
+        Decision::Run => {
+            let sent = chat.command(&plugin, &label, &command);
+            if sent.is_ok() {
+                usage::record(&usage::file(folder), &plugin);
+            }
+            sent.map(|_| PluginRun::Started)
+        }
         Decision::Ask => Ok(PluginRun::Approval),
     }
 }
@@ -412,6 +421,7 @@ pub fn plugin_set_rule(
 /// (docs/BLOCKED.md, «Решено»); отказ запоминается только в ленте строкой.
 #[tauri::command]
 pub fn plugin_decide(
+    app: AppHandle,
     chat: State<'_, Chat>,
     grants: State<'_, Grants>,
     plugin: String,
@@ -420,10 +430,14 @@ pub fn plugin_decide(
     decision: String,
 ) -> Result<(), String> {
     match decision.as_str() {
-        "allow" => chat.command(&plugin, &label, &command),
+        "allow" => chat.command(&plugin, &label, &command).map(|_| {
+            usage::record(&usage::file(data_dir(&app)), &plugin)
+        }),
         "chat" => {
             grants.allow(&command);
-            chat.command(&plugin, &label, &command)
+            chat.command(&plugin, &label, &command).map(|_| {
+                usage::record(&usage::file(data_dir(&app)), &plugin)
+            })
         }
         "deny" => chat.refused(&plugin, &label),
         other => Err(format!("Неизвестный ответ одобрения «{other}»: выбора из окна три")),

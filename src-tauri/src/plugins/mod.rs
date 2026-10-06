@@ -19,5 +19,6 @@ pub mod rules;
 pub mod scopes;
 pub mod toolsets;
 pub mod updates;
+pub mod usage;
 
 pub use model::{Command, Plugin};
