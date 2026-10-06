@@ -1,0 +1,126 @@
+/* Панель «Plugins in this chat» (сцена D): то же окно поверх чата, что и список
+   плагинов. Цвет — только токены. */
+
+.chat-plugins {
+  position: absolute;
+  /* Под шапкой, над лентой: top: calc(100%…) уводил панель под низ окна —
+     клик вмёт от родителя `.chat` (ChatView.css), у PluginApproval тот же якорь. */
+  top: var(--space-5);
+  right: var(--space-5);
+  z-index: 20;
+  width: 260px;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow);
+}
+
+.chat-plugins__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: var(--space-2);
+}
+
+.chat-plugins__title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.chat-plugins__close {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.chat-plugins__close:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.chat-plugins__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+}
+
+.chat-plugins__row:hover {
+  background: var(--bg-hover);
+  border-radius: var(--radius-sm);
+}
+
+.chat-plugins__name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-plugins__status {
+  font-size: 11px;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.chat-plugins__remove {
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-faint);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.chat-plugins__remove:hover {
+  background: var(--bg-hover);
+  color: var(--danger);
+}
+
+.chat-plugins__empty {
+  padding: var(--space-3) var(--space-2);
+  font-size: 12px;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.chat-plugins__add {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+}
+
+.chat-plugins__add-btn {
+  width: 100%;
+  padding: var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-dim);
+  font-size: 13px;
+  text-align: left;
+}
+
+.chat-plugins__add-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.chat-plugins__add-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
