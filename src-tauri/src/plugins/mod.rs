@@ -16,6 +16,7 @@ pub mod model;
 pub mod permissions;
 pub mod registry;
 pub mod rules;
+pub mod scopes;
 pub mod updates;
 
 pub use model::{Command, Plugin};

@@ -8,7 +8,7 @@
 // с двумя правами (Network, Write) и одной командой, «postgres» — сосед по
 // каталогу, чтобы поиск показывал отбор, а не весь список подряд.
 
-import type { Plugin } from "./bridge";
+import type { Plugin, PluginScope } from "./bridge";
 import type { CatalogEntry } from "./catalog";
 import { adopt, builder, plugins as fixturePlugins, type Card } from "./fixturePlugins";
 
@@ -49,8 +49,9 @@ export function entries(): CatalogEntry[] {
 /** Установка по «Разрешить» сводки прав: карточка собирается в плагин с полями
  *  записи каталога (в окне их даёт реестр установленного — installed.json),
  *  принимается в установленные и подключается к текущему чату (adopt) — тем же
- *  путём, что в окне (plugin_install + plugin_connect). */
-export function install(id: string): Plugin[] {
+ *  путём, что в окне (plugin_install + plugin_connect); скоуп кнопок сводки
+ *  («Keep enabled for this project»/«Enable by default») идёт с подключением. */
+export function install(id: string, scope?: PluginScope): Plugin[] {
   const entry = ENTRIES.find((one) => one.id === id);
   if (!entry) {
     throw new Error(`в каталоге нет плагина «${id}»`);
@@ -63,6 +64,6 @@ export function install(id: string): Plugin[] {
     permissions: entry.permissions.map((one) => `${one.category}: ${one.value}`),
     uninstallable: true,
   };
-  adopt(builder(entry.id, entry.commands, card));
+  adopt(builder(entry.id, entry.commands, card), scope);
   return fixturePlugins();
 }

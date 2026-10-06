@@ -135,6 +135,39 @@
   color: var(--success);
 }
 
+/* Полоса скоупов у подключённой строки (сцена E): Once / Chat / Project / Global,
+   текущий скоуп предвыбран. */
+.plugin-row__scopes {
+  display: flex;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.plugin-row__scope {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.plugin-row__scope:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.plugin-row__scope[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.plugin-row__scope:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 .plugin-picker__empty {
   padding: var(--space-4) var(--space-2);
   font-size: 13px;

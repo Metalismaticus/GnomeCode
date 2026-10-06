@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use opencode::{Chat, WindowSink};
-use plugins::commands::{catalog_list, plugin_connect, plugin_decide, plugin_install, plugin_list, plugin_run, plugin_set_enabled, plugin_set_rule, plugin_uninstall, plugin_updates_note};
+use plugins::commands::{catalog_list, plugin_connect, plugin_decide, plugin_disconnect, plugin_install, plugin_list, plugin_run, plugin_set_enabled, plugin_set_rule, plugin_uninstall, plugin_updates_note};
 use plugins::permissions::Grants;
 use plugins::registry::Registry;
 use project::Project;
@@ -76,12 +76,17 @@ fn project_read_tree(path: String) -> Result<Vec<project::Node>, String> {
 fn chat_send(
     chat: State<'_, Chat>,
     project: State<'_, Project>,
+    registry: State<'_, Registry>,
     text: String,
     files: Option<Vec<String>>,
 ) -> Result<(), String> {
     let files = files.unwrap_or_default();
     let sent = project::request(project.root().as_deref(), &text, &files)?;
-    chat.send(&sent.shown, &sent.prompt)
+    chat.send(&sent.shown, &sent.prompt)?;
+    // Скоуп «Once» (docs/SPEC/plugins.md, сцена E): соединение служит текущему
+    // запросу — следующий вопрос снимает плагин с чата, установка не трогается.
+    registry.take_once();
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -94,6 +99,7 @@ pub fn run() {
             chat_send,
             plugin_connect,
             plugin_decide,
+            plugin_disconnect,
             plugin_install,
             plugin_list,
             plugin_run,

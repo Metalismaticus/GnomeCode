@@ -1,8 +1,9 @@
 // Список установленных плагинов: поиск, разделы «Избранные» / «Недавние» /
 // «Все плагины», строка плагина с командами и причиной, если он не запустился.
-// Пустой список — понятными словами, а не пустотой.
+// У подключённой строки — полоса скоупов (docs/SPEC/plugins.md, сцена E):
+// Once / Chat / Project / Global, предвыбран текущий скоуп подключения.
 
-import type { Plugin } from "../bridge";
+import type { Plugin, PluginScope } from "../bridge";
 import type { PluginsState } from "../features/plugins/usePlugins";
 
 import "./PluginPicker.css";
@@ -11,6 +12,14 @@ const SEARCH = "Поиск плагина…";
 const EMPTY = "Плагины не подключены";
 const EMPTY_HINT =
   "Поставьте плагин в opencode.json проекта и вернитесь сюда — список обновится сам";
+
+/** Полоса скоупов сцены E: порядок спеки, «Chat» — умолчание подключения. */
+const SCOPES: { kind: PluginScope; label: string; title: string }[] = [
+  { kind: "once", label: "Once", title: "Только до конца текущего запроса" },
+  { kind: "chat", label: "Chat", title: "Только этот чат — умолчание подключения" },
+  { kind: "project", label: "Project", title: "Все чаты этого проекта" },
+  { kind: "global", label: "Global", title: "Предлагается во всех новых чатах" },
+];
 
 export type PluginPickerProps = {
   plugins: PluginsState;
@@ -91,18 +100,44 @@ function body(plugins: PluginsState) {
   ));
 }
 
-/** Строка плагина: имя, команды, причина неудачи. Клик — подключение к чату. */
-function PluginRow({
-  plugin,
-  favorite,
-  onConnect,
-  onFavorite,
-}: {
+/** Полоса скоупов сцены E у подключённой строки: Once / Chat / Project / Global,
+ *  предвыбран текущий скоуп; клик не подключает строку заново, а меняет скоуп. */
+function ScopeBar({ plugin, onConnect }: { plugin: Plugin; onConnect: PluginRowProps["onConnect"] }) {
+  return (
+    <div
+      className="plugin-row__scopes"
+      data-testid="plugin-row-scopes"
+      role="radiogroup"
+      aria-label={`Скоуп плагина ${plugin.id}`}
+      onClick={(event) => event.stopPropagation()}
+    >
+      {SCOPES.map((one) => (
+        <button
+          key={one.kind}
+          type="button"
+          className="plugin-row__scope"
+          data-testid={`scope-${one.kind}`}
+          aria-pressed={plugin.scope === one.kind}
+          title={one.title}
+          onClick={() => onConnect(plugin.id, one.kind)}
+        >
+          {one.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export type PluginRowProps = {
   plugin: Plugin;
   favorite: boolean;
-  onConnect: (id: string) => void;
+  onConnect: (id: string, scope?: PluginScope) => void;
   onFavorite: (id: string) => void;
-}) {
+};
+
+/** Строка плагина: имя, команды, причина неудачи. Клик — подключение к чату;
+ *  у подключённой строки — полоса скоупов со своим действием. */
+function PluginRow({ plugin, favorite, onConnect, onFavorite }: PluginRowProps) {
   return (
     <div
       className="plugin-row"
@@ -137,7 +172,7 @@ function PluginRow({
         <span className="plugin-row__commands">{commands(plugin)}</span>
       </div>
       {plugin.error ? <div className="plugin-row__error">{plugin.error}</div> : null}
-      {plugin.connected ? <div className="plugin-row__note">подключён к чату</div> : null}
+      {plugin.connected ? <ScopeBar plugin={plugin} onConnect={onConnect} /> : null}
     </div>
   );
 }

@@ -108,3 +108,13 @@ export const panelFolder = (page) =>
     '[data-testid="context-panel"] .context__folder .context-row__value',
     (el) => el.textContent.trim(),
   );
+
+/** Подключить плагин к чату кликами: меню «+» → Connect plugin → строка списка.
+ *  Кнопка команды плагина в шапке — подтверждение подключения. */
+export const connectPlugin = async (page, id) => {
+  await page.click('[data-testid="composer-add"]');
+  await page.click('[data-testid="add-connect-plugin"]');
+  await page.waitForSelector('[data-testid="plugin-picker"]', { timeout: 5000 });
+  await page.click(`[data-testid="plugin-picker"] [data-testid="plugin-row"][data-plugin="${id}"]`);
+  await page.waitForSelector(`[data-testid="plugin-button"][data-plugin="${id}"]`, { timeout: 5000 });
+};

@@ -46,12 +46,33 @@ pub fn merged(
 ) -> Vec<Plugin> {
     let mut list = plugins(raw, commands, connected, disabled);
     for entry in installed {
+        // Эффективный список подключения передаёт команда: реестр чата плюс
+        // скоупы, минус снятые с чата (scopes::connected_for).
         let connected_flag = connected.iter().any(|known| known == &entry.id);
         if let Some(known) = list.iter().position(|one| one.id == entry.id) {
             let base = &mut list[known];
             *base = card(base, connected_flag, entry);
         } else {
             list.push(from_entry(entry, connected_flag));
+        }
+    }
+    list
+}
+
+/// Отметить скоуп подключения (сцена E) у подключённых строк списка: полоса
+/// у строки показывает его предвыбранным. Один плагин — один скоуп, порядок
+/// приоритета: once, реестр чата, скоупы проекта, глобальные. Снятому с чата
+/// скоуп не приписывается — он не подключён, пока окно не перезапустилось.
+pub fn with_scopes(
+    mut list: Vec<Plugin>,
+    once: &[String],
+    chat: &[String],
+    project: &[String],
+    global: &[String],
+) -> Vec<Plugin> {
+    for plugin in &mut list {
+        if plugin.connected {
+            plugin.scope = super::scopes::scope_of(once, chat, project, global, &plugin.id);
         }
     }
     list
@@ -73,6 +94,7 @@ fn card(base: &mut Plugin, connected: bool, entry: &CatalogEntry) -> Plugin {
         permissions: permissions_of(entry),
         disabled: entry.disabled,
         rules: None,
+        scope: None,
         update: None,
     }
 }
@@ -100,6 +122,7 @@ fn from_entry(entry: &CatalogEntry, connected: bool) -> Plugin {
         permissions: permissions_of(entry),
         disabled: entry.disabled,
         rules: None,
+        scope: None,
         update: None,
     }
 }
@@ -139,6 +162,7 @@ fn plugin(entry: &Value, commands: &[Value], connected: &[String], disabled: &[S
         description: None,
         permissions: vec![],
         rules: None,
+        scope: None,
         update: None,
     })
 }

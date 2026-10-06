@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import type { CatalogEntry } from "../catalog";
-import type { Plugin } from "../bridge";
+import type { Plugin, PluginScope } from "../bridge";
 import { useCatalog } from "../features/plugins/useCatalog";
 import { usePlugins } from "../features/plugins/usePlugins";
 import { CatalogPicker } from "./CatalogPicker";
@@ -103,12 +103,12 @@ export function PluginsPage() {
     };
   }, [catalogOpen, pending, updateSummary, confirm, config]);
 
-  /** «Разрешить» сводки прав: установка и подключение — как у каталога в чате;
-   *  плагин тут же виден во вкладке Installed. */
+  /** «Разрешить» сводки прав и кнопки скоупа: установка и подключение — как у
+   *  каталога в чате; плагин тут же виден во вкладке Installed. */
   const allowInstall = useCallback(
-    (entry: CatalogEntry) => {
+    (entry: CatalogEntry, scope?: PluginScope) => {
       setPending(undefined);
-      plugins.install(entry.id);
+      plugins.install(entry.id, scope);
       setCatalogOpen(false);
       setTab("installed");
     },

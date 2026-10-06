@@ -28,7 +28,12 @@ export function PluginButton({ plugin, command, onRun }: PluginButtonProps) {
       data-command={command.name}
       title={`${command.label} — ${command.description || plugin.id}`}
       aria-label={command.label}
-      onClick={() => onRun(plugin, command)}
+      onClick={(event) => {
+        // Клик по кнопке — команда, не панель: всплытие до области бейджей
+        // открыло бы «Plugins in this chat» тем же кликом.
+        event.stopPropagation();
+        onRun(plugin, command);
+      }}
     >
       {command.label}
     </button>

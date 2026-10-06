@@ -8,7 +8,7 @@
 // интерфейс получает фикстуру (src/fixturePlugins.ts, состояние `?состояние=плагины`).
 import { chromium } from "@playwright/test";
 
-import { done, startInterface, INSTALL } from "../lib/ui_lib.mjs";
+import { connectPlugin, done, startInterface, INSTALL } from "../lib/ui_lib.mjs";
 
 const WIDE = { width: 1440, height: 900 };
 /** Плагин с одной командой: одна команда — одна кнопка (docs/ROADMAP.md, «Крайние случаи»). */
@@ -37,15 +37,6 @@ const sections = (page) => page.$$eval('[data-testid="add-menu"] [data-section]'
 /** Строки вызова инструмента ленты: одобрение и отказ видны в них. */
 const toolRows = (page) =>
   page.$$eval('[data-testid="feed"] .feed__row--tool', (els) => els.map((el) => el.textContent.trim()));
-
-/** Подключить плагин к чату кликами: меню «+» → Connect plugin → строка списка. */
-const connect = async (page, id) => {
-  await page.click('[data-testid="composer-add"]');
-  await page.click(CONNECT);
-  await page.waitForSelector(PICKER, { timeout: 5000 });
-  await page.click(`${PICKER} ${ROW}[data-plugin="${id}"]`);
-  await page.waitForSelector(`[data-testid="plugin-button"][data-plugin="${id}"]`, { timeout: 5000 });
-};
 
 const { url, stop, ok, port } = await startInterface();
 try {
@@ -189,7 +180,7 @@ try {
     // к) Клик по кнопке — команда уходит в ленту строкой вызова инструмента -----------
     const page2 = await browser.newPage({ viewport: WIDE });
     await page2.goto(`${url}?состояние=плагины`, { waitUntil: "networkidle" });
-    await connect(page2, SOLO);
+    await connectPlugin(page2, SOLO);
     await page2.click(`[data-testid="plugin-button"][data-plugin="${SOLO}"]`);
     try {
       await page2.waitForFunction(
@@ -212,7 +203,7 @@ try {
     // л) Слой прав спрашивает: окно одобрения с тремя ответами ---------------------
     const asked = await browser.newPage({ viewport: WIDE });
     await asked.goto(`${url}?состояние=одобрение`, { waitUntil: "networkidle" });
-    await connect(asked, SOLO);
+    await connectPlugin(asked, SOLO);
     await asked.click(`[data-testid="plugin-button"][data-plugin="${SOLO}"]`);
     try {
       await asked.waitForSelector('[data-testid="plugin-approval"]', { timeout: 5000 });

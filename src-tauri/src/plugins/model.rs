@@ -50,6 +50,10 @@ pub struct Plugin {
     /// категории по умолчанию `ask` (src-tauri/src/plugins/rules.rs).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rules: Option<BTreeMap<String, String>>,
+    /// Скоуп подключения к этому чату (сцена E): `once`, `chat`, `project` или
+    /// `global` — полоса у подключённой строки показывает его предвыбранным.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scope: Option<String>,
     /// Что updates.json помнит об обновлении плагина: версии «от → до», пометка
     /// и новые права; нет — обновления не было или оно давнее (updates.rs).
     #[serde(skip_serializing_if = "Option::is_none")]

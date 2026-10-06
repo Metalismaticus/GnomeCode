@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import type { ApprovalDecision } from "../bridge";
+import type { ApprovalDecision, PluginScope } from "../bridge";
 import type { CatalogEntry } from "../catalog";
 import { useFeed } from "../chat";
 import { useApproval } from "../features/plugins/useApproval";
@@ -9,6 +9,7 @@ import { usePlugins } from "../features/plugins/usePlugins";
 import type { ProjectState } from "../features/project/useProject";
 import type { Theme } from "../viewparams";
 import { ChatHeader } from "./ChatHeader";
+import { ChatPluginsPanel } from "./ChatPluginsPanel";
 import { Composer } from "./Composer";
 import { EmptyChat } from "./EmptyChat";
 import { Feed } from "./Feed";
@@ -17,10 +18,11 @@ import { PluginSummary } from "./PluginSummary";
 
 import "./ChatView.css";
 
-/** Что открыто в композере: меню «+», список плагинов, каталог или ничего.
- *  Окно одобрения — не здесь: его открытость держит `useApproval`; сводку прав
- *  установки держит `pending` — она живёт и при открытом каталоге. */
-type Overlay = "none" | "menu" | "plugins" | "catalog";
+/** Что открыто в композере: меню «+», список плагинов, каталог, панель
+ *  «Plugins in this chat» или ничего. Окно одобрения — не здесь: его открытость
+ *  держит `useApproval`; сводку прав установки держит `pending` — она живёт и
+ *  при открытом каталоге. */
+type Overlay = "none" | "menu" | "plugins" | "catalog" | "chat-plugins";
 
 /** Закрытие открытого оверлея по Esc и клику снаружи — иначе меню и список
  *  висят поверх поля ввода и перехватывают клик по «отправить». Снаружи
@@ -46,7 +48,9 @@ function useOverlayDismiss(open: boolean, close: () => void): void {
         !target?.closest(".catalog-picker") &&
         !target?.closest(".plugin-summary") &&
         !target?.closest(".plugin-approval") &&
-        !target?.closest('[data-testid="composer-add"]')
+        !target?.closest(".chat-plugins") &&
+        !target?.closest('[data-testid="composer-add"]') &&
+        !target?.closest('[data-testid="header-plugins-area"]')
       ) {
         close();
       }
@@ -97,21 +101,33 @@ export function ChatView({
       onFirstQuestion?.(text);
       try {
         await send(text, project.files.map((file) => file.path));
+        // Скоуп «Once» (сцена E): следующий вопрос снимает плагин с чата —
+        // кнопки в шапке пересчитываются свежим списком.
+        plugins.refresh();
       } finally {
         setSending(false);
       }
     },
-    [send, project.files, onFirstQuestion],
+    [send, project.files, onFirstQuestion, plugins.refresh],
   );
 
   /** Подключение из списка закрывает список: кнопки в шапке — подтверждение,
    *  и окно списка свою работу сделало. */
   const connectFromList = useCallback(
-    (id: string) => {
-      plugins.connect(id);
+    (id: string, scope?: PluginScope) => {
+      plugins.connect(id, scope);
       setOverlay((open) => (open === "plugins" ? "none" : open));
     },
     [plugins.connect],
+  );
+
+  /** Снять плагин с чата из панели «Plugins in this chat»: установка и скоупы
+   *  остаются, кнопки уходят из этого окна. */
+  const removeFromChat = useCallback(
+    (id: string) => {
+      plugins.disconnect(id);
+    },
+    [plugins.disconnect],
   );
 
   /** Install карточки каталога: открыть сводку прав — установка без ответа не идёт. */
@@ -119,13 +135,13 @@ export function ChatView({
     setPending(entry);
   }, []);
 
-  /** «Разрешить» сводки прав: мост ставит плагин, подключает к чату и отдаёт
-   *  свежий список — каталог и сводка свою работу сделали, сценарий разговора
-   *  возвращён владельцу. */
+  /** «Разрешить» сводки прав и кнопки скоупа: мост ставит плагин, подключает
+   *  к чату (со скоупом, если выбран) и отдаёт свежий список — каталог и сводка
+   *  свою работу сделали, сценарий разговора возвращён владельцу. */
   const allowInstall = useCallback(
-    (entry: CatalogEntry) => {
+    (entry: CatalogEntry, scope?: PluginScope) => {
       setPending(undefined);
-      plugins.install(entry.id);
+      plugins.install(entry.id, scope);
       setOverlay((open) => (open === "catalog" ? "none" : open));
     },
     [plugins.install],
@@ -162,7 +178,16 @@ export function ChatView({
         panelOpen={panelOpen}
         plugins={plugins.connected}
         onRunCommand={(plugin, command) => void approval.run(plugin, command)}
+        onOpenPlugins={() => setOverlay(overlay === "chat-plugins" ? "none" : "chat-plugins")}
       />
+      {overlay === "chat-plugins" ? (
+        <ChatPluginsPanel
+          plugins={plugins.connected}
+          onRemove={removeFromChat}
+          onAdd={() => setOverlay("plugins")}
+          onClose={() => setOverlay("none")}
+        />
+      ) : null}
       {approval.asked ? (
         <PluginApproval
           plugin={approval.asked.plugin}

@@ -11,9 +11,11 @@ import { readFixtureState, writeFixtureState } from "./fixtureState";
 import {
   applyUpdate as applyUpdateFixture,
   connect as connectFixture,
+  detach as detachFixture,
   disable as disableFixture,
   enable as enableFixture,
   plugins as fixturePlugins,
+  takeOnce as takeOnceFixture,
   uninstall as uninstallFixture,
 } from "./fixturePlugins";
 import { params } from "./viewparams";
@@ -62,6 +64,11 @@ export type PluginUpdate = {
   permissions?: string[];
 };
 
+/** Скоуп подключения плагина (docs/SPEC/plugins.md, сцена E): «once» — до конца
+ *  запроса, «chat» — только этот чат, «project» и «global» вернут кнопки в новых
+ *  чатах (файл скоупов, src-tauri/src/plugins/scopes.rs). */
+export type PluginScope = "once" | "chat" | "project" | "global";
+
 /** Плагин проекта глазами интерфейса: форма движка разобрана в Rust (ADR-0001). */
 export type Plugin = {
   id: string;
@@ -71,6 +78,9 @@ export type Plugin = {
   error: string;
   commands: PluginCommand[];
   connected: boolean;
+  /** Скоуп подключения к этому чату: полоса у подключённой строки показывает
+   *  его предвыбранным; нет — плагин не подключён. */
+  scope?: PluginScope;
   /** Поля карточки раздела «Плагины» (docs/SPEC/plugins.md, сцена A) — из реестра
    *  установленного; их нет у плагина движка, поэтому поля необязательные. */
   name?: string;
@@ -120,8 +130,12 @@ type Bridge = {
   readTree(path: string): Promise<TreeNode[]>;
   /** Установленные плагины проекта с командами; пустой список — законное состояние. */
   listPlugins(): Promise<Plugin[]>;
-  /** Подключить плагин к чату: он появляется кнопками в шапке без перезапуска. */
-  connectPlugin(id: string): Promise<Plugin[]>;
+  /** Подключить плагин к чату со скоупом (сцена E): по умолчанию «этот чат»,
+   *  «проект» и «глобально» вернут кнопки в новых чатах. */
+  connectPlugin(id: string, scope?: PluginScope): Promise<Plugin[]>;
+  /** Снять плагин с чата без деинсталляции (панель «Plugins in this chat»):
+   *  кнопки уходят из этого окна, установка и скоупы остаются. */
+  disconnectPlugin(id: string): Promise<Plugin[]>;
   /** Отключить плагин (Enable/Disable в разделе «Плагины»): кнопки команд уходят
    *  из всех чатов, установка не тронута; отдаёт обновлённый список. */
   setPluginEnabled(disabled: boolean, id: string): Promise<Plugin[]>;
@@ -136,8 +150,9 @@ type Bridge = {
   /** Карточки каталога «Available» — индекс с GitHub (raw, не api.github.com). */
   catalogList(): Promise<CatalogEntry[]>;
   /** Установить плагин каталога и подключить к текущему чату — «Разрешить»
-   *  сводки прав: установка, тихий перезапуск движка, подключение, список. */
-  installPlugin(id: string): Promise<Plugin[]>;
+   *  сводки прав: установка, тихий перезапуск движка, подключение, список;
+   *  «Keep enabled for this project»/«Enable by default» ставят скоуп сразу. */
+  installPlugin(id: string, scope?: PluginScope): Promise<Plugin[]>;
   /** Клик по кнопке команды: слой прав решает, спросить владельца или исполнить. */
   runPlugin(plugin: string, command: string, label: string): Promise<PluginRun>;
   /** Ответ в окне одобрения: правило на чат сохраняет слой прав, не интерфейс. */
@@ -178,8 +193,11 @@ const tauriBridge = (): Bridge => ({
   async listPlugins() {
     return (await invoke<Plugin[]>("plugin_list")) as Plugin[];
   },
-  async connectPlugin(id: string) {
-    return (await invoke<Plugin[]>("plugin_connect", { id })) as Plugin[];
+  async connectPlugin(id: string, scope?: PluginScope) {
+    return (await invoke<Plugin[]>("plugin_connect", { id, scope: scope ?? null })) as Plugin[];
+  },
+  async disconnectPlugin(id: string) {
+    return (await invoke<Plugin[]>("plugin_disconnect", { id })) as Plugin[];
   },
   async setPluginEnabled(disabled: boolean, id: string) {
     return (await invoke<Plugin[]>("plugin_set_enabled", { disabled, id })) as Plugin[];
@@ -196,11 +214,12 @@ const tauriBridge = (): Bridge => ({
   async catalogList() {
     return (await invoke<CatalogEntry[]>("catalog_list")) as CatalogEntry[];
   },
-  async installPlugin(id: string) {
+  async installPlugin(id: string, scope?: PluginScope) {
     // «Разрешить» сводки прав — два шага моста: установка (файл + реестр +
-    // тихий перезапуск) и подключение к чату, затем свежий список.
+    // тихий перезапуск) и подключение к чату, затем свежий список; скоуп
+    // «Keep enabled for this project»/«Enable by default» идёт в подключение.
     await invoke("plugin_install", { id });
-    return (await invoke<Plugin[]>("plugin_connect", { id })) as Plugin[];
+    return (await invoke<Plugin[]>("plugin_connect", { id, scope: scope ?? null })) as Plugin[];
   },
   async runPlugin(plugin: string, command: string, label: string) {
     return (await invoke<PluginRun>("plugin_run", { plugin, command, label })) as PluginRun;
@@ -226,6 +245,9 @@ const tauriBridge = (): Bridge => ({
 const fixtureBridge = (): Bridge => ({
   async send(text: string, files: string[]) {
     fixture.push(text, files);
+    // Скоуп «Once» (сцена E): соединение служит текущему запросу — следующий
+    // вопрос снимает плагин с чата, как registry.take_once (plugin_send).
+    takeOnceFixture();
   },
   async listen(listener: Listener) {
     return fixture.play(listener);
@@ -242,15 +264,17 @@ const fixtureBridge = (): Bridge => ({
   async listPlugins() {
     return fixturePlugins();
   },
-  async connectPlugin(id: string) {
-    return connectFixture(fixturePlugins(), id);
+  async connectPlugin(id: string, scope?: PluginScope) {
+    return connectFixture(fixturePlugins(), id, scope);
+  },
+  async disconnectPlugin(id: string) {
+    return detachFixture(id);
   },
   async setPluginEnabled(disabled: boolean, id: string) {
-    const list = fixturePlugins();
-    return disabled ? disableFixture(list, id) : enableFixture(list, id);
+    return disabled ? disableFixture(id) : enableFixture(id);
   },
   async uninstallPlugin(id: string) {
-    return uninstallFixture(fixturePlugins(), id);
+    return uninstallFixture(id);
   },
   async updatesNote() {
     // Каталог в состоянии фикстуры отвечал: пометки о недоступности нет.
@@ -259,14 +283,14 @@ const fixtureBridge = (): Bridge => ({
   async catalogList() {
     return fixtureCatalog();
   },
-  async installPlugin(id: string) {
+  async installPlugin(id: string, scope?: PluginScope) {
     // В состоянии обновлений «Разрешить» сводки новых прав — принять обновление
     // (Held → Applied), как plugin_install + refresh (src-tauri/src/plugins/updates.rs):
     // живой путь тот же мост, вне окна — память фикстуры.
     if (params.feed === "plugins-updates") {
       return applyUpdateFixture(id);
     }
-    return installFixture(id);
+    return installFixture(id, scope);
   },
   async runPlugin(plugin: string, command: string, label: string) {
     // Зеркало plugin_run (src-tauri/src/plugins/commands.rs): deny по категории
