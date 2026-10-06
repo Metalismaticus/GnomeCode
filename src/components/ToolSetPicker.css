@@ -1,0 +1,184 @@
+/* Окно Tool Sets: форма окна плагинов, строки сетов с их плагинами и полосой
+   скоупов Chat/Project. Цвет — только токены (DESIGN.md §7). */
+
+.toolset-picker {
+  position: absolute;
+  left: var(--space-5);
+  bottom: calc(100% - var(--space-2));
+  z-index: 20;
+  width: 320px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow);
+}
+
+.toolset-picker__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: var(--space-2);
+}
+
+.toolset-picker__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.toolset-picker__close {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.toolset-picker__close:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.toolset-picker__empty {
+  padding: var(--space-2);
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.toolset-row {
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.toolset-row:hover,
+.toolset-row:focus-visible {
+  background: var(--bg-hover);
+  outline: none;
+}
+
+.toolset-row__line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.toolset-row__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.toolset-row__ids {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
+}
+
+/* Крестик удаления строки: ярлык группы убирается, подключённое не трогается —
+   решение за подтверждением (по образцу Uninstall, PluginsPage.css). */
+.toolset-row__remove {
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.toolset-row__remove:hover {
+  color: var(--danger);
+  background: var(--bg-hover);
+}
+
+.toolset-row__remove:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Мини-полоса скоупов у строки сета: Chat — умолчание, Project — дефолт проекта. */
+.toolset-row__scopes {
+  display: flex;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.toolset-row__scope {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.toolset-row__scope:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.toolset-row__scope:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Внизу окна: имя нового сета и «Save as Tool Set» — сет создаётся из подключённого. */
+.toolset-picker__save {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+}
+
+.toolset-picker__name {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-2) var(--space-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.toolset-picker__name:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.toolset-picker__save-btn {
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.toolset-picker__save-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.toolset-picker__save-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

@@ -6,6 +6,7 @@ import { useFeed } from "../chat";
 import { useApproval } from "../features/plugins/useApproval";
 import { useCatalog } from "../features/plugins/useCatalog";
 import { usePlugins } from "../features/plugins/usePlugins";
+import { useToolsets } from "../features/plugins/useToolsets";
 import type { ProjectState } from "../features/project/useProject";
 import type { Theme } from "../viewparams";
 import { ChatHeader } from "./ChatHeader";
@@ -18,11 +19,11 @@ import { PluginSummary } from "./PluginSummary";
 
 import "./ChatView.css";
 
-/** Что открыто в композере: меню «+», список плагинов, каталог, панель
- *  «Plugins in this chat» или ничего. Окно одобрения — не здесь: его открытость
- *  держит `useApproval`; сводку прав установки держит `pending` — она живёт и
- *  при открытом каталоге. */
-type Overlay = "none" | "menu" | "plugins" | "catalog" | "chat-plugins";
+/** Что открыто в композере: меню «+», список плагинов, окно Tool Sets, каталог,
+ *  панель «Plugins in this chat» или ничего. Окно одобрения — не здесь: его
+ *  открытость держит `useApproval`; сводку прав установки держит `pending` —
+ *  она живёт и при открытом каталоге. */
+type Overlay = "none" | "menu" | "plugins" | "toolsets" | "catalog" | "chat-plugins";
 
 /** Закрытие открытого оверлея по Esc и клику снаружи — иначе меню и список
  *  висят поверх поля ввода и перехватывают клик по «отправить». Снаружи
@@ -45,6 +46,7 @@ function useOverlayDismiss(open: boolean, close: () => void): void {
       if (
         !target?.closest(".add-menu") &&
         !target?.closest(".plugin-picker") &&
+        !target?.closest(".toolset-picker") &&
         !target?.closest(".catalog-picker") &&
         !target?.closest(".plugin-summary") &&
         !target?.closest(".plugin-approval") &&
@@ -91,6 +93,7 @@ export function ChatView({
   const [pending, setPending] = useState<CatalogEntry | undefined>(undefined);
   const { rows, error, send } = useFeed();
   const plugins = usePlugins();
+  const toolsets = useToolsets();
   const catalog = useCatalog(overlay === "catalog");
   const approval = useApproval();
 
@@ -128,6 +131,27 @@ export function ChatView({
       plugins.disconnect(id);
     },
     [plugins.disconnect],
+  );
+
+  /** Подключение Tool Set кликом строки (или его полосы скоупов): список из
+   *  ответа подключения сам становится состоянием (узор applied, usePlugins) —
+   *  отдельный plugin_list летит параллельно ходам к движку и вернул бы
+   *  прежний реестр раньше записи, кнопки сета не появились бы. */
+  const connectFromToolset = useCallback(
+    (name: string, scope?: PluginScope) => {
+      plugins.apply(toolsets.connect(name, scope));
+      setOverlay((open) => (open === "toolsets" ? "none" : open));
+    },
+    [plugins.apply, toolsets.connect],
+  );
+
+  /** «Save as Tool Set»: сет создаётся из подключённого сейчас — окно сетов
+   *  остаётся, имя и причина ошибки видны в нём самом. */
+  const saveToolset = useCallback(
+    (name: string) => {
+      toolsets.save(name);
+    },
+    [toolsets.save],
   );
 
   /** Install карточки каталога: открыть сводку прав — установка без ответа не идёт. */
@@ -208,14 +232,19 @@ export function ChatView({
         files={project.files}
         onDetach={project.detach}
         plugins={{ ...plugins, connect: connectFromList }}
+        toolsets={toolsets}
         addOpen={overlay === "menu"}
         pickerOpen={overlay === "plugins"}
+        toolsetsOpen={overlay === "toolsets"}
         catalogOpen={overlay === "catalog"}
         catalog={catalog}
         onToggleAdd={() => setOverlay(overlay === "menu" ? "none" : "menu")}
         onConnectPlugins={() => setOverlay("plugins")}
         onBrowsePlugins={() => setOverlay("catalog")}
         onClosePlugins={() => setOverlay("none")}
+        onToolsets={() => setOverlay("toolsets")}
+        onConnectToolset={connectFromToolset}
+        onSaveToolset={saveToolset}
         onInstallCatalog={installFromCatalog}
       />
     </main>

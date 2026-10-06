@@ -7,10 +7,7 @@
 // Итог: код возврата и последняя строка вывода — как у любой проверки.
 // Ограничение: снимается страница интерфейса, а не окно Tauri — WebView2
 // Playwright не водит (docs/TESTING.md, «Ловушки стека»).
-import { mkdir } from "node:fs/promises";
-import { chromium } from "@playwright/test";
-
-import { done, startInterface, INSTALL } from "../lib/ui_lib.mjs";
+import { done, startInterface, startShot, INSTALL } from "../lib/ui_lib.mjs";
 
 const OUT_DIR = "shots";
 const WIDE = { width: 1440, height: 900 };
@@ -24,15 +21,12 @@ const SHOTS = [
   { name: "plugins-picker-1440x900-light", query: "?состояние=плагины&тема=светлая", theme: "light" },
 ];
 
-const { url, stop, ok, port } = await startInterface();
-// done() выходит из процесса: за остановку сервера следит его exit-хук в startInterface,
-// поэтому возвышение vite — до try, а не внутри него, как в проверках страницы.
-if (!ok) {
-  done(1, `сервер интерфейса не поднялся на порту ${port} — vite не отвечает`);
-}
+// Подъём до try, как у любого сценария-снимка: done() выходит из процесса,
+// за остановку сервера следит его exit-хук в startInterface; папку снимков
+// и браузер открывает startShot уже внутри.
+const iface = await startInterface();
 try {
-  await mkdir(OUT_DIR, { recursive: true });
-  const browser = await chromium.launch();
+  const { url, browser } = await startShot(OUT_DIR, iface);
   try {
     for (const shot of SHOTS) {
       // Свежий контекст: хранилище страницы не приносит пины прошлого ракурса.
@@ -100,5 +94,5 @@ try {
     ? `chromium не установлен: ${INSTALL}`
     : `сценарий снимка плагинов упал: ${text.split("\n")[0]}`);
 } finally {
-  stop();
+  iface.stop();
 }

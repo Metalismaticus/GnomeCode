@@ -34,6 +34,9 @@ export type PluginsState = {
   search: (text: string) => void;
   /** Подключить со скоупом (сцена E): без скоупа — «этот чат». */
   connect: (id: string, scope?: PluginScope) => void;
+  /** Свежий список из ответа чужого действия (подключение Tool Set): тот же
+   *  узор applied — список из ответа самого действия, не отдельный plugin_list. */
+  apply: (call: Promise<Plugin[]>) => void;
   /** Снять плагин с чата без деинсталляции (панель «Plugins in this chat»). */
   disconnect: (id: string) => void;
   install: (id: string, scope?: PluginScope) => void;
@@ -49,6 +52,42 @@ export type PluginsState = {
   refresh: () => void;
 };
 
+/** Список установленного и заметка о последней проверке каталога: два ответа
+ *  моста, каждый сам по себе — заметка не отвечает, список работает
+ *  (updates.rs, «каталог недоступен — работаем на текущих»). */
+function listAndNote(
+  setPlugins: (list: Plugin[]) => void,
+  setError: (reason: string) => void,
+  setLoading: (loading: boolean) => void,
+  setUpdatesNote: (note: string | null) => void,
+): void {
+  bridge()
+    .listPlugins()
+    .then((list) => {
+      setPlugins(list);
+      setError("");
+    })
+    .catch((reason: unknown) => setError(String(reason)))
+    .finally(() => setLoading(false));
+  bridge()
+    .updatesNote()
+    .then(setUpdatesNote)
+    .catch(() => setUpdatesNote(null));
+}
+
+/** Пины и недавние с прошлого запуска — из состояния окна (src-tauri/src/state.rs). */
+function pinsFromState(
+  setFavorites: (ids: string[]) => void,
+  setRecent: (ids: string[]) => void,
+): void {
+  void loadState().then((state) => {
+    if (state) {
+      setFavorites(state.pluginFavorites ?? []);
+      setRecent(state.pluginRecent ?? []);
+    }
+  });
+}
+
 /** Список плагинов проекта: загрузка, поиск, подключение и избранное. */
 export function usePlugins(): PluginsState {
   const [plugins, setPlugins] = useState<Plugin[]>([]);
@@ -60,29 +99,13 @@ export function usePlugins(): PluginsState {
   const [recent, setRecent] = useState<string[]>([]);
 
   const load = useCallback(() => {
-    bridge()
-      .listPlugins()
-      .then((list) => {
-        setPlugins(list);
-        setError("");
-      })
-      .catch((reason: unknown) => setError(String(reason)))
-      .finally(() => setLoading(false));
-    bridge()
-      .updatesNote()
-      .then(setUpdatesNote)
-      .catch(() => setUpdatesNote(null));
+    listAndNote(setPlugins, setError, setLoading, setUpdatesNote);
   }, []);
 
   useEffect(() => {
     load();
     // Пины и недавние с прошлого запуска: до их ответа разделы собираются пустыми.
-    void loadState().then((state) => {
-      if (state) {
-        setFavorites(state.pluginFavorites ?? []);
-        setRecent(state.pluginRecent ?? []);
-      }
-    });
+    pinsFromState(setFavorites, setRecent);
   }, [load]);
 
   /** Один ответ моста: свежий список — в состояние, причина — словами в ошибку.
@@ -103,6 +126,15 @@ export function usePlugins(): PluginsState {
       void applied(bridge().connectPlugin(id, scope)).then(() => {
         rememberRecent(id);
       });
+    },
+    [applied],
+  );
+
+  /** Чужой ответ моста (подключение Tool Set из ChatView): тот же applied —
+   *  один шаг от действия до кнопок в шапке. */
+  const apply = useCallback(
+    (call: Promise<Plugin[]>) => {
+      void applied(call);
     },
     [applied],
   );
@@ -131,7 +163,7 @@ export function usePlugins(): PluginsState {
   const favorite = useCallback(
     (id: string) => {
       setFavorites((known) => {
-        const next = known.includes(id) ? known.filter((one) => one !== id) : [id, ...known];
+        const next = togglePin(known, id);
         void patchState({ pluginFavorites: next });
         return next;
       });
@@ -142,7 +174,7 @@ export function usePlugins(): PluginsState {
   /** Плагин в недавние: свежий сверху, повторы не дублируются; запись — в состояние окна. */
   const rememberRecent = useCallback((id: string) => {
     setRecent((known) => {
-      const next = [id, ...known.filter((one) => one !== id)];
+      const next = onTop(known, id);
       void patchState({ pluginRecent: next });
       return next;
     });
@@ -187,6 +219,7 @@ export function usePlugins(): PluginsState {
     updatesNote,
     search: setQuery,
     connect,
+    apply,
     disconnect,
     install,
     favorite,
@@ -195,6 +228,16 @@ export function usePlugins(): PluginsState {
     uninstall,
     refresh: load,
   };
+}
+
+/** Пин в списке с поворотом: был — снять, не было — сверху. */
+function togglePin(known: string[], id: string): string[] {
+  return known.includes(id) ? known.filter((one) => one !== id) : [id, ...known];
+}
+
+/** id сверху списка: повторы не дублируются. */
+function onTop(known: string[], id: string): string[] {
+  return [id, ...known.filter((one) => one !== id)];
 }
 
 /** Поиск по имени и описанию — без учёта регистра, как ищет владелец руками. */

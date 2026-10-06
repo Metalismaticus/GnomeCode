@@ -3,6 +3,7 @@
 // иначе каждый повторяет свой `freePort` и `waiting` (docs/TESTING.md, «Полигон»).
 //
 // Итог сценария — код возврата и последняя строка вывода (tests/lib/runner_lib.py).
+import { mkdir } from "node:fs/promises";
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:net";
 import { chromium } from "@playwright/test";
@@ -94,6 +95,15 @@ export const openStatePage = async (iface, state) => {
   return { browser, page };
 };
 
+/** Подготовка сценария-снимка: проверить vite у уже поднятого интерфейса, создать
+ *  папку снимков и открыть браузер Playwright. Блок подъёма один на все
+ *  сценарии-снимки — иначе каждый повторяет свой (порог дублей 8, code_check). */
+export const startShot = async (outDir, iface) => {
+  assertUp(iface);
+  await mkdir(outDir, { recursive: true });
+  return { url: iface.url, browser: await chromium.launch() };
+};
+
 /** Тема страницы: атрибут `html[data-theme]` — его правит и переключатель, и состояние. */
 export const themeOf = (page) =>
   page.$eval("html", (el) => el.getAttribute("data-theme") ?? "тема не проставлена");
@@ -117,4 +127,35 @@ export const connectPlugin = async (page, id) => {
   await page.waitForSelector('[data-testid="plugin-picker"]', { timeout: 5000 });
   await page.click(`[data-testid="plugin-picker"] [data-testid="plugin-row"][data-plugin="${id}"]`);
   await page.waitForSelector(`[data-testid="plugin-button"][data-plugin="${id}"]`, { timeout: 5000 });
+};
+
+/** Кнопки команд в шапке по командам: подключение видно последним. */
+export const headerCommands = async (page) =>
+  page.$$eval('[data-testid="plugin-button"]', (els) => els.map((el) => el.getAttribute("data-command")));
+
+/** Кнопка команды в шапке по имени команды: прыжок, возврат, снятие — по ней. */
+export const commandButton = (command) => `[data-testid="plugin-button"][data-command="${command}"]`;
+
+/** Карточка раздела «Плагины» на вкладке Installed: установка на месте. */
+export const installedCard = (page, id) =>
+  page.waitForSelector(`[data-testid="plugin-card"][data-plugin="${id}"]`, { timeout: 5000 });
+
+/** Панель «Plugins in this chat»: клик по области бейджей в шапке. Доля отказа
+ *  текстом: панель или нет [data-testid=chat-plugins-panel] — у обоих сценариев. */
+export const openChatPlugins = async (page) => {
+  await page.click('[data-testid="header-plugins-area"]', { position: { x: 2, y: 2 } });
+  try {
+    await page.waitForSelector('[data-testid="chat-plugins-panel"]', { timeout: 5000 });
+  } catch {
+    done(1, "клик по области бейджей в шапке не открыл панель «Plugins in this chat»: нет [data-testid=chat-plugins-panel]");
+  }
+};
+
+/** Страница состояния в открытом браузере и её чат-шапка: подъём интерфейса
+ *  уже проверен. Игрок — строка ожидания шапки; 90 с — согласовано время. */
+export const openState = async (browser, url, state) => {
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  await page.goto(`${url}?состояние=${state}`, { waitUntil: "domcontentloaded", timeout: 90_000 });
+  await page.waitForSelector('[data-testid="chat-header"]', { timeout: 90_000 });
+  return page;
 };
