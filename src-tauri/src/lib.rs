@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use opencode::{Chat, WindowSink};
-use plugins::commands::{catalog_list, plugin_connect, plugin_decide, plugin_disconnect, plugin_install, plugin_list, plugin_run, plugin_set_enabled, plugin_set_rule, plugin_uninstall, plugin_updates_note};
+use plugins::commands::{catalog_list, plugin_connect, plugin_decide, plugin_disconnect, plugin_install, plugin_list, plugin_run, plugin_set_enabled, plugin_set_rule, plugin_toolset_connect, plugin_toolset_delete, plugin_toolset_save, plugin_toolsets, plugin_uninstall, plugin_updates_note};
 use plugins::permissions::Grants;
 use plugins::registry::Registry;
 use project::Project;
@@ -105,6 +105,10 @@ pub fn run() {
             plugin_run,
             plugin_set_enabled,
             plugin_set_rule,
+            plugin_toolset_connect,
+            plugin_toolset_delete,
+            plugin_toolset_save,
+            plugin_toolsets,
             plugin_uninstall,
             plugin_updates_note,
             project_pick_folder,

@@ -16,7 +16,7 @@ use super::manage;
 use super::model::Plugin;
 use super::permissions::Grants;
 use super::registry::Registry;
-use super::{rules, rules::Decision, scopes, updates};
+use super::{rules, rules::Decision, scopes, toolsets, updates};
 
 /// Папка данных: переменную задаёт проверка или копия, иначе — папка данных Tauri.
 fn data_dir(app: &AppHandle) -> std::path::PathBuf {
@@ -130,12 +130,7 @@ pub fn plugin_uninstall(
     plugin_list(app, chat, registry, store)
 }
 
-/// Подключить плагин к чату со скоупом (сцена E): по умолчанию «этот чат»,
-/// «проект» и «глобально» пишутся в файл скоупов и вернут кнопки в новых
-/// чатах, «Once» снимается после следующего вопроса. Идемпотентен только клик
-/// строки без скоупа — у неё полоса скоупов; явный выбор в полосе обновляет
-/// реестр чата (Registry::choose: «Once» встаёт на пометку, «Chat» после
-/// перезапуска возвращает плагин, у которого реестр пуст).
+/// Подключить плагин к чату со скоупом (сцена E): по умолчанию «этот чат».
 /// Запись наша — у движка подключения нет (`POST /api/plugin` не существует).
 #[tauri::command]
 pub fn plugin_connect(
@@ -146,31 +141,68 @@ pub fn plugin_connect(
     id: String,
     scope: Option<String>,
 ) -> Result<Vec<Plugin>, String> {
+    let folder = data_dir(&app);
+    let project = store.load().project;
+    plugin_connect_one(&registry, scopes::file(folder), project.as_deref(), &id, scope)?;
+    plugin_list(app, chat, registry, store)
+}
+
+/// Подключение одного плагина со скоупом — общая запись клика строки списка
+/// («Chat») и подключения Tool Set (phase2.md, раздел 11: сет раскладывается
+/// на одиночные подключения). Выделено из plugin_connect: явный скоуп
+/// (`scope.is_some()`) обновляет реестр даже уже подключённой строки, клик
+/// строки без скоупа идемпотентен. Повышающий скоуп («проект», «глобально»)
+/// пишется в файл — вернёт кнопки в новых чатах; выбор в полосе «Этот чат»/
+/// «Once» у подключённой строки — откат повышенного, файл скоупов правится.
+pub fn plugin_connect_one(
+    registry: &Registry,
+    scopes_file: std::path::PathBuf,
+    project: Option<&str>,
+    id: &str,
+    scope: Option<String>,
+) -> Result<(), String> {
     let kind = scope.as_deref().unwrap_or("chat");
     if !matches!(kind, "once" | "chat" | "project" | "global") {
         return Err(format!("неизвестный скоуп «{kind}»: once, chat, project или global"));
     }
-    let folder = data_dir(&app);
-    let project = store.load().project;
     let already = scopes::connected_for(
         &registry.connected(),
         &registry.opted_out(),
-        &scoped_for(project.as_deref(), folder.clone(), &id),
+        &scoped_for(project, scopes_file.clone(), id),
     )
     .iter()
-    .any(|known| known == &id);
-    registry.choose(&id, kind, scope.is_some(), already);
+    .any(|known| known == id);
+    registry.choose(id, kind, scope.is_some(), already);
     match kind {
         // Повышающий скоуп пишется в файл — вернёт кнопки в новых чатах.
-        "project" | "global" => scopes::set(&scopes::file(folder), kind, project.as_deref(), &id)?,
-        // Выбор в полосе «Этот чат»/«Once» у подключённой строки — откат
-        // повышенного скоупа; клик по строке без скоупа файл не трогает.
-        "chat" | "once" if scope.is_some() => {
-            scopes::set(&scopes::file(folder), kind, project.as_deref(), &id)?
-        }
+        "project" | "global" => scopes::set(&scopes_file, kind, project, id)?,
+        "chat" | "once" if scope.is_some() => scopes::set(&scopes_file, kind, project, id)?,
         _ => {}
     }
-    plugin_list(app, chat, registry, store)
+    Ok(())
+}
+
+/// Подключить Tool Set целиком (phase2.md, раздел 11): каждый установленный
+/// плагин сета со скоупом одним пунктом меню, недоступные пропускаются.
+/// `known` — id доступного установленного: движок и реестр установленного
+/// — команда окна собирает их перед вызовом. Возвращает подключённые id.
+pub fn toolset_connect(
+    registry: &Registry,
+    scopes_file: std::path::PathBuf,
+    project: Option<&str>,
+    known: &[String],
+    ids: &[String],
+    scope: Option<String>,
+) -> Result<Vec<String>, String> {
+    let mut connected = Vec::new();
+    for id in ids {
+        if !known.iter().any(|one| one == id) {
+            continue;
+        }
+        plugin_connect_one(registry, scopes_file.clone(), project, id, scope.clone())?;
+        connected.push(id.clone());
+    }
+    Ok(connected)
 }
 
 /// Скоуповые id плагина в одной папке: список проекта текущей папки плюс
@@ -198,6 +230,88 @@ pub fn plugin_disconnect(
 ) -> Result<Vec<Plugin>, String> {
     registry.opt_out_of(&id);
     plugin_list(app, chat, registry, store)
+}
+
+/// Tool Sets папки данных списком «имя → id» — окну списка нечего собирать.
+#[tauri::command]
+pub fn plugin_toolsets(app: AppHandle) -> Result<Vec<toolsets::ToolSet>, String> {
+    Ok(toolsets::pairs(&toolsets::at(&toolsets::file(data_dir(&app)))))
+}
+
+/// Сохранить Tool Set из подключённого сейчас к чату (реестр окна): пусто —
+/// нечего сохранять (вслепую сет не создают), имя пустое — записывать нечем.
+#[tauri::command]
+pub fn plugin_toolset_save(
+    app: AppHandle,
+    registry: State<'_, Registry>,
+    name: String,
+) -> Result<Vec<toolsets::ToolSet>, String> {
+    let ids = registry.connected();
+    if ids.is_empty() {
+        return Err("Нечего сохранять: подключите плагин к чату и повторите".to_string());
+    }
+    if name.trim().is_empty() {
+        return Err("Имя сета пустое: введите название".to_string());
+    }
+    toolsets::set(&toolsets::file(data_dir(&app)), &name, &ids)?;
+    Ok(toolsets::pairs(&toolsets::at(&toolsets::file(data_dir(&app)))))
+}
+
+/// Подключить Tool Set одним пунктом меню (phase2.md, раздел 11): каждый
+/// установленный плагин сета со скоупом (по умолчанию «этот чат»; «проект»
+/// делает сет дефолтом проекта), недоступные пропускаются. Доступное — движок
+/// и реестр установленного: подключение из каталога и с балки движка равны.
+#[tauri::command]
+pub fn plugin_toolset_connect(
+    app: AppHandle,
+    chat: State<'_, Chat>,
+    registry: State<'_, Registry>,
+    store: State<'_, Arc<Store>>,
+    name: String,
+    scope: Option<String>,
+) -> Result<Vec<Plugin>, String> {
+    let folder = data_dir(&app);
+    let ids = toolsets::at(&toolsets::file(folder.clone()))
+        .get(&name)
+        .cloned()
+        .ok_or_else(|| format!("сета «{name}» нет: сохраните его из подключённого"))?;
+    let known = engine_and_installed_ids(&chat, folder.clone())?;
+    let project = store.load().project;
+    toolset_connect(&registry, scopes::file(folder), project.as_deref(), &known, &ids, scope)?;
+    plugin_list(app, chat, registry, store)
+}
+
+/// Удалить Tool Set: имя уходит из файла, плагины и скоупы не трогаются —
+/// сет лишь ярлык группы, его удаление ни к чему подключённому не ведёт.
+#[tauri::command]
+pub fn plugin_toolset_delete(app: AppHandle, name: String) -> Result<Vec<toolsets::ToolSet>, String> {
+    toolsets::set(&toolsets::file(data_dir(&app)), &name, &[])?;
+    Ok(toolsets::pairs(&toolsets::at(&toolsets::file(data_dir(&app)))))
+}
+
+/// Доступные плагины: id от движка (файловые плагины) и реестра установленного
+/// (каталог). Сет подключает только их — недоступное имя в сети не рекорд.
+fn engine_and_installed_ids(
+    chat: &State<'_, Chat>,
+    folder: std::path::PathBuf,
+) -> Result<Vec<String>, String> {
+    let endpoint = chat
+        .endpoint()
+        .ok_or_else(|| "Движок OpenCode не запущен: доступное установлено недоступно".to_string())?;
+    let api = Api::new(&endpoint);
+    let mut known: Vec<String> = api
+        .plugins()?
+        .iter()
+        .filter_map(|entry| entry.get("id"))
+        .filter_map(serde_json::Value::as_str)
+        .map(String::from)
+        .collect();
+    known.extend(
+        install::installed(&install::registry_file(folder))
+            .into_iter()
+            .map(|entry| entry.id),
+    );
+    Ok(known)
 }
 
 /// Каталог «Available»: индекс доступных плагинов с GitHub владельца.

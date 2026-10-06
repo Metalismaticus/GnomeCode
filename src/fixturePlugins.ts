@@ -222,6 +222,12 @@ export function plugins(): Plugin[] {
   });
 }
 
+/** Id подключённых к чату в реестре страницы: «Save as Tool Set» берёт их из
+ *  подключённого сейчас, без скоупов файла — как registry.connected (plugin_toolset_save). */
+export function connectedIds(): string[] {
+  return [...connected];
+}
+
 /** «Разрешить» сводки новых прав на вкладке Updates: принять обновленную версию —
  *  статус «ждёт прав» уходит в «обновлено», права приняты, карточка показывает
  *  версию `to` (то же, что plugin_install + refresh в окне). Память страницы —

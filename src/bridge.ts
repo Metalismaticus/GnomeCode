@@ -30,6 +30,12 @@ import {
   denyByRule,
 } from "./fixtureApprovals";
 import { children as fixtureChildren, project as fixtureProject } from "./fixtureTree";
+import {
+  connect as connectToolsetFixture,
+  list as listToolsetsFixture,
+  remove as deleteToolsetFixture,
+  save as saveToolsetFixture,
+} from "./fixtureToolsets";
 
 export type RowKind = "user" | "assistant" | "tool" | "notice";
 
@@ -68,6 +74,10 @@ export type PluginUpdate = {
  *  запроса, «chat» — только этот чат, «project» и «global» вернут кнопки в новых
  *  чатах (файл скоупов, src-tauri/src/plugins/scopes.rs). */
 export type PluginScope = "once" | "chat" | "project" | "global";
+
+/** Tool Set (phase2.md, раздел 11): сохранённая группа плагинов: имя → id в
+ *  порядке их подключения к чату (toolsets.json, src-tauri/src/plugins/toolsets.rs). */
+export type ToolSet = { name: string; ids: string[] };
 
 /** Плагин проекта глазами интерфейса: форма движка разобрана в Rust (ADR-0001). */
 export type Plugin = {
@@ -136,6 +146,14 @@ type Bridge = {
   /** Снять плагин с чата без деинсталляции (панель «Plugins in this chat»):
    *  кнопки уходят из этого окна, установка и скоупы остаются. */
   disconnectPlugin(id: string): Promise<Plugin[]>;
+  /** Tool Sets списка: сохранённые группы плагинов — окно ToolSetPicker. */
+  listToolsets(): Promise<ToolSet[]>;
+  /** Сохранить Tool Set из подключённого сейчас к чату (реестр чата): имя. */
+  saveToolset(name: string): Promise<ToolSet[]>;
+  /** Подключить Tool Set одним пунктом меню со скоупом: недоступные пропускаются. */
+  connectToolset(name: string, scope?: PluginScope): Promise<Plugin[]>;
+  /** Удалить Tool Set: ярлык группы — плагины и скоупы не трогаются. */
+  deleteToolset(name: string): Promise<ToolSet[]>;
   /** Отключить плагин (Enable/Disable в разделе «Плагины»): кнопки команд уходят
    *  из всех чатов, установка не тронута; отдаёт обновлённый список. */
   setPluginEnabled(disabled: boolean, id: string): Promise<Plugin[]>;
@@ -198,6 +216,18 @@ const tauriBridge = (): Bridge => ({
   },
   async disconnectPlugin(id: string) {
     return (await invoke<Plugin[]>("plugin_disconnect", { id })) as Plugin[];
+  },
+  async listToolsets() {
+    return (await invoke<ToolSet[]>("plugin_toolsets")) as ToolSet[];
+  },
+  async saveToolset(name: string) {
+    return (await invoke<ToolSet[]>("plugin_toolset_save", { name })) as ToolSet[];
+  },
+  async connectToolset(name: string, scope?: PluginScope) {
+    return (await invoke<Plugin[]>("plugin_toolset_connect", { name, scope: scope ?? null })) as Plugin[];
+  },
+  async deleteToolset(name: string) {
+    return (await invoke<ToolSet[]>("plugin_toolset_delete", { name })) as ToolSet[];
   },
   async setPluginEnabled(disabled: boolean, id: string) {
     return (await invoke<Plugin[]>("plugin_set_enabled", { disabled, id })) as Plugin[];
@@ -269,6 +299,18 @@ const fixtureBridge = (): Bridge => ({
   },
   async disconnectPlugin(id: string) {
     return detachFixture(id);
+  },
+  async listToolsets() {
+    return listToolsetsFixture();
+  },
+  async saveToolset(name: string) {
+    return saveToolsetFixture(name);
+  },
+  async connectToolset(name: string, scope?: PluginScope) {
+    return connectToolsetFixture(name, scope);
+  },
+  async deleteToolset(name: string) {
+    return deleteToolsetFixture(name);
   },
   async setPluginEnabled(disabled: boolean, id: string) {
     return disabled ? disableFixture(id) : enableFixture(id);

@@ -22,6 +22,7 @@ const CONTEXT: Action[] = [
 
 const CAPABILITIES: Action[] = [
   { key: "connect-plugin", title: "Connect plugin" },
+  { key: "tool-set", title: "Tool Set" },
   { key: "mcp", title: "MCP-серверы", soon: true },
   { key: "terminal", title: "Терминал", soon: true },
 ];
@@ -36,12 +37,14 @@ export type AddMenuProps = {
   files: ProjectFile[];
   /** Клик по «Connect plugin» — открыть список плагинов. */
   onConnect: () => void;
+  /** Клик по «Tool Set» — открыть окно сохранённых групп. */
+  onToolsets: () => void;
 };
 
 /** Всплывающее меню «+»: заголовок, разделы, строка выбранного действия.
  *  Тень у него есть — `DESIGN.md` §7 разрешает её только этому меню. Закрывает его
  *  владелец: Esc, клик снаружи или ещё один клик по «+» (ChatView держит состояние). */
-export function AddMenu({ open, onClose, plugins, files, onConnect }: AddMenuProps) {
+export function AddMenu({ open, onClose, plugins, files, onConnect, onToolsets }: AddMenuProps) {
   if (!open) {
     return null;
   }
@@ -68,9 +71,14 @@ export function AddMenu({ open, onClose, plugins, files, onConnect }: AddMenuPro
               disabled={"soon" in item}
               title={item.soon ? "Позже" : item.title}
               onClick={() => {
-                // Connect plugin открывает список, остальные пункты только закрывают меню.
+                // Connect plugin открывает список, Tool Set — окно групп,
+                // остальные пункты только закрывают меню.
                 if (item.key === "connect-plugin") {
                   onConnect();
+                  return;
+                }
+                if (item.key === "tool-set") {
+                  onToolsets();
                   return;
                 }
                 onClose();
@@ -78,7 +86,7 @@ export function AddMenu({ open, onClose, plugins, files, onConnect }: AddMenuPro
             >
               <span className="add-menu__item-title">{item.title}</span>
               <span className="add-menu__item-hint">
-                {"soon" in item ? "позже" : item.key === "connect-plugin" ? "кнопки в шапке" : ""}
+                {"soon" in item ? "позже" : item.key === "connect-plugin" ? "кнопки в шапке" : item.key === "tool-set" ? "группа подключений" : ""}
               </span>
             </button>
           ))}
