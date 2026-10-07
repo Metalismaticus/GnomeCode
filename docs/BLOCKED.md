@@ -52,3 +52,19 @@
 - **Логотип сайдбара** (2026-10-07) — круглый значок «гном за ноутбуком»
   (`owner-2026-10-05-3-icon.png`), он же иконка приложения. Записано в
   `docs/DECISIONS.md`; сделано в правках живой копии.
+
+## Не блокер, но стоит знать
+
+- **Готовое задание для чата разработки** (слово владельца 2026-10-07: «можно
+  в нашем проекте сделать мини правку, чтобы они наследовались»): снять
+  булавки моделей с девяти главных ролей студии — в `.opencode/agents/`
+  (`scout.md`, `reviewer.md`, `executor.md`, `reviewer-fast.md`,
+  `designer.md`, `reference.md`, `assets.md`, `product.md`, `architect.md`)
+  удалить из frontmatter единственную строку `model: opencode-go/glm-5.3…`;
+  файлы `-any` не трогать. Проверка: `Select-String '^model:'` по
+  `.opencode/agents/*.md` — 0 вхождений среди главных ролей. Коммит
+  `Process: Let studio roles inherit the chat's selected model`, отправка
+  сразу. Сейчас прибиты: glm-5.3 (reviewer, designer, reference, product,
+  architect) и glm-5.3-flash (scout, executor, reviewer-fast, assets);
+  наследуют только `-any`-запаски. Владельцу известно: после правки все роли
+  идут на модели, выбранной в чате.
