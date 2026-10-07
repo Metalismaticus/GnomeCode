@@ -15,6 +15,7 @@ import {
   detach as detachFixture,
   disable as disableFixture,
   enable as enableFixture,
+  heldUpdates as heldUpdatesFixture,
   plugins as fixturePlugins,
   takeOnce as takeOnceFixture,
   uninstall as uninstallFixture,
@@ -90,6 +91,21 @@ export type PluginUpdate = {
   status: PluginUpdateStatus;
   /** Новые права вида «Категория: значение» — изменённые права; пусто — не менялись. */
   permissions?: string[];
+};
+
+/** Удержанная правами запись updates.json с id плагина (updates.rs::Held):
+ *  по ней сводка новых прав открывается сама при старте (сцена K). */
+export type HeldUpdate = { id: string } & PluginUpdate;
+
+/** Ответ о проверке обновлений при старте: пометка каталога — строке вкладки,
+ *  удержанные — сводке, которую интерфейс открывает без клика (решение
+ *  владельца 2026-10-06). Читается без движка — сеть фонового хука старт
+ *  окна не блокирует. */
+export type UpdatesNote = {
+  /** «каталог недоступен — работаем на текущих»; null — каталог отвечал. */
+  note: string | null;
+  /** Записи «ждёт прав»: id плагина, версии «от → до» и новые права. */
+  held: HeldUpdate[];
 };
 
 /** Скоуп подключения плагина (docs/SPEC/plugins.md, сцена E): «once» — до конца
@@ -202,9 +218,10 @@ type Bridge = {
   setPluginEnabled(disabled: boolean, id: string): Promise<Plugin[]>;
   /** Удалить плагин после подтверждения: запись реестра и файл плагина уходят. */
   uninstallPlugin(id: string): Promise<Plugin[]>;
-  /** Пометка последней проверки каталога: «каталог недоступен — работаем на
-   *  текущих»; `null` — каталог отвечал, пометки нет. */
-  updatesNote(): Promise<string | null>;
+  /** Пометка последней проверки каталога и удержанные правами обновления:
+   *  «каталог недоступен — работаем на текущих» и записи, по которым сводка
+   *  новых прав открывается сама при старте (updates.rs, сцена K). */
+  updatesNote(): Promise<UpdatesNote>;
   /** Сменить правило категории плагина (панель Configure): действует на следующий
    *  вызов без перезапуска — слой прав перечитывает правила на каждом вызове. */
   setPluginRule(plugin: string, category: string, value: string): Promise<Plugin[]>;
@@ -317,7 +334,7 @@ const tauriBridge = (): Bridge => ({
     return (await invoke<Plugin[]>("plugin_uninstall", { id })) as Plugin[];
   },
   async updatesNote() {
-    return (await invoke<string | null>("plugin_updates_note")) ?? null;
+    return (await invoke<UpdatesNote>("plugin_updates_note")) ?? { note: null, held: [] };
   },
   async setPluginRule(plugin: string, category: string, value: string) {
     return (await invoke<Plugin[]>("plugin_set_rule", { plugin, category, value })) as Plugin[];
@@ -463,8 +480,9 @@ const fixtureBridge = (): Bridge => ({
     return uninstallFixture(id);
   },
   async updatesNote() {
-    // Каталог в состоянии фикстуры отвечал: пометки о недоступности нет.
-    return null;
+    // Каталог в состоянии фикстуры отвечал: пометки о недоступности нет;
+    // удержанные — тот же набор, что карточки «ждёт прав» вкладки Updates.
+    return { note: null, held: heldUpdatesFixture() };
   },
   async catalogList() {
     return fixtureCatalog();

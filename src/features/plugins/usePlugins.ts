@@ -8,7 +8,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { loadState, patchState } from "../../appstate";
-import { bridge, ENGINE_READY_NOTICES, subscribeToFeed, type Plugin } from "../../bridge";
+import type { CatalogEntry } from "../../catalog";
+import {
+  bridge,
+  ENGINE_READY_NOTICES,
+  subscribeToFeed,
+  type HeldUpdate,
+  type Plugin,
+} from "../../bridge";
 import { usePluginActions, type PluginActions } from "./usePluginActions";
 
 /** Раздел списка плагинов: заголовок и плагины в нём. */
@@ -33,20 +40,24 @@ export type PluginsState = PluginActions & {
   /** Пометка последней проверки каталога: не ответил — работаем на текущих;
    *  `null` — каталог отвечал (src-tauri/src/plugins/updates.rs). */
   updatesNote: string | null;
+  /** Удержанные правами обновления (updates.json): по ним сводка новых прав
+   *  открывается сама при старте (сцена K, решение владельца 2026-10-06). */
+  heldUpdates: HeldUpdate[];
   search: (text: string) => void;
   favorite: (id: string) => void;
   /** Свежий список без действий владельца: «Once» снимается после вопроса. */
   refresh: () => void;
 };
 
-/** Список установленного и заметка о последней проверке каталога: два ответа
- *  моста, каждый сам по себе — заметка не отвечает, список работает
- *  (updates.rs, «каталог недоступен — работаем на текущих»). */
+/** Список установленного и ответ о проверке обновлений: два ответа моста, каждый
+ *  сам по себе — заметка и удержанные не отвечают, список работает (updates.rs,
+ *  «каталог недоступен — работаем на текущих»). */
 function listAndNote(
   setPlugins: (list: Plugin[]) => void,
   setError: (reason: string) => void,
   setLoading: (loading: boolean) => void,
   setUpdatesNote: (note: string | null) => void,
+  setHeld: (held: HeldUpdate[]) => void,
 ): void {
   bridge()
     .listPlugins()
@@ -58,8 +69,14 @@ function listAndNote(
     .finally(() => setLoading(false));
   bridge()
     .updatesNote()
-    .then(setUpdatesNote)
-    .catch(() => setUpdatesNote(null));
+    .then((answer) => {
+      setUpdatesNote(answer.note);
+      setHeld(answer.held);
+    })
+    .catch(() => {
+      setUpdatesNote(null);
+      setHeld([]);
+    });
 }
 
 /** Пины и недавние с прошлого запуска — из состояния окна (src-tauri/src/state.rs). */
@@ -82,11 +99,12 @@ export function usePlugins(): PluginsState {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [updatesNote, setUpdatesNote] = useState<string | null>(null);
+  const [held, setHeld] = useState<HeldUpdate[]>([]);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [recent, setRecent] = useState<string[]>([]);
 
   const load = useCallback(() => {
-    listAndNote(setPlugins, setError, setLoading, setUpdatesNote);
+    listAndNote(setPlugins, setError, setLoading, setUpdatesNote, setHeld);
   }, []);
 
   useEffect(() => {
@@ -146,10 +164,87 @@ export function usePlugins(): PluginsState {
     loading,
     error,
     updatesNote,
+    heldUpdates: held,
     search: setQuery,
     ...actions,
     favorite,
     refresh: load,
+  };
+}
+
+/** Удержанные записи, чью сводку эта сессия уже показывала: страница чата и
+ *  раздел «Плагины» монтируются по очереди, а окно при старте — одно, поэтому
+ *  память о показанном живёт здесь, а не в состоянии страницы. */
+const shownAtStart = new Set<string>();
+
+/** Сводка удержанного обновления и её ответы — что окно держит открытым. */
+export type HeldSummary = {
+  /** Открытая сводка; нет — очередь пуста или все показанные отвечены. */
+  summary: CatalogEntry | undefined;
+  /** «Разрешить»: обновление переносится тем же путём, что установка каталога. */
+  allow: (entry: CatalogEntry) => void;
+  /** «Отмена»: карточка остаётся «ждёт прав», окно уходит. */
+  cancel: () => void;
+  /** Кнопка «Обновить» карточки: сводка записи открывается снова. */
+  open: (id: string) => void;
+};
+
+/** Сводка новых прав удержанного обновления (сцена K, решение владельца
+ *  2026-10-06): при старте held-записи updates.json открывают сводку сами, по
+ *  одной на плагин — ответ («Разрешить»/«Отмена») выпускает следующую. Ответ
+ *  запоминает запись показанной: сводка сама не возвращается, вернуть её можно
+ *  кнопкой «Обновить» карточки вкладки Updates. */
+export function useHeldSummary(plugins: PluginsState): HeldSummary {
+  const [summary, setSummary] = useState<CatalogEntry | undefined>(undefined);
+  useEffect(() => {
+    if (summary) {
+      return;
+    }
+    const next = plugins.heldUpdates.find((one) => !shownAtStart.has(one.id));
+    if (!next) {
+      return;
+    }
+    shownAtStart.add(next.id);
+    setSummary(summaryEntry(next, plugins.plugins));
+  }, [summary, plugins.heldUpdates, plugins.plugins]);
+  const allow = useCallback(
+    (entry: CatalogEntry) => {
+      setSummary(undefined);
+      plugins.install(entry.id);
+    },
+    [plugins.install],
+  );
+  const cancel = useCallback(() => setSummary(undefined), []);
+  const open = useCallback(
+    (id: string) => {
+      const one = plugins.plugins.find((plugin) => plugin.id === id);
+      if (one?.update) {
+        shownAtStart.add(id);
+        setSummary(summaryEntry({ id, ...one.update }, plugins.plugins));
+      }
+    },
+    [plugins.plugins],
+  );
+  return { summary, allow, cancel, open };
+}
+
+/** Карточка сводки из удержанной записи: имя и описание — от списка плагинов,
+ *  версия — цель обновления, права — строки updates.json «Категория: значение». */
+function summaryEntry(held: HeldUpdate, plugins: Plugin[]): CatalogEntry {
+  const known = plugins.find((one) => one.id === held.id);
+  return {
+    id: held.id,
+    name: known?.name ?? held.id,
+    description: known?.description ?? "",
+    author: known?.author ?? "",
+    version: held.to,
+    repo: "",
+    entry: "",
+    permissions: (held.permissions ?? []).map((line) => {
+      const at = line.indexOf(": ");
+      return { category: line.slice(0, at), value: line.slice(at + 2) };
+    }),
+    commands: [],
   };
 }
 

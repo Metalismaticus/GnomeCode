@@ -11,7 +11,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { CatalogEntry } from "../catalog";
 import type { Plugin, PluginScope } from "../bridge";
 import { useCatalog } from "../features/plugins/useCatalog";
-import type { PluginsState } from "../features/plugins/usePlugins";
+import { useHeldSummary, type PluginsState } from "../features/plugins/usePlugins";
 import { CatalogPicker } from "./CatalogPicker";
 import { PluginConfig } from "./PluginConfig";
 import { PluginSummary } from "./PluginSummary";
@@ -42,8 +42,10 @@ export function PluginsPage({ plugins }: { plugins: PluginsState }) {
   const [catalogOpen, setCatalogOpen] = useState(false);
   /** Карточка каталога, чью сводку прав открыли из вкладки Available. */
   const [pending, setPending] = useState<CatalogEntry | undefined>(undefined);
-  /** Запись обновления, чью сводку новых прав открыли с карточки Updates. */
-  const [updateSummary, setUpdateSummary] = useState<CatalogEntry | undefined>(undefined);
+  /** Сводка обновления: сама при старте (held-записи, сцена K) или по кнопке
+   *  «Обновить» карточки — окно одно, его держит useHeldSummary. */
+  const { summary: heldSummary, allow: allowHeld, cancel: cancelHeld, open: openHeld } =
+    useHeldSummary(plugins);
   const catalog = useCatalog(catalogOpen);
   /** Окно подтверждения удаления: id карточки, с которой кликнули по Uninstall. */
   const [confirm, setConfirm] = useState<string | undefined>(undefined);
@@ -66,14 +68,14 @@ export function PluginsPage({ plugins }: { plugins: PluginsState }) {
    *  поверхностей свой: хук ChatView про свои окна ничего не знает, общего
    *  места для него нет. */
   useEffect(() => {
-    if (!catalogOpen && !pending && !updateSummary && !confirm && !config) {
+    if (!catalogOpen && !pending && !heldSummary && !confirm && !config) {
       return;
     }
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setCatalogOpen(false);
         setPending(undefined);
-        setUpdateSummary(undefined);
+        cancelHeld();
         setConfirm(undefined);
         setConfig(undefined);
       }
@@ -91,7 +93,7 @@ export function PluginsPage({ plugins }: { plugins: PluginsState }) {
       }
       setCatalogOpen(false);
       setPending(undefined);
-      setUpdateSummary(undefined);
+      cancelHeld();
       setConfirm(undefined);
       setConfig(undefined);
     };
@@ -101,7 +103,7 @@ export function PluginsPage({ plugins }: { plugins: PluginsState }) {
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("mousedown", onMouseDown);
     };
-  }, [catalogOpen, pending, updateSummary, confirm, config]);
+  }, [catalogOpen, pending, heldSummary, confirm, config, cancelHeld]);
 
   /** «Разрешить» сводки прав и кнопки скоупа: установка и подключение — как у
    *  каталога в чате; плагин тут же виден во вкладке Installed. */
@@ -116,29 +118,6 @@ export function PluginsPage({ plugins }: { plugins: PluginsState }) {
   );
 
   const installFromCatalog = useCallback((entry: CatalogEntry) => setPending(entry), []);
-
-  /** Кнопка сводки на карточке Updates: запись обновления становится сводкой
-   *  прав — новые права показываются до включения (сцена K). */
-  const openUpdateSummary = useCallback(
-    (id: string) => {
-      const one = plugins.plugins.find((plugin) => plugin.id === id);
-      if (one?.update) {
-        setUpdateSummary(entryFromUpdate(one, one.update));
-      }
-    },
-    [plugins.plugins],
-  );
-
-  /** «Разрешить» сводки обновления: установка версии `to` и подключение — тем же
-   *  путём моста, что у каталога; пометку пересчитает plugin_list (Held → Applied).
-   *  Вкладка Updates остаётся открытой — карточка покажет итог. */
-  const allowUpdate = useCallback(
-    (entry: CatalogEntry) => {
-      setUpdateSummary(undefined);
-      plugins.install(entry.id);
-    },
-    [plugins.install],
-  );
 
   /** Плагин открытой панели Configure из свежего списка: после смены правила
    *  список приходит новый, и панель показывает правило нажатой кнопкой. */
@@ -193,7 +172,7 @@ export function PluginsPage({ plugins }: { plugins: PluginsState }) {
           <PluginUpdates
             plugins={plugins.plugins}
             note={plugins.updatesNote}
-            onAllow={openUpdateSummary}
+            onAllow={openHeld}
           />
         ) : null}
         {tab === "disabled" ? (
@@ -237,28 +216,9 @@ export function PluginsPage({ plugins }: { plugins: PluginsState }) {
         <CatalogPicker catalog={catalog} onInstall={installFromCatalog} onClose={closeCatalog} />
       ) : null}
       {pending ? <PluginSummary entry={pending} onAllow={allowInstall} onCancel={() => setPending(undefined)} /> : null}
-      {updateSummary ? <PluginSummary entry={updateSummary} onAllow={allowUpdate} onCancel={() => setUpdateSummary(undefined)} /> : null}    </main>
+      {heldSummary ? <PluginSummary entry={heldSummary} onAllow={allowHeld} onCancel={cancelHeld} /> : null}
+    </main>
   );
-}
-
-/** Пометка обновления на форме сводки прав: права вида «Категория: значение»
- *  приходят строками из updates.json — разобрать их бывает нужно один раз. */
-function entryFromUpdate(plugin: Plugin, update: NonNullable<Plugin["update"]>): CatalogEntry {
-  return {
-    id: plugin.id,
-    name: plugin.name ?? plugin.id,
-    description: plugin.description ?? "",
-    author: plugin.author ?? "",
-    version: update.to,
-    repo: "",
-    entry: "",
-    permissions:
-      update.permissions?.map((line) => {
-        const at = line.indexOf(": ");
-        return { category: line.slice(0, at), value: line.slice(at + 2) };
-      }) ?? [],
-    commands: [],
-  };
 }
 
 /** Статус на карточке словами: выключен / не запустился с причиной / активен. */

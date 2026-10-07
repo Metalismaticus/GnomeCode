@@ -94,12 +94,19 @@ pub fn plugin_list(
     Ok(list)
 }
 
-/// Пометка последней проверки каталога из updates.json: «каталог недоступен —
-/// работаем на текущих» — строка вкладки Updates, окно при запуске не открывается
-/// (крайний случай автообновления).
+/// Пометка последней проверки каталога и удержанные правами обновления из
+/// updates.json: строка — вкладке Updates («каталог недоступен — работаем на
+/// текущих»), удержанные — сводке новых прав, которую интерфейс открывает сам
+/// при старте (сцена K, решение владельца 2026-10-06). Движок не спрашивается:
+/// held приходит из файла, даже пока движок ещё поднимается.
 #[tauri::command]
-pub fn plugin_updates_note(app: AppHandle) -> Result<Option<String>, String> {
-    Ok(updates::at(&updates::file(data_dir(&app))).catalog)
+pub fn plugin_updates_note(app: AppHandle) -> Result<updates::UpdatesNote, String> {
+    let notes = updates::at(&updates::file(data_dir(&app)));
+    let held = updates::held(&notes);
+    Ok(updates::UpdatesNote {
+        note: notes.catalog,
+        held,
+    })
 }
 
 /// Отмечено ли владелец включил или выключил плагин — Enable или Disable карточки:

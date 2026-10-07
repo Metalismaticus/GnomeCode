@@ -7,7 +7,7 @@ import { useFeed } from "../chat";
 import { useCompare } from "../features/compare/useCompare";
 import type { ApprovalState } from "../features/plugins/useApproval";
 import { useCatalog } from "../features/plugins/useCatalog";
-import type { PluginsState } from "../features/plugins/usePlugins";
+import { useHeldSummary, type PluginsState } from "../features/plugins/usePlugins";
 import { useToolsets } from "../features/plugins/useToolsets";
 import type { ProjectState } from "../features/project/useProject";
 import { params } from "../viewparams";
@@ -146,6 +146,9 @@ export function ChatView({
   );
   /** Карточка, чью сводку прав открыли: решение ещё не принято. */
   const [pending, setPending] = useState<CatalogEntry | undefined>(undefined);
+  /** Сводка новых прав удержанного обновления: при старте открывается сама
+   *  (held-записи updates.json, сцена K) — в раздел «Плагины» идти не нужно. */
+  const { summary: heldSummary, allow: allowHeld, cancel: cancelHeld } = useHeldSummary(plugins);
   const { rows, error, send } = useFeed();
   const toolsets = useToolsets();
   const catalog = useCatalog(overlay === "catalog");
@@ -253,13 +256,15 @@ export function ChatView({
 
   /** Esc и клик снаружи закрывают и оверлей, и окно одобрения: закрытое без
    *  ответа окно — не ответ, вызов спросит снова при следующем клике. Пикер
-   *  двери правой панели закрывается тем же жестом — он тоже оверлей чата. */
+   *  двери правой панели закрывается тем же жестом — он тоже оверлей чата,
+   *  как и сводка удержанного обновления, открытая сама при старте. */
   const dismissAll = useCallback(() => {
     setOverlay("none");
     setPending(undefined);
     approval.dismiss();
+    cancelHeld();
     onClosePanelPicker();
-  }, [approval.dismiss, onClosePanelPicker]);
+  }, [approval.dismiss, onClosePanelPicker, cancelHeld]);
 
   /** Фокус закрытой панели сравнения возвращается бейджу — открыли им, к нему
    *  и вернулись (спека «Клавиатура»); один помощник на оба пути закрытия. */
@@ -276,7 +281,7 @@ export function ChatView({
     dismissAll();
   }, [overlay, dismissAll, focusModelBadge]);
   useOverlayDismiss(
-    overlay !== "none" || pending !== undefined || panelPickerOpen,
+    overlay !== "none" || pending !== undefined || panelPickerOpen || heldSummary !== undefined,
     dismissAll,
     dismissOnEscape,
   );
@@ -353,6 +358,7 @@ export function ChatView({
         />
       ) : null}
       {pending ? <PluginSummary entry={pending} onAllow={allowInstall} onCancel={cancelInstall} /> : null}
+      {heldSummary ? <PluginSummary entry={heldSummary} onAllow={allowHeld} onCancel={cancelHeld} /> : null}
       {panelPickerOpen ? (
         <PluginPicker
           plugins={{ ...plugins, connect: connectFromPanel }}

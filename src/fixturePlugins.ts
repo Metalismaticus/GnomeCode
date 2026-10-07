@@ -15,7 +15,7 @@
 // сцена A): поля карточки — из реестра установленного ([`install.rs`], у плагина
 // движка их нет), а отметка выгрузки — у записи реестра установленного.
 
-import type { Plugin, PluginScope } from "./bridge";
+import type { HeldUpdate, Plugin, PluginScope } from "./bridge";
 import { params } from "./viewparams";
 import { rulesMap, usageOf } from "./fixtureApprovals";
 
@@ -231,6 +231,24 @@ export function plugins(): Plugin[] {
  *  подключённого сейчас, без скоупов файла — как registry.connected (plugin_toolset_save). */
 export function connectedIds(): string[] {
   return [...connected];
+}
+
+/** Удержанные правами обновления страницы (updates.rs::held): записи «ждёт прав»
+ *  из того же набора, что карточки вкладки Updates, — сводка новых прав при
+ *  старте открывается по ним; отвеченные и молчие записи окно не открывают. */
+export function heldUpdates(): HeldUpdate[] {
+  if (params.feed !== "plugins-updates") {
+    return [];
+  }
+  return Object.entries(UPDATE_FIXTURE)
+    .filter(([, one]) => one.status === "held")
+    .map(([id, one]) => ({
+      id,
+      from: one.from,
+      to: one.to,
+      status: one.status,
+      ...(one.permissions ? { permissions: one.permissions } : {}),
+    }));
 }
 
 /** «Разрешить» сводки новых прав на вкладке Updates: принять обновленную версию —
