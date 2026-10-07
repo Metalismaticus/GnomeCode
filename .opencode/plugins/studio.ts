@@ -1,208 +1,130 @@
-/**
- * studio — обёртка хуков плагина для OpenCode V2 + телеметрия токенов.
- *
- * Хуки (python-скрипты студии не переписаны: им подаются события
- * в исходном формате Claude Code):
- *
- *   ctx.tool.hook("execute.before")  → guard_git.py: bash/shell перед
- *     запуском; код 2 и stderr — throw = вызов инструмента заблокирован.
- *   ctx.session.hook("prompt")       → session_context.py: первый промпт
- *     сессии в проекте студии; additionalContext дописывается к промпту.
- *
- * Телеметрия токенов: на «session.usage.updated» (обновление расхода
- * сессии — проверено на живом сервере V2; события «session.idle» в V2
- * нет) и на первом промпте сессии — дельта-запись использования в
- * ../<проект>.wt/usage/studio-usage.jsonl: строка на каждый ответ модели
- * студии — {t, sid, parent, agent, model, in, out, cacheRead, cacheWrite,
- * reasoning, cost}. Агенты — основные и запасные «-any» (запасной
- * наследует модель чата и работает, пока основная недоступна — его
- * ответы не должны выпадать из журнала). Досмотр — от свежих сообщений
- * к старым с остановкой на первом записанном (не перечитывать всю
- * сессию на каждый шаг); известные id — последние 400 на сессию. Дедуп —
- * по id сообщений в ctx.storage; чужие проекты — мимо (фильтр по
- * projectID — поток событий общий на сервер). Тишина важнее полноты:
- * любая ошибка телеметрии не ломает работу.
- */
-import { spawn } from "node:child_process"
-import * as fs from "node:fs"
-import * as path from "node:path"
-
-const PY_TIMEOUT_MS = 10_000
-
-const STUDIO_AGENTS = new Set([
-  "studio", "executor-prep", "executor-code", "executor-finish",
-  "reviewer", "reviewer-fast", "designer", "scout", "assets", "reference",
-])
-
-/** Агент студии: основной или запасной «-any» (наследует модель чата). */
-function isStudioAgent(name) {
-  return typeof name === "string" &&
-    (STUDIO_AGENTS.has(name) ||
-     (name.endsWith("-any") && STUDIO_AGENTS.has(name.slice(0, -4))))
-}
-
-function pluginData(ctx) {
-  return `${ctx.location.directory}/.opencode/studio`
-}
-
-function usagePath(ctx) {
-  const root = ctx.location.directory
-  return path.join(path.dirname(root), path.basename(root) + ".wt",
-                   "usage", "studio-usage.jsonl")
-}
-
-/** секунды или миллисекунды → ISO-строка. */
-function isoTime(v) {
-  if (typeof v !== "number" || !Number.isFinite(v)) return new Date().toISOString()
-  return new Date(v > 1e12 ? v : v * 1000).toISOString()
-}
-
-function runPython(script, payload) {
-  return new Promise((resolve) => {
-    const body = JSON.stringify(payload)
-    const tryLaunch = (cmd, args) => {
-      const child = spawn(cmd, [...args, "-X", "utf8", script], {
-        windowsHide: true,
-        stdio: ["pipe", "pipe", "pipe"],
-      })
-      let stdout = "", stderr = "", done = false
-      const finish = (code, out, err) => {
-        if (done) return
-        done = true
-        clearTimeout(timer)
-        resolve({ code, stdout: out, stderr: err })
-      }
-      const timer = setTimeout(() => {
-        try { child.kill() } catch {}
-        finish(1, stdout, stderr + "\nstudio: таймаут хука")
-      }, PY_TIMEOUT_MS)
-      child.stdout.on("data", (d) => (stdout += d.toString("utf-8")))
-      child.stderr.on("data", (d) => (stderr += d.toString("utf-8")))
-      child.on("error", () => finish(127, "", `studio: не удалось запустить ${cmd}`))
-      child.on("close", (code) => finish(code ?? 1, stdout, stderr))
-      child.stdin.on("error", () => {}) // скрипт мог закрыть stdin раньше
-      child.stdin.end(body, "utf-8")
-    }
-    tryLaunch("python", [])
-  })
-}
+/** studio: OpenCode V2 adapter; workflow, policy, telemetry and Python hooks are separate modules. */
+import path from "node:path"
+import { Engine } from "../studio/runtime/engine.mjs"
+import { isStudioRole } from "../studio/runtime/contracts.mjs"
+import { workflowSchema } from "../studio/runtime/schema.mjs"
+import { editAllowed, shellAllowed } from "../studio/runtime/policy.mjs"
+import { runPython } from "../studio/runtime/python.mjs"
+import { flushUsage } from "../studio/runtime/telemetry.mjs"
+import { checkModel } from "../studio/runtime/models.mjs"
 
 export default {
   id: "studio",
   async setup(ctx) {
-    const data = pluginData(ctx)
     const root = ctx.location.directory
+    const engine = new Engine(root)
+    const data = path.join(root, ".opencode", "studio")
+    const knownAgents = new Map()
+    const actor = async (sessionID, hint) => {
+      if (typeof sessionID !== "string") throw new Error("studio: OpenCode did not supply sessionID")
+      const info = await ctx.session.get({ sessionID })
+      const agent = hint ?? info?.agent ?? knownAgents.get(sessionID)
+      if (!info || info.projectID !== ctx.location.project.id || !agent) throw new Error("studio: session identity unavailable or belongs to another project")
+      return { sessionID, agent, parentID: info.parentID }
+    }
 
-    // ---- страж коммитов: до каждого вызова bash/shell -----------------
-    await ctx.tool.hook("execute.before", async (event) => {
-      if (event.tool !== "bash" && event.tool !== "shell") return
-      const input = event.input ?? {}
-      const command = input.command
-      if (typeof command !== "string" || !command) return
-      // формат события Claude — парсер guard_git.py не меняется
-      const { code, stderr } = await runPython(`${data}/hooks/guard_git.py`, {
-        tool_name: "Bash",
-        tool_input: { command },
-        cwd: input.cwd ?? root,
+    await ctx.tool.transform((editor) => {
+      editor.add({
+        name: "studio_workflow",
+        description: "Read task state or advance a studio task through role-checked implementation, independent review, real verification and owner acceptance. Bind concept/development once; get the task card before work.",
+        input: workflowSchema,
+        execute: async (input, context) => {
+          const result = await engine.execute(input, await actor(context.sessionID), context.signal)
+          return { content: JSON.stringify(result) }
+        },
       })
-      if (code === 2 && stderr.trim()) {
-        throw new Error(stderr.trim()) // блок: текст уйдёт модели
+    })
+
+    // Real permission evaluation, including tools invoked through Code Mode.
+    // Shell remains host-authority; this is a workflow guard, not an OS sandbox.
+    await ctx.permission.hook("evaluate", async (event) => {
+      const identity = await actor(event.sessionID, event.agent)
+      if (!isStudioRole(identity.agent)) return
+      if (event.action === "edit" && !editAllowed(engine, identity, event.resources)) {
+        event.effect = "deny"
+        event.message = "studio: this role/mode cannot edit these files; use the assigned task scope or the concept document workflow"
+      }
+      if ((event.action === "shell" || event.action === "bash") && event.resources.some((command) => !shellAllowed(engine, identity, command))) {
+        event.effect = "deny"
+        event.message = "studio: concept/design role cannot launch the product or execute this command"
       }
     })
 
-    // ---- контекст сессии: первый промпт в проекте студии ---------------
+    // Keep the original commit guard. A broken/missing guard blocks execution
+    // rather than silently treating its failure as permission to run git.
+    const questionIntents = new Map()
+    await ctx.tool.hook("execute.before", async (event) => {
+      if (event.tool === "question") {
+        const question = JSON.stringify(event.input ?? {})
+        if (/принима|так и есть/i.test(question)) questionIntents.set(event.sessionID, "acceptance")
+        else questionIntents.delete(event.sessionID)
+        return
+      }
+      if (event.tool !== "bash" && event.tool !== "shell") return
+      const input = event.input ?? {}
+      if (typeof input.command !== "string" || !input.command) return
+      const { code, stderr } = await runPython(path.join(data, "hooks", "guard_git.py"), {
+        tool_name: "Bash", tool_input: { command: input.command }, cwd: input.workdir ?? input.cwd ?? root,
+      })
+      if (code !== 0) throw new Error(stderr.trim() || "studio: guard_git.py failed; shell call blocked")
+    })
+
     const seen = new Set()
     await ctx.session.hook("prompt", async (event) => {
-      const sid = event.sessionID ?? "session"
-      if (sid !== "session") void flushUsage(ctx, sid) // телеметрия: не ждём idle
-      if (seen.has(sid)) return
-      seen.add(sid)
-      const { code, stdout } = await runPython(`${data}/hooks/session_context.py`, {
-        cwd: root,
-      })
+      // A brand-new Session may resolve its default agent only at context time.
+      let identity
+      try { identity = await actor(event.sessionID) } catch { return }
+      if (!isStudioRole(identity.agent)) return
+      void flushUsage(ctx, event.sessionID)
+      // The raw user request is recorded before additionalContext is appended.
+      if (identity.agent === "studio" && !identity.parentID && typeof event.prompt?.text === "string") {
+        engine.observeOwner(event.sessionID, event.prompt.text, "prompt")
+      }
+      if (seen.has(event.sessionID)) return
+      seen.add(event.sessionID)
+      const { code, stdout } = await runPython(path.join(data, "hooks", "session_context.py"), { cwd: root })
       if (code !== 0 || !stdout.trim()) return
       try {
         const text = JSON.parse(stdout)?.hookSpecificOutput?.additionalContext
-        if (typeof text === "string" && text.trim()) {
-          event.prompt.text = `${event.prompt.text}\n\n${text}`
-        }
-      } catch {
-        // не JSON — тишина: хук не должен мешать работе
-      }
+        if (typeof text === "string" && text.trim()) event.prompt.text += `\n\n${text}`
+      } catch {} // informational context must not make the session unusable
     })
 
-    // ---- телеметрия токенов --------------------------------------------
+    // Re-inject a small stage summary on every model request, also after compaction.
+    await ctx.session.hook("context", (event) => {
+      knownAgents.set(event.sessionID, event.agent)
+      if (!isStudioRole(event.agent)) return
+      checkModel(root, event.agent, event.model)
+      const summary = engine.summary()
+      const relevant = summary.tasks.filter((task) => !["accepted", "rejected"].includes(task.status)).slice(-16)
+      event.system.push({ type: "text", text: "studio durable state (not acceptance): " + JSON.stringify(relevant) + "\nLoad only the current stage skill/chapters. Use studio_workflow get for your task; never infer DONE from a green check." })
+    })
+
+    // A successful question result is user input, not a model-created quote.
+    await ctx.tool.hook("execute.after", async (event) => {
+      if (event.tool !== "question" || event.status !== "completed") return
+      const identity = await actor(event.sessionID)
+      if (identity.agent !== "studio" || identity.parentID) return
+      const result = event.result
+      if (result) engine.observeOwner(event.sessionID, typeof result.content === "string" ? result.content : JSON.stringify(result), "question", questionIntents.get(event.sessionID) ?? null)
+      questionIntents.delete(event.sessionID)
+    })
+
     const controller = new AbortController()
     const throttle = new Map()
     void (async () => {
       try {
-        for await (const ev of ctx.event.subscribe({ signal: controller.signal })) {
-          try {
-            if (String(ev?.type ?? "") !== "session.usage.updated") continue
-            const sid = ev?.data?.sessionID ?? ev?.sessionID
-            if (typeof sid !== "string") continue
-            // не чаще раза в 10 с на сессию: событие идёт на каждый шаг,
-            // а досмотр — не бесплатный (контекст сессии целиком)
-            const now = Date.now()
-            if ((throttle.get(sid) ?? 0) > now - 10_000) continue
-            throttle.set(sid, now)
-            void flushUsage(ctx, sid)
-          } catch {}
+        for await (const event of ctx.event.subscribe({ signal: controller.signal })) {
+          if (String(event?.type ?? "") !== "session.usage.updated") continue
+          const sid = event?.data?.sessionID ?? event?.sessionID
+          if (typeof sid !== "string") continue
+          const now = Date.now()
+          if ((throttle.get(sid) ?? 0) > now - 10_000) continue
+          throttle.set(sid, now)
+          void flushUsage(ctx, sid)
         }
-      } catch {
-        // поток закрылся (перезагрузка) — тишина
-      }
+      } catch {} // telemetry never blocks development
     })()
     return () => controller.abort()
   },
-}
-
-/** Дозаписать в studio-usage.jsonl новые ответы моделей этой сессии. */
-async function flushUsage(ctx, sid) {
-  try {
-    const info = await ctx.session.get({ sessionID: sid })
-    if (!info || info.projectID !== ctx.location.project.id) return // чужое — мимо
-    const messages = await ctx.session.context({ sessionID: sid })
-    const seenMap = (await ctx.storage.get("usage-seen")) ?? {}
-    const known = new Set(Array.isArray(seenMap[sid]) ? seenMap[sid] : [])
-    const fresh = []
-    const freshIds = []
-    // от свежих к старым: за записанным ответы уже учтены — дальше не идём
-    for (let i = (messages ?? []).length - 1; i >= 0; i--) {
-      const m = messages[i]
-      if (m?.type !== "assistant" || !m?.tokens || !isStudioAgent(m?.agent)) continue
-      if (known.has(m.id)) break
-      known.add(m.id)
-      freshIds.push(m.id)
-      const t = m.tokens ?? {}
-      fresh.push({
-        t: isoTime(m.time?.completed ?? m.time?.created),
-        sid,
-        parent: info.parentID ?? null,
-        agent: m.agent,
-        model: m.model ? `${m.model.providerID}/${m.model.id}` : "?",
-        in: t.input ?? 0,
-        out: t.output ?? 0,
-        cacheRead: t.cache?.read ?? 0,
-        cacheWrite: t.cache?.write ?? 0,
-        reasoning: t.reasoning ?? 0,
-        cost: Number((m.cost ?? 0).toFixed(6)),
-      })
-    }
-    if (!fresh.length) return
-    fresh.reverse() // хронология: старые раньше
-    // известные id — только последние: список не растёт вечно
-    const prev = Array.isArray(seenMap[sid]) ? seenMap[sid] : []
-    seenMap[sid] = [...freshIds.slice().reverse(), ...prev].slice(0, 400)
-    const keys = Object.keys(seenMap)
-    if (keys.length > 100) {
-      for (const k of keys.slice(0, keys.length - 100)) delete seenMap[k]
-    }
-    await ctx.storage.set("usage-seen", seenMap)
-    const file = usagePath(ctx)
-    fs.mkdirSync(path.dirname(file), { recursive: true })
-    fs.appendFileSync(file, fresh.map((r) => JSON.stringify(r)).join("\n") + "\n", "utf8")
-  } catch {
-    // телеметрия не должна ломать работу — тишина
-  }
 }

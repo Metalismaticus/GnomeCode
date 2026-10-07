@@ -1,8 +1,4 @@
 {
-  // Проектный конфиг студии: каждый НОВЫЙ чат в этой папке стартует
-  // агентом `studio` (координатор: код пишут субагенты, процесс — по
-  // /studio/setup, /studio/start, /studio/idea…). Свободный агент —
-  // переключитесь в пикере на `build`.
   "$schema": "https://opencode.ai/config.json",
   "default_agent": "studio"
 }

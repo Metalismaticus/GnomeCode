@@ -1,70 +1,66 @@
-# An existing project: read first
+# Существующий проект: сначала прочитать
 
-Before the first question, establish the facts (a large codebase — with a
-researcher subagent, so as not to pull files into the context):
+Прежде чем задать первый вопрос, выяснить фактами (большая кодовая база —
+субагентом-исследователем, чтобы не тянуть файлы в контекст):
 
-- the stack and versions — from manifests and configs (`project.godot`,
-  `package.json`, …), not by file extensions;
-- how it launches and builds — from scripts, README, CI;
-- which checks already exist, what they are called, and **whether they
-  work**: run them. Trust the exit code after verification — break one on
-  purpose and see whether it became non-zero;
-- what the product can do — by entry points, screens, scenes, routes: this
-  goes into «Что работает» of `CONCEPT.md`, every system with a path in the
-  code;
-- where content and assets live, what they are called; whether there are
-  already reference images;
-- the branch, the remote repository, the language of commit messages, whether
-  `.gitattributes` exists.
+- стек и версии — из манифестов и конфигов (`project.godot`, `package.json`,
+  …), а не по расширениям файлов;
+- как запускается и собирается — из скриптов, README, CI;
+- какие проверки уже есть, как зовутся и **работают ли**: запустить. Коду
+  возврата верить после проверки — намеренно сломать одну и посмотреть, стал
+  ли он ненулевым;
+- что продукт умеет — по точкам входа, экранам, сценам, маршрутам: это пойдёт
+  в «Что работает» `CONCEPT.md`, каждая система с путём в коде;
+- где лежат содержимое и ассеты, как называются; нет ли уже картинок-образцов;
+- ветка, удалённый репозиторий, язык сообщений коммитов, есть ли
+  `.gitattributes`.
 
-Do not record the unproven as fact: `?? нужно подтверждение: …` in the
-document and the question into «Решения» of `BLOCKED.md` (except code
-architecture — that is technique, see step 8).
+Недоказанное не записывать как факт: `?? нужно подтверждение: …` в документе
+и вопрос в «Решения» `BLOCKED.md` (кроме архитектуры кода — это техника,
+см. шаг 8).
 
-## Amendments to the steps
+## Поправки к шагам
 
-- **1** — do not ask «Где вы сейчас?» (there is prior work); ask «Как
-  стартуем?».
-- **2** — the same request, plus «что сейчас не нравится».
-- **3, 4** — as in a new project.
-- **5** — only what is invisible from the code and the owner's words. Do not
-  ask about the stack — it exists; «проба стека» — if the owner complains
-  about performance. Still ask the commit and README language (`talk.md`,
-  (d)); the history's language — only in the description: «старые останутся
-  как есть». A game — also the players' computers (`talk.md`, (g)) if the
-  goals are not in the documents; the owner's earlier decisions about speed
-  (`DECISIONS.md`, `CONCEPT.md`) — into «Цели для игроков», outweighing the
-  defaults (`update.md`, p. 4).
-- **6** — «Правила проекта» — from what the code already follows (scale,
-  axes, import); a discrepancy with `3d.md` — by a question, not an edit.
-- **8** — no existing file is overwritten; into the commit — only what
-  `/studio/setup` created. An own README — blocks only by the dialog, as
-  `update.md`, p. 7. `python -X utf8 tools/code_check.py --baseline` — the
-  baseline of the current committed code: from this day it does not grow (no
-  git — at step 12, after creating the repository and before the first
-  commit). The engine's warnings (`[debug]` Godot, `Nullable` C#) — **do not
-  enable silently**: the quick run will go red; that is cleanup (step 9), in
-  «Здоровье кода» — the line «Типы движка: не включены». «Архитектура» of
-  `CONCEPT.md` — only what the code already follows («Где что» — by entry
-  points and folders; «Службы» — from `[autoload]`, empty — «нет»; «Новая
-  система» — the recommendation by folders, with the «Решено за вас» line),
-  otherwise `?? нужно подтверждение` — without a question into «Решения»
-  (cleared by `/studio/retro` per «`[правило кода]` дважды»).
-- **9** — first «Построить проверки продукта» or «Довести проверки»
-  (`testing.md`; frame checks measured by a frames-per-second counter, or C#
-  without optimization — the «замеры по бюджету» piece); the world judged by
-  eye — «Стенд вида» next; a 3D world — «Настройки графики» (`3d.md`); then up
-  to 5 `Уборка:` items (the selection — `update.md`, p. 9; the example —
-  «Подробности» of `ROADMAP.md`; the testbed not `есть` — `[ждёт проверок]`);
-  after that — by the owner's words, do not push a vertical slice. A
-  complaint about the look with a reference — an item `[вид]` per the
-  passport; about controls, camera, or sound with a reference — `[ощущение]`.
-  Stage 1 — what the owner wants to see first; the systems from «Что
-  работает» — as «Покрытия» rows with the state `работает` and stage `1`
-  (Stage 1 stands on them; «Требует» on something working — not a forward
-  dependency). The project's own plan (`*ROADMAP*.md`, `*PLAN*.md`) — also an
-  occasion for the step 7 dialog about `/studio/roadmap`.
-- **10** — do not create a skeleton: launch the existing project the way the
-  player sees it, the screenshot `docs/refs/setup/first-frame.png` (Godot —
-  `--write-movie`, `finale.md`), the dialog «Видите окно игры?». Do not touch
-  the product's code; Godot without `docs/.gdignore` — create it.
+- **1** — «Где вы сейчас?» не спрашивать (наработки есть); «Как стартуем?» —
+  спросить.
+- **2** — та же просьба, плюс «что сейчас не нравится».
+- **3, 4** — как в новом проекте.
+- **5** — только то, чего не видно из кода и из слов владельца. Стек не
+  спрашивать — он есть; «проба стека» — если владелец жалуется на
+  производительность. Язык коммитов и README спросить всё равно (`talk.md`,
+  (д)); язык истории — только в description: «старые останутся как есть».
+  Игра — и компьютеры игроков (`talk.md`, (г)), если целей нет в
+  документах; прежние решения владельца о скорости (`DECISIONS.md`,
+  `CONCEPT.md`) — в «Цели для игроков», главнее умолчаний (`update.md`,
+  п. 4).
+- **6** — «Правила проекта» — из того, что код уже соблюдает (масштаб, оси,
+  импорт); расхождение с `3d.md` — вопросом, не правкой.
+- **8** — ни один существующий файл не перезаписывается; в коммит — только
+  созданные `/studio/setup`. Свой README — блоки только по окну, как `update.md`,
+  п. 7. `python -X utf8 tools/code_check.py --baseline` — база нынешнего
+  закоммиченного кода: с этого дня он не растёт (git нет — шагом 12, после
+  создания репозитория и до первого коммита). Предупреждения движка
+  (`[debug]` Godot, `Nullable` C#) **молча не включать** — быстрая
+  покраснеет; это уборка (шаг 9), в «Здоровье кода» — строка «Типы движка:
+  не включены». «Архитектура» `CONCEPT.md` — только то, что код уже соблюдает
+  («Где что» — по точкам входа и папкам; «Службы» — из `[autoload]`, пусто —
+  «нет»; «Новая система» — рекомендуемое по папкам, строкой «Решено за
+  вас»), иначе `?? нужно подтверждение` — без вопроса в «Решения» (снимает
+  `/studio/retro` по «`[правило кода]` дважды»).
+- **9** — первым «Построить проверки продукта» или «Довести проверки»
+  (`testing.md`; проверки кадров мерят счётчиком кадров за секунду или C#
+  без оптимизации — кусок «замеры по бюджету»); мир судят глазом — следом
+  «Стенд вида»; 3D-мир — «Настройки графики» (`3d.md`); затем до 5 пунктов
+  `Уборка:` (отбор — `update.md`, п. 9; образец — «Подробности»
+  `ROADMAP.md`; полигон не `есть` — `[ждёт проверок]`); дальше — по словам
+  владельца, вертикальный срез не навязывать. Жалоба на вид с образцом —
+  пункт `[вид]` по паспорту; на управление, камеру или звук с образцом —
+  `[ощущение]`. Этап 1 — то, что владелец хочет увидеть первым; системы из
+  «Что работает» — строками «Покрытия» с состоянием `работает` и этапом `1`
+  (Этап 1 стоит на них; «Требует» на работающее — не зависимость вперёд).
+  Свой план проекта
+  (`*ROADMAP*.md`, `*PLAN*.md`) — тоже повод для окна шага 7 про `/studio/roadmap`.
+- **10** — каркас не создавать: запустить имеющийся проект так, как его видит
+  игрок, снимок `docs/refs/setup/first-frame.png` (Godot — `--write-movie`,
+  `finale.md`), окно «Видите окно игры?». Код продукта не трогать; Godot без
+  `docs/.gdignore` — создать его.

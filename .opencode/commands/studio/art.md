@@ -1,9 +1,10 @@
 ---
-description: Нужна картинка — короткая форма /studio/order art. Собрать промт по docs/orders/art.md, записать в docs/prompts и долгом в BLOCKED. Команда чата замысла.
+description: Процесс studio — art
 agent: studio
 ---
 
-Need a picture: **$ARGUMENTS**
+Owner request: **$ARGUMENTS**
 
-This is a short form of `/studio/order art <object>`. Read `.opencode/commands/studio/order.md` and execute it in full with the kind `art`
-and the description above.
+Load `studio-art` with the skill tool and follow it for this request.
+Only the current stage's protocol chapters belong in context.
+Speak to the owner in Russian, in product words.
