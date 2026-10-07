@@ -1,7 +1,6 @@
 ---
 description: Переводит замысел в техническую карточку по существующему коду; не реализует.
 mode: subagent
-model: opencode-go/glm-5.3
 steps: 70
 permissions:
   - { action: question, resource: "*", effect: deny }

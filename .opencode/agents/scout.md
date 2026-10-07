@@ -1,7 +1,6 @@
 ---
 description: Читает код: карта затронутых систем, факты, риски и независимые волны.
 mode: subagent
-model: opencode-go/glm-5.3-flash
 steps: 50
 permissions:
   - { action: question, resource: "*", effect: deny }

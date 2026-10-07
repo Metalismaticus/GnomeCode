@@ -1,7 +1,6 @@
 ---
 description: Спецификация интерфейса на языке игрока; не пишет код.
 mode: subagent
-model: opencode-go/glm-5.3
 steps: 60
 permissions:
   - { action: question, resource: "*", effect: deny }

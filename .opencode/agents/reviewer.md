@@ -1,7 +1,6 @@
 ---
 description: Независимая полная проверка требований, кода и результата; без правки продукта.
 mode: subagent
-model: opencode-go/glm-5.3
 steps: 100
 permissions:
   - { action: question, resource: "*", effect: deny }

@@ -1,7 +1,6 @@
 ---
 description: Исследует образец: картинки, приёмы, паспорт темы и границы уверенности.
 mode: subagent
-model: opencode-go/glm-5.3
 steps: 100
 permissions:
   - { action: question, resource: "*", effect: deny }

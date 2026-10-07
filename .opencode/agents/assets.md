@@ -1,7 +1,6 @@
 ---
 description: Принимает и проверяет заказанные ассеты по исходному протоколу.
 mode: subagent
-model: opencode-go/glm-5.3-flash
 steps: 80
 permissions:
   - { action: question, resource: "*", effect: deny }

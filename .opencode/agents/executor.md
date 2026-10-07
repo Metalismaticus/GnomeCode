@@ -1,7 +1,6 @@
 ---
 description: Исполнитель одной карточки задачи; код, проверки и доказательства результата.
 mode: subagent
-model: opencode-go/glm-5.3-flash
 steps: 150
 permissions:
   - { action: question, resource: "*", effect: deny }

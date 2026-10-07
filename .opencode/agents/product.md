@@ -1,7 +1,6 @@
 ---
 description: Помогает додумать идею: ощущения, правила и критерии на языке игрока; не пишет код.
 mode: subagent
-model: opencode-go/glm-5.3
 steps: 50
 permissions:
   - { action: question, resource: "*", effect: deny }

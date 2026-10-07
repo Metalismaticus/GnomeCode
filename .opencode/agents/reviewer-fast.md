@@ -1,7 +1,6 @@
 ---
 description: Независимая проверка малого пункта; полный прогон выполняется в конце партии.
 mode: subagent
-model: opencode-go/glm-5.3-flash
 steps: 80
 permissions:
   - { action: question, resource: "*", effect: deny }
