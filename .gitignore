@@ -25,6 +25,7 @@ Thumbs.db
 # Builds & caches
 dist/
 src-tauri/target/
+target/
 
 # Public repo: чужие кадры-референсы не коммитятся (в паспорте — ссылка на источник)
 docs/refs/**/ref-*
