@@ -6,21 +6,33 @@
 Desktop AI coding client for Windows: multi-model chat over the OpenCode core, tied to your projects, with two-click plugins and per-chat security.
 <!-- studio:end pitch -->
 
+<!-- studio:begin status -->
 - **Now:** Stage 2 — the full plugin experience: the plugin section, catalog install from GitHub, permission rules, automatic updates at launch, model comparison.
 - **Next:** Stage 3 — workspaces, skills and project memory.
 <!-- studio:end status -->
 <!-- studio:begin features -->
 ## What works
 
-- App window in three columns; dark and light themes switch the whole window.
-- Chat with the OpenCode engine: the answer streams into the feed; tool calls
-  and a dropped connection show as lines, not silence.
-- Pick a project folder, browse its files in the panel and attach them to a question.
-- Plugins from chat: the plus menu offers Connect plugin, commands become
-  header buttons, and each command asks for approval on first use
-  (Allow / Allow for this chat / Deny).
-- Chat, theme and project folder survive an app restart; the engine session continues.
-- One quick check command verifies the whole product; a built copy lands in `builds/`.
+- App window in three columns; dark and light themes switch the whole window;
+  the window is frameless with its own title bar and dragging.
+- Chat with the OpenCode engine: the answer streams into the feed; code blocks
+  come with highlighting and a copy button; significant answers show
+  "Sources used" with links to files.
+- Welcome screen with project counters, quick-start scenarios and models;
+  chats grouped by "Today / Yesterday" in the sidebar.
+- Plugins: the "Available" catalog with search and install, a rights summary
+  before enabling, plugin commands as header buttons, automatic updates at launch.
+- Permission categories (read/write/network/terminal: allow / ask / deny) in
+  the Configure panel of a plugin card; defaults for all plugins in Settings.
+- Connection scopes: once, this chat, this project, global; Tool Sets — saved
+  plugin groups in one click; favorites and recents in the plus menu.
+- The Plugins page: cards with enable/disable/uninstall, call activity and counters.
+- Model comparison from opencode.ai: prices per million tokens, benchmarks,
+  "Choose" switches the chat's model or the default one.
+- Settings: theme and language, default model, provider keys (Windows
+  Credential Manager), default permissions, the data folder.
+- Chat, theme, project folder and settings survive an app restart; the engine
+  session continues; one command checks the whole product.
 <!-- studio:end features -->
 
 <!-- studio:begin run -->
@@ -38,6 +50,9 @@ Built copies for trying without the dev setup land in `builds/`.
 <!-- studio:end run -->
 
 <!-- studio:begin shots -->
+| Main window, dark theme | Question breakdown: steps and code | Plugin catalog |
+|---|---|---|
+| ![Main window](docs/refs/главное-окно-тёмная/accepted-1440x900-пусто.png) | ![Breakdown](docs/refs/главное-окно-тёмная/accepted-1440x900-разбор.png) | ![Catalog](docs/refs/каталог-плагинов.png) |
 <!-- studio:end shots -->
 
 <!-- studio:begin release -->

@@ -126,10 +126,19 @@ workspace; реестр находит папку сам (спека Фазы 2,
 |---|---|---|
 | Спеки замысла | `docs/SPEC/plugins.md`, `docs/SPEC/phase2.md` | источник требований; код не пишется без сверки со спекой |
 | Темы (токены) | `src/styles/tokens.css` | переменные `--bg`, `--accent` и пр.; тёмная и светлая |
-| Мост к OpenCode | `src-tauri/src/opencode/` | типизированный клиент; сессии, события, лента (пункт 3 Этапа 1) |
-| Слой прав плагинов | `src-tauri/src/plugins/` + `src/components/PluginApproval` | решает до вызова движка; окно «Разрешить / для этого чата / Отказать» (пункт 6) |
-| Состояние окна | `src-tauri/src/state.rs` (state.json) + `src/appstate.ts` | тема, чат, папка проекта переживают перезапуск (пункт 7) |
+| Мост к OpenCode | `src-tauri/src/opencode/` | типизированный клиент; сессии, события, лента (пункт 3 Этапа 1); разворачивает обёртку списков живого движка |
+| Слой прав плагинов | `src-tauri/src/plugins/` + `src/components/PluginApproval` | решает до вызова движка; окно «Разрешить / для этого чата / Отказать» (пункт 6); правила категорий в `rules.json` (пункт 3 Этапа 2) |
+| Состояние окна | `src-tauri/src/state.rs` (state.json) + `src/appstate.ts` | тема, чат, папка проекта, модель чата и по умолчанию, пины переживают перезапуск |
 | Полигон | `tests/checks/`, `tests/ui/`, `tests/lib/`, раннер `tools/run_checks.py` | проверка по имени, группа, полная (пункт 2) |
+| Реестр и установка плагинов | `src-tauri/src/plugins/{install,registry,manage}.rs` | `installed.json` в папке данных; каталог — `index.json` по константе `CATALOG_URL` (пункты 1–2 Этапа 2) |
+| Скоупы и Tool Sets | `src-tauri/src/plugins/{scopes,toolsets}.rs` | `plugin_scopes.json`, `tool_sets.json` в папке данных (пункты 5, 7) |
+| Активность и обновления | `src-tauri/src/plugins/{usage,updates}.rs` | `usage.json` (счётчики), `updates.json` (статусы обновлений) (пункты 4, 8) |
+| Сравнение моделей | `src-tauri/src/compare.rs` + `src/components/ComparePanel` | каталог с opencode.ai, кэш `compare.json`, вход — бейдж модели и настройки (пункт 10) |
+| Настройки и ключи | `src-tauri/src/providers.rs` + `src/components/SettingsPage` | ключи в Credential Manager (`keyring`), умолчания прав в rules.json (пункт 12) |
+| Источники ответа | `src/sources.ts` + `src/components/SourcesBlock` | сборка из строк ленты; файлы вопроса полем `files`, tool-вызовы полем `file` (пункт 9) |
+| Приветственная сборка | `src/components/EmptyChat` + `src/markdown.ts` | счётчики, сценарии, модели ≤8; Markdown-lite в ленте (пункт 11) |
+| Окно без рамки | `src-tauri/capabilities/default.json` + `src/components/WindowCluster` | drag-регионы, кнопки окна; права окна Tauri — в capabilities (пункт 13) |
+| Окружение | `builds/` | собранные копии для владельца: exe + установщики (2026-10-05) |
 
 ## Копии, которые нельзя убрать
 
@@ -137,5 +146,7 @@ workspace; реестр находит папку сам (спека Фазы 2,
 |---|---|---|
 | Строки вызова плагина (⧗ / ⚠ … requires approval) | `src-tauri/src/opencode/client.rs` × `src/fixtureApprovals.ts` | `src-tauri/tests/feed_lines.rs` + `tests/ui/plugins.mjs` |
 | Состояние окна (тема, чат, папка) | `src-tauri/src/state.rs` (state.json) × `src/fixtureState.ts` (зеркало страницы) | `tests/ui/full_cycle.mjs` |
-
-Пусто — копий пока нет.
+| Строка отказа правилом «⚠ … denied» | `src-tauri/src/opencode/client.rs` × `src/fixtureApprovals.ts` | `tests/ui/plugin_config.mjs` |
+| Константа категорий прав (Read/Write/Network/Terminal) | `src-tauri/src/plugins/rules.rs` × `src/components/PluginConfig.tsx` | `tests/ui/plugin_config.mjs` |
+| Строки ошибок сохранения Tool Set | `src-tauri/src/plugins/commands.rs` × `src/fixtureToolsets.ts` | `tests/ui/plugins_toolsets.mjs` |
+| Формат «Файлы: …» строки вопроса | `src-tauri/src/project/prompt.rs` × `src/fixture.ts` | `tests/ui/sources_used.mjs` |
