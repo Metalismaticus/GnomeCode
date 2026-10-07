@@ -215,7 +215,7 @@ fn sanitize(name: &str) -> String {
 mod tests {
     use super::{CatalogEntry, merged, plugins};
     use crate::plugins::install::CommandSpec;
-    use crate::plugins::model::{Plugin, ACTIVE};
+    use crate::plugins::model::ACTIVE;
 
     use serde_json::json;
 

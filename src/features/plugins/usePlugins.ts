@@ -8,12 +8,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { loadState, patchState } from "../../appstate";
-import { bridge, type Plugin, type PluginScope } from "../../bridge";
+import { bridge, ENGINE_READY_NOTICES, subscribeToFeed, type Plugin } from "../../bridge";
+import { usePluginActions, type PluginActions } from "./usePluginActions";
 
 /** Раздел списка плагинов: заголовок и плагины в нём. */
 export type PluginGroup = { title: string; plugins: Plugin[] };
 
-export type PluginsState = {
+/** Действия над списком (connect, apply, …) — их определения в usePluginActions. */
+export type PluginsState = PluginActions & {
   /** Все установленные плагины — строки списка. */
   plugins: Plugin[];
   /** Подключённые к чату: их команды становятся кнопками шапки. */
@@ -32,22 +34,7 @@ export type PluginsState = {
    *  `null` — каталог отвечал (src-tauri/src/plugins/updates.rs). */
   updatesNote: string | null;
   search: (text: string) => void;
-  /** Подключить со скоупом (сцена E): без скоупа — «этот чат». */
-  connect: (id: string, scope?: PluginScope) => void;
-  /** Свежий список из ответа чужого действия (подключение Tool Set): тот же
-   *  узор applied — список из ответа самого действия, не отдельный plugin_list. */
-  apply: (call: Promise<Plugin[]>) => void;
-  /** Снять плагин с чата без деинсталляции (панель «Plugins in this chat»). */
-  disconnect: (id: string) => void;
-  install: (id: string, scope?: PluginScope) => void;
   favorite: (id: string) => void;
-  /** Enable/Disable карточки раздела «Плагины»: кнопки команд уходят из всех чатов. */
-  setEnabled: (disabled: boolean, id: string) => void;
-  /** Сменить правило категории плагина (панель Configure): действует на следующий
-   *  вызов без перезапуска — список обновляется, панель показывает нажатую кнопку. */
-  setRule: (id: string, category: string, value: string) => void;
-  /** Uninstall после подтверждения: запись реестра и файл плагина уходят. */
-  uninstall: (id: string) => void;
   /** Свежий список без действий владельца: «Once» снимается после вопроса. */
   refresh: () => void;
 };
@@ -108,56 +95,20 @@ export function usePlugins(): PluginsState {
     pinsFromState(setFavorites, setRecent);
   }, [load]);
 
-  /** Один ответ моста: свежий список — в состояние, причина — словами в ошибку.
-   *  Список у всех действий тот же, что и у подключения (usePlugins), — шаг один. */
-  const applied = useCallback((call: Promise<Plugin[]>) => {
-    return call
-      .then((list) => {
-        setPlugins(list);
-        setError("");
-      })
-      .catch((reason: unknown) => setError(String(reason)));
-  }, []);
-
-  /** Подключение к чату со скоупом (сцена E): плагин уходит в недавние (и на диск
-   *  в состояние окна), кнопки появляются в шапке. */
-  const connect = useCallback(
-    (id: string, scope?: PluginScope) => {
-      void applied(bridge().connectPlugin(id, scope)).then(() => {
-        rememberRecent(id);
-      });
-    },
-    [applied],
-  );
-
-  /** Чужой ответ моста (подключение Tool Set из ChatView): тот же applied —
-   *  один шаг от действия до кнопок в шапке. */
-  const apply = useCallback(
-    (call: Promise<Plugin[]>) => {
-      void applied(call);
-    },
-    [applied],
-  );
-
-  /** Снять плагин с чата без деинсталляции: кнопки уходят из этого окна. */
-  const disconnect = useCallback(
-    (id: string) => {
-      void applied(bridge().disconnectPlugin(id));
-    },
-    [applied],
-  );
-
-  /** Установка из каталога по кнопкам сводки прав: мост ставит файл и
-   *  подключает к чату с выбранным скоупом (тихий перезапуск внутри), список
-   *  обновляется тем же состоянием, что и подключение из списка. */
-  const install = useCallback(
-    (id: string, scope?: PluginScope) => {
-      void applied(bridge().installPlugin(id, scope)).then(() => {
-        rememberRecent(id);
-      });
-    },
-    [applied],
-  );
+  // Движок обосновался после подъёма (при старте окна plugin_list честно
+  // ответил «не готов»): список перечитывается сам, кнопки плагинов приходят
+  // без клика. Подписка и её отписка — мосту (subscribeToFeed), повторов нет.
+  useEffect(() => {
+    return subscribeToFeed((event) => {
+      if (
+        event.type === "row" &&
+        event.kind === "notice" &&
+        ENGINE_READY_NOTICES.includes(event.text)
+      ) {
+        load();
+      }
+    });
+  }, [load]);
 
   /** Пин плагина: снять или поставить; правка сразу едёт в состояние окна. */
   const favorite = useCallback(
@@ -180,32 +131,10 @@ export function usePlugins(): PluginsState {
     });
   }, []);
 
-  /** Enable/Disable карточки: мост меняет состояние плагина (список — как после
-   *  подключения), кнопки команд в шапках пересчитаются при возврате в чат. */
-  const setEnabled = useCallback(
-    (disabled: boolean, id: string) => {
-      void applied(bridge().setPluginEnabled(disabled, id));
-    },
-    [applied],
-  );
-
-  /** Uninstall после подтверждения: мост удаляет запись и файл, список — свежий. */
-  const uninstall = useCallback(
-    (id: string) => {
-      void applied(bridge().uninstallPlugin(id));
-    },
-    [applied],
-  );
-
-  /** Смена правила категории в панели Configure: мост пишет правило, список
-   *  свежий — панель показывает правило нажатой кнопкой (критерий готовности:
-   *  следующий вызов ведёт себя по-новому, перезапуск не нужен). */
-  const setRule = useCallback(
-    (id: string, category: string, value: string) => {
-      void applied(bridge().setPluginRule(id, category, value));
-    },
-    [applied],
-  );
+  // Действия над списком (подключить, снять, установить, Enable/Disable,
+  // правило, деинсталляция) — соседний файл (usePluginActions); здесь остаётся
+  // их запись состояния и недавние.
+  const actions = usePluginActions(setPlugins, setError, rememberRecent);
 
   const found = useMemo(() => foundIn(plugins, query), [plugins, query]);
   return {
@@ -218,14 +147,8 @@ export function usePlugins(): PluginsState {
     error,
     updatesNote,
     search: setQuery,
-    connect,
-    apply,
-    disconnect,
-    install,
+    ...actions,
     favorite,
-    setEnabled,
-    setRule,
-    uninstall,
     refresh: load,
   };
 }

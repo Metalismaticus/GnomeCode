@@ -5,7 +5,7 @@ import { SidebarItem } from "./SidebarItem";
 import { SettingsGlyph } from "./glyphs";
 import { ThemeSwitch } from "./ThemeSwitch";
 
-import logoMark from "../../docs/refs/owner-2026-10-05-4-logo.png";
+import logoMark from "../../docs/refs/owner-2026-10-05-3-icon.png";
 
 import "./Sidebar.css";
 

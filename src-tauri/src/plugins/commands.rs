@@ -48,10 +48,16 @@ pub fn plugin_list(
     let mut scoped = saved.project.get(&project).cloned().unwrap_or_default();
     scoped.extend(saved.global.iter().cloned());
     let effective = scopes::connected_for(&registry.connected(), &registry.opted_out(), &scoped);
+    let engine_plugins = api
+        .plugins()
+        .map_err(|reason| format!("Движок не ответил на список плагинов — {reason}"))?;
+    let engine_commands = api
+        .commands()
+        .map_err(|reason| format!("Движок не ответил на список команд — {reason}"))?;
     let mut list = catalog::with_scopes(
         catalog::merged(
-            &api.plugins()?,
-            &api.commands()?,
+            &engine_plugins,
+            &engine_commands,
             &effective,
             &registry.disabled(),
             &installed,
@@ -320,8 +326,10 @@ fn engine_and_installed_ids(
 }
 
 /// Каталог «Available»: индекс доступных плагинов с GitHub владельца.
+/// Асинхронно: как каталог сравнения — сеть (raw.githubusercontent, до 30 с)
+/// не замораживает окно при открытии вкладки без сети.
 #[tauri::command]
-pub fn catalog_list() -> Result<Vec<install::CatalogEntry>, String> {
+pub async fn catalog_list() -> Result<Vec<install::CatalogEntry>, String> {
     install::fetch(install::CATALOG_URL)
 }
 

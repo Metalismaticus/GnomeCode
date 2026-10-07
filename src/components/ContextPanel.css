@@ -9,7 +9,6 @@
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  /* Якорь пикера плагинов, который панель открывает своим «Подключить». */
   position: relative;
 }
 

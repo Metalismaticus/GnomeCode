@@ -1,7 +1,8 @@
 // Встроенный вариант B (docs/specs/2026-10-06-11-glavnoe.md, §8 «Встраивание»):
 // тёмные панели — явными шагами светлоты от фона (--bg-panel/--bg-panel-2/--border),
-// свечение в цвет акцента box-shadow на кнопке отправки и знаке логотипа — только
-// в тёмной теме; знак логотипа — маскот из docs/refs (решение владельца, DECISIONS).
+// свечение в цвет акцента — только в тёмной теме: кнопка отправки через box-shadow,
+// знак логотипа через filter: var(--glow-filter) — drop-shadow по круглому силуэту
+// файла (box-shadow на png с прозрачными углами давал бы прямоугольный ореол).
 // Светлая тема остаётся на уровнях варианта A — её встраивание не трогает.
 // Числа стерегут числа, снимок судит владелец.
 //
@@ -20,6 +21,8 @@ const DARK_PANEL_A = "#f7f7fa"; // светлая — уровни A, их не 
 const GLOW = "rgba(109, 92, 255, 0.32)";
 const GLOW_BLUR = "24px";
 const GLOW_PLACES = [".composer__send", ".sidebar__logo-mark"];
+const SEND = ".composer__send";
+const MARK = ".sidebar__logo-mark";
 // Знак логотипа по высоте строки сайдбара: 24–28 px, ширина авто.
 const LOGO_MIN_PX = 24;
 const LOGO_MAX_PX = 28;
@@ -31,6 +34,10 @@ const tokenOf = (page, name) =>
 /** box-shadow элемента: null — элемента нет. */
 const shadowOf = (page, selector) =>
   page.$eval(selector, (el) => getComputedStyle(el).boxShadow).catch(() => null);
+
+/** filter элемента: null — элемента нет. */
+const filterOf = (page, selector) =>
+  page.$eval(selector, (el) => getComputedStyle(el).filter).catch(() => null);
 
 /** Знак логотипа: alt, загрузился, размер по рамке. */
 const logoOf = (page) =>
@@ -62,9 +69,16 @@ try {
       }
     }
     for (const where of GLOW_PLACES) {
-      const shadow = await shadowOf(dark, where);
-      if (!shadow || !shadow.includes(GLOW) || !shadow.includes(GLOW_BLUR)) {
-        done(1, `свечение в цвет акцента не на ${where}: box-shadow «${shadow}», а не ${GLOW} с размытием ${GLOW_BLUR}`);
+      if (where === SEND) {
+        const shadow = await shadowOf(dark, where);
+        if (!shadow || !shadow.includes(GLOW) || !shadow.includes(GLOW_BLUR)) {
+          done(1, `свечение в цвет акцента не на ${where}: box-shadow «${shadow}», а не ${GLOW} с размытием ${GLOW_BLUR}`);
+        }
+      } else {
+        const filter = await filterOf(dark, where);
+        if (!filter || !filter.includes("drop-shadow") || !filter.includes(GLOW) || !filter.includes(GLOW_BLUR)) {
+          done(1, `свечение в цвет акцента не на ${where}: filter «${filter}», а не drop-shadow ${GLOW} с размытием ${GLOW_BLUR}`);
+        }
       }
     }
     // Картинка маскота тяжёлая: ждать загрузки, а не мерить недогруженное.
@@ -107,6 +121,10 @@ try {
       if (shadow && shadow !== "none") {
         done(1, `в светлой теме у ${where} box-shadow «${shadow}» — свечение только у тёмной`);
       }
+    }
+    const lightFilter = await filterOf(light, MARK);
+    if (lightFilter && lightFilter !== "none") {
+      done(1, `в светлой теме у ${MARK} filter «${lightFilter}» — свечение только у тёмной`);
     }
     const lightLogo = await logoOf(light);
     if (!lightLogo || !lightLogo.loaded) {

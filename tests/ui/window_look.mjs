@@ -345,6 +345,58 @@ try {
     }
     await narrow.close();
 
+    // --- Пикер из правой панели: окно области чата, не внутри панели -------------------
+    // Замечание владельца 2026-10-07 22:30: «выбор появляется на самом верху правой
+    // части и мне ничего не видно» — пикер, открытый кнопкой «Подключить» панели,
+    // монтировался внутри самой панели и отрезался её верхом. От какой бы двери
+    // пикер ни открылся, окно его лежит в области чата, как панель сравнения:
+    // не выше шапки чата, не за её пределами и не под панелью.
+    const docks = await browser.newPage({ viewport: WIDE });
+    await docks.goto(`${url}?состояние=проект`, { waitUntil: "networkidle" });
+    await docks.click('[data-testid="context-connect"]');
+    try {
+      await docks.waitForSelector('[data-testid="plugin-picker"]', { timeout: 5000 });
+    } catch {
+      done(1, "клик «Подключить» правой панели не открыл список плагинов ([data-testid=plugin-picker] нет)");
+    }
+    const pickerBox = await docks.evaluate(() => {
+      const box = (sel) => {
+        const el = document.querySelector(sel);
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+      };
+      return {
+        inPanel: document.querySelector('[data-testid="plugin-picker"]').closest(".context") !== null,
+        picker: box('[data-testid="plugin-picker"]'),
+        chat: box(".chat"),
+      };
+    });
+    if (pickerBox.inPanel) {
+      done(1, "пикер из правой панели монтируется внутри самой панели — владелец видит отрезанный верх правой части");
+    }
+    if (pickerBox.picker.top < pickerBox.chat.top + 40) {
+      done(
+        1,
+        `пикер из правой панели стоит на ${Math.round(pickerBox.picker.top - pickerBox.chat.top)} px ниже верха чата (шапка 48 px) — окно выше шапки`,
+      );
+    }
+    if (pickerBox.picker.left < pickerBox.chat.left - 1 || pickerBox.picker.right > pickerBox.chat.right + 1) {
+      done(1, `пикер из правой панели выходит за область чата (${Math.round(pickerBox.picker.left)}…${Math.round(pickerBox.picker.right)} при чате ${Math.round(pickerBox.chat.left)}…${Math.round(pickerBox.chat.right)}) — отрезан краем`);
+    }
+    const overPicker = await docks.evaluate(() => {
+      const picker = document.querySelector('[data-testid="plugin-picker"]');
+      if (!picker) return false;
+      const r = picker.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return hit !== null && picker.contains(hit);
+    });
+    if (!overPicker) {
+      done(1, `центр пикера из правой панели перекрыт — пикер накрыт правой панелью`);
+    }
+    await docks.keyboard.press("Escape");
+    await docks.close();
+
     // --- Пустое состояние: сборка вверху ленты, заголовок 22 px (спека §3) -------------
     const empty = await browser.newPage({ viewport: WIDE });
     await empty.goto(`${url}?состояние=пусто`, { waitUntil: "networkidle" });

@@ -173,6 +173,9 @@ type Bridge = {
   /** Новый чат: лента чистится событием `reset`, движку поднимается новая сессия. */
   newChat(): Promise<void>;
   listen(listener: Listener): Promise<() => void>;
+  /** Повтор строк ленты, рождённых до первой подписки окна («движок
+   *  поднимается…» идёт раньше монтирования интерфейса). */
+  feedReplay(): Promise<void>;
   version(): Promise<string>;
   /** Выбрать папку проекта системным диалогом; `null` — владелец передумал. */
   pickFolder(): Promise<string | null>;
@@ -252,6 +255,15 @@ type Bridge = {
 /** Канал Tauri, по которому лента получает строки (src-tauri/src/opencode/mod.rs). */
 const FEED_CHANNEL = "chat-feed";
 
+/** Строки ленты «движок готов» (константы NOTICE_READY и NOTICE_RECOVERED в
+ *  mod.rs — лента и есть контракт моста с окном): список плагинов перечитывается
+ *  по ним — при старте окна движок ещё поднимался, и plugin_list честно ответил
+ *  «движок не готов»; когда он готов, кнопки плагинов должны появиться сами. */
+export const ENGINE_READY_NOTICES: readonly string[] = [
+  "Движок OpenCode готов",
+  "Сервер OpenCode снова отвечает",
+];
+
 const inTauri = () => typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
 /** Живой мост в окне Tauri: ответ приходит событиями ленты, а не телом команды. */
@@ -264,6 +276,9 @@ const tauriBridge = (): Bridge => ({
   },
   async listen(listener: Listener) {
     return listen<FeedEvent>(FEED_CHANNEL, (event) => listener(event.payload));
+  },
+  async feedReplay() {
+    await invoke("feed_replay");
   },
   async version() {
     return (await invoke<string>("app_version")) as string;
@@ -404,6 +419,9 @@ const fixtureBridge = (): Bridge => ({
   },
   async listen(listener: Listener) {
     return fixture.play(listener);
+  },
+  async feedReplay() {
+    // Фикстура играет всю ленту сама при подписке — повторять нечего.
   },
   async version() {
     return "снапшот интерфейса";
@@ -607,4 +625,29 @@ export function bridge(): Bridge {
     chosen = inTauri() ? tauriBridge() : fixtureBridge();
   }
   return chosen;
+}
+
+/** Подписаться на строку ленты и получить отписку: эффекты React используют
+ *  её как cleanup. StrictMode зовёт эффект дважды — отписка защищает и отмену
+ *  до ответа моста (иначе второй effect не вышел бы из подписки), и закрытие
+ *  ленты: подписчик молчит, его забота возвращается вместе с лентой. */
+export function subscribeToFeed(listener: Listener): () => void {
+  let stop: () => void = () => {};
+  let cancelled = false;
+  bridge()
+    .listen(listener)
+    .then((off) => {
+      if (cancelled) {
+        off();
+        return;
+      }
+      stop = off;
+    })
+    .catch(() => {
+      // Лента не поднялась: подписчик молчит, её забота вернётся вместе с лентой.
+    });
+  return () => {
+    cancelled = true;
+    stop();
+  };
 }

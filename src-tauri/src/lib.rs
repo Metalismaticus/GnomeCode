@@ -12,7 +12,7 @@ pub mod state;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use opencode::{Chat, WindowSink};
+use opencode::{Chat, Sink, WindowSink};
 use plugins::commands::{catalog_list, data_folder, key_remove, key_save, key_status, plugin_connect, plugin_decide, plugin_disconnect, plugin_install, plugin_list, plugin_run, plugin_set_enabled, plugin_set_rule, plugin_toolset_connect, plugin_toolset_delete, plugin_toolset_save, plugin_toolsets, plugin_uninstall, plugin_updates_note, provider_list, settings_defaults, settings_set_default};
 use plugins::commands::data_dir;
 use plugins::permissions::Grants;
@@ -135,24 +135,48 @@ fn chat_new(chat: State<'_, Chat>) -> Result<(), String> {
     chat.new_chat()
 }
 
+/// Недошедшие до вебвью строки ленты: интерфейс просит их после первой
+/// подписки — движок успел сказать «поднимается…» до того, как окно появилось.
+#[tauri::command]
+fn feed_replay(replay: State<'_, Arc<WindowSink>>) -> Result<(), String> {
+    replay.replay();
+    Ok(())
+}
+
 /// Каталог моделей: свежий с opencode.ai или из кэша (`compare.json` в папке
 /// данных, узор `catalog_list`); доступность у провайдера решает движок.
+///
+/// Кэш-первый и асинхронно: у приветствия (`EmptyChat`) и панели таблица
+/// открывается сразу с диска, сеть ходит только «Обновить» (`compare_refresh`)
+/// — иначе первый рендер стоял на скачивании каталога (~11 МБ) и хлопьях
+/// availability, замер 2026-10-07: 3,9 + 3,3 с тёплой сети, до 60 с медленной.
 #[tauri::command]
-fn compare_list(app: AppHandle, chat: State<'_, Chat>) -> Result<compare::Snapshot, String> {
-    let mut snapshot =
-        compare::load(compare::CATALOG_URL, compare::PRICES_URL, &compare::file(data_dir(&app)))?;
+async fn compare_list(app: AppHandle, chat: State<'_, Chat>) -> Result<compare::Snapshot, String> {
+    let path = compare::file(data_dir(&app));
+    let mut snapshot = if let Some(cached) = compare::fresh_cache(&path) {
+        cached
+    } else {
+        // Кэша нет (первый запуск): каталог с сайта, он же в кэш этого запуска.
+        compare::load(compare::CATALOG_URL, compare::PRICES_URL, &path)?
+    };
     compare::availability(chat.endpoint(), &mut snapshot);
     Ok(snapshot)
 }
 
 /// То же с перечитыванием сайта: узор «Обновить» каталога плагинов — один путь.
+/// Асинхронно по той же причине, что `compare_list`: сеть не замораживает окно.
 #[tauri::command]
-fn compare_refresh(app: AppHandle, chat: State<'_, Chat>) -> Result<compare::Snapshot, String> {
-    compare_list(app, chat)
+async fn compare_refresh(app: AppHandle, chat: State<'_, Chat>) -> Result<compare::Snapshot, String> {
+    let path = compare::file(data_dir(&app));
+    let mut snapshot = compare::load(compare::CATALOG_URL, compare::PRICES_URL, &path)?;
+    compare::availability(chat.endpoint(), &mut snapshot);
+    Ok(snapshot)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    crate::opencode::mark_start();
+    crate::opencode::log_startup("процесс запущен");
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
@@ -162,6 +186,7 @@ pub fn run() {
             chat_send,
             compare_list,
             compare_refresh,
+            feed_replay,
             plugin_connect,
             plugin_decide,
             plugin_disconnect,
@@ -192,6 +217,7 @@ pub fn run() {
             window_close
         ])
         .setup(|app| {
+            crate::opencode::log_startup("setup начат");
             // Данные окна: что переживает перезапуск приложения. Папку данных даёт
             // переменная окружения (проверки и копии), иначе — папка данных Tauri.
             let store = Arc::new(Store::at(Store::location(
@@ -210,15 +236,19 @@ pub fn run() {
                 project.set(PathBuf::from(root));
             }
             app.manage(project);
-            // Движок поднимается при старте окна, лента — тот же канал, что у проверки;
+            // Движок поднимается в фоне, лента — тот же канал, что у проверки;
             // свой чат прошлого запуска возвращается по сохранённой сессии.
+            // Подписчик окна один экземпляр: же буфер недошедших строк реплеится
+            // командой `feed_replay` после первой подписки интерфейса.
+            let window_sink = Arc::new(WindowSink::new(app.handle().clone()));
+            app.manage(Arc::clone(&window_sink));
             app.manage(Chat::start(
                 store,
-                Arc::new(WindowSink(app.handle().clone())),
+                window_sink as Arc<dyn Sink>,
             ));
+            crate::opencode::log_startup("setup закончен");
             // Автообновление плагинов (пункт 4 партии): фоновый поток — сеть не
             // блокирует запуск, окон ничего не открывает. Тихое обновление требует
-            // рестарта (движок читает плагины только при старте), сломанное — отката.
             let handle = app.handle().clone();
             std::thread::spawn(move || {
                 use plugins::updates;

@@ -95,15 +95,23 @@ pub fn file(fallback: PathBuf) -> PathBuf {
     install::data_file(fallback, CACHE_NAME)
 }
 
-/// Кэш с диска: потерянный или испорченный — нет кэша, панель скажет об ошибке.
-pub fn cached(file_path: &Path) -> Option<Snapshot> {
+/// Кэш с диска без пометки «сайт недоступен»: кэш-первый запуск панели — сайт
+/// ещё не спрашивали, честнее показать дату снимка («Обновлено …»), чем
+/// обвинять канал. Потерянный или испорченный — нет кэша.
+pub fn fresh_cache(file_path: &Path) -> Option<Snapshot> {
     fs::read(file_path)
         .ok()
         .and_then(|bytes| serde_json::from_slice::<Snapshot>(&bytes).ok())
-        .map(|mut snapshot| {
-            snapshot.stale = true;
-            snapshot
-        })
+}
+
+/// Кэш с диска с пометкой `stale`: сайт не ответил (узор fallback `load`) —
+/// панель говорит «Сайт недоступен — данные от …». Потерянный или испорченный —
+/// нет кэша, панель скажет об ошибке.
+pub fn cached(file_path: &Path) -> Option<Snapshot> {
+    fresh_cache(file_path).map(|mut snapshot| {
+        snapshot.stale = true;
+        snapshot
+    })
 }
 
 /// Каталог с сайта: свежий снимок, кэш обновляется. Сайт или цены не ответили —
@@ -151,12 +159,12 @@ pub fn save(file_path: &Path, snapshot: &Snapshot) -> Result<(), String> {
         .map_err(|e| format!("кэш каталога не записан {}: {e}", file_path.display()))
 }
 
-/// Ответ источника: ошибки — словами для панели.
+/// Ответ источника: ошибки — словами для панели, без технического адреса.
 fn get(url: &str) -> Result<serde_json::Value, String> {
     let text = ureq::get(url)
         .timeout(Duration::from_secs(REQUEST_SECONDS))
         .call()
-        .map_err(|e| format!("opencode.ai не отвечает ({url}): {e}"))?
+        .map_err(|e| format!("источник каталога opencode.ai не отвечает: {e}"))?
         .into_string()
         .map_err(|e| format!("ответ opencode.ai не прочитан: {e}"))?;
     serde_json::from_str(&text).map_err(|e| format!("ответ opencode.ai не JSON: {e}"))
@@ -392,11 +400,35 @@ mod tests {
         assert!(qwen.benchmarks.is_empty(), "у модели без бенчмарков список пуст — «—»");
     }
 
+    /// Кэш-первый: обычный запуск панели читает кэш без пометки «недоступен»
+    /// (сайт ещё не спрашивали), а fallback после сетевого провала — со `stale`.
+    #[test]
+    fn cache_read_is_stale_only_after_the_site_failed() {
+        let file = std::env::temp_dir().join(format!("compare-cache-{}.json", std::process::id()));
+        let snapshot = Snapshot {
+            fetched_at: 1_765_000_000_000,
+            models: Vec::new(),
+            stale: false,
+        };
+        save(&file, &snapshot).expect("кэш записан");
+        let plain = fresh_cache(&file).expect("кэш читается");
+        assert!(
+            !plain.stale,
+            "кэш-первый запуск не зовёт сеть — «Сайт недоступен» не положено"
+        );
+        assert_eq!(plain.fetched_at, 1_765_000_000_000, "дата снимка дошла");
+        let marked = cached(&file).expect("кэш читается");
+        assert!(
+            marked.stale,
+            "fallback после сетевого провала помечен — панель говорит о канале"
+        );
+        let _ = std::fs::remove_file(&file);
+    }
+
     /// Провайдеры движка: модель чужой лабы, чьё имя есть у подключённого
     /// провайдера, доступна; у неподключённого провайдера — «Нет у провайдера».
     #[test]
-    fn engine_providers_mark_availability() {
-        let catalog = serde_json::json!({
+    fn engine_providers_mark_availability() {        let catalog = serde_json::json!({
             "models": {
                 "zhipuai/glm-5.3-flash": { "name": "GLM-5.3 Flash", "limit": { "context": 200000 } },
                 "deepseek/deepseek-v4-1-flash": { "name": "DeepSeek V4.1 Flash", "limit": { "context": 128000 } }

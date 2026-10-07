@@ -9,6 +9,13 @@ authors = ["Metalismaticus"]
 name = "gnomecode_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[[example]]
+# «Движок, который не отвечает» для startup_freeze: живой процесс без HTTP.
+# Без этой записи Cargo собирает пример под тестовой обвязкой (libtest обвиняет
+# незнакомые аргументы движка `serve --hostname …`) и процесс умирает при старте.
+name = "fake_engine"
+harness = false
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 

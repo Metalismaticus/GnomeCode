@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { bridge, type FeedEvent } from "./bridge";
+import { bridge, subscribeToFeed } from "./bridge";
 import { ChatView } from "./components/ChatView";
 import { ContextPanel } from "./components/ContextPanel";
 import { PluginsPage } from "./components/PluginsPage";
@@ -104,33 +104,18 @@ function useThemeToggle(theme: Theme, setTheme: (theme: Theme) => void): () => v
 
 /** Событие `reset` ленты (новый чат): титул и время чата сбрасываются вместе с
  *  лентой — следующий вопрос станет титулом нового чата. StrictMode зовёт
- *  эффект дважды: двойной reset те же поля не портит. */
+ *  эффект дважды: двойной reset те же поля не портит. Подписка и её отписка —
+ *  один шаг моста (bridge.subscribeToFeed), повторов в хуках нет. */
 function useFeedReset(reset: () => void): void {
-  useEffect(() => {
-    let stop: () => void = () => {};
-    let cancelled = false;
-    const listener = (event: FeedEvent) => {
-      if (event.type === "reset") {
-        reset();
-      }
-    };
-    bridge()
-      .listen(listener)
-      .then((off) => {
-        if (cancelled) {
-          off();
-          return;
+  useEffect(
+    () =>
+      subscribeToFeed((event) => {
+        if (event.type === "reset") {
+          reset();
         }
-        stop = off;
-      })
-      .catch(() => {
-        // Лента не поднялась: сброс титула придёт вместе с её починкой.
-      });
-    return () => {
-      cancelled = true;
-      stop();
-    };
-  }, [reset]);
+      }),
+    [reset],
+  );
 }
 
 /** Титул и начало чата и модели (своя у чата, по умолчанию — настроек): один
@@ -231,6 +216,12 @@ export default function App() {
   const [theme, setTheme] = useState<Theme>(params.theme);
   const toggleTheme = useThemeToggle(theme, setTheme);
   const [panelOpen, setPanelOpen] = useState(params.right);
+  /** Пикер, позванный кнопкой «Подключить» правой панели: открытость держит
+   *  App (панель — сосед чата), рисует ChatView — оверлей области чата, окно
+   *  видно целиком произвольно от двери (замечание владельца 2026-10-07). */
+  const [panelPicker, setPanelPicker] = useState(false);
+  const openPanelPicker = useCallback(() => setPanelPicker(true), []);
+  const closePanelPicker = useCallback(() => setPanelPicker(false), []);
   const narrow = useNarrow();
   /** Прямой доступ раздела для снимков и сценария: `?состояние=плагины-раздел`
    *  и `?состояние=плагины-обновления` (вкладка Updates пункта 4), `?состояние=настройки*`
@@ -346,6 +337,8 @@ export default function App() {
           approval={approval}
           counts={{ chats: chats.length, projects: projects.length }}
           onNewChat={newChat}
+          panelPickerOpen={panelPicker}
+          onClosePanelPicker={closePanelPicker}
         />
       )}
       {narrow && !panelOpen ? null : (
@@ -357,7 +350,7 @@ export default function App() {
           onToggleFs={() => setFsAllow((allow) => !allow)}
           plugins={plugins}
           onRunCommand={approval.run}
-          onOpenPluginsPage={() => setPage("plugins")}
+          onConnectPlugins={openPanelPicker}
           cluster={narrow ? null : <WindowCluster theme={theme} onToggleTheme={toggleTheme} />}
         />
       )}

@@ -25,12 +25,20 @@ export type PluginPickerProps = {
   /** Клик по «Browse plugins…» внизу списка: открыть каталог «Available». */
   onBrowse: () => void;
   onClose: () => void;
+  /** Где стоит окно: у композера — над «+» (дверь меню и чата), в области чата —
+   *  под шапкой справа, узор панели сравнения (дверь правой панели). */
+  placement?: "composer" | "chat";
 };
 
 /** Окно списка плагинов: то, что открывает пункт «Connect plugin» меню «+». */
-export function PluginPicker({ plugins, onBrowse, onClose }: PluginPickerProps) {
+export function PluginPicker({ plugins, onBrowse, onClose, placement = "composer" }: PluginPickerProps) {
   return (
-    <div className="plugin-picker" data-testid="plugin-picker" role="dialog" aria-label="Плагины">
+    <div
+      className={placement === "chat" ? "plugin-picker plugin-picker--chat" : "plugin-picker"}
+      data-testid="plugin-picker"
+      role="dialog"
+      aria-label="Плагины"
+    >
       <div className="plugin-picker__head">
         <div className="plugin-picker__title">Плагины</div>
         <button

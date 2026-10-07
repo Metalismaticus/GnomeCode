@@ -18,6 +18,7 @@ import { Composer } from "./Composer";
 import { EmptyChat } from "./EmptyChat";
 import { Feed } from "./Feed";
 import { PluginApproval } from "./PluginApproval";
+import { PluginPicker } from "./PluginPicker";
 import { PluginSummary } from "./PluginSummary";
 
 import "./ChatView.css";
@@ -97,6 +98,8 @@ export function ChatView({
   approval,
   counts,
   onNewChat,
+  panelPickerOpen,
+  onClosePanelPicker,
 }: {
   title: string;
   onTogglePanel: () => void;
@@ -127,6 +130,12 @@ export function ChatView({
   counts: { chats: number; projects: number };
   /** Карточка «Новый чат» приветствия: тот же ход, что кнопка сайдбара. */
   onNewChat: () => void;
+  /** Пикер, которого позвала кнопка «Подключить» правой панели: открытие держит
+   *  App (панель — сосед чата), позиция — оверлей области чата, как у панели
+   *  сравнения: из любой двери окно видно целиком, без отрезанной правой части. */
+  panelPickerOpen: boolean;
+  /** Закрыть пикер двери панели: Esc, клик снаружи или подключение. */
+  onClosePanelPicker: () => void;
 }) {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -170,6 +179,16 @@ export function ChatView({
       setOverlay((open) => (open === "plugins" ? "none" : open));
     },
     [plugins.connect],
+  );
+
+  /** Подключение из пикера двери правой панели: окно чата закрывается тем же
+   *  ходом, что и пикер композера. */
+  const connectFromPanel = useCallback(
+    (id: string, scope?: PluginScope) => {
+      plugins.connect(id, scope);
+      onClosePanelPicker();
+    },
+    [plugins.connect, onClosePanelPicker],
   );
 
   /** Снять плагин с чата из панели «Plugins in this chat»: установка и скоупы
@@ -233,12 +252,14 @@ export function ChatView({
   );
 
   /** Esc и клик снаружи закрывают и оверлей, и окно одобрения: закрытое без
-   *  ответа окно — не ответ, вызов спросит снова при следующем клике. */
+   *  ответа окно — не ответ, вызов спросит снова при следующем клике. Пикер
+   *  двери правой панели закрывается тем же жестом — он тоже оверлей чата. */
   const dismissAll = useCallback(() => {
     setOverlay("none");
     setPending(undefined);
     approval.dismiss();
-  }, [approval.dismiss]);
+    onClosePanelPicker();
+  }, [approval.dismiss, onClosePanelPicker]);
 
   /** Фокус закрытой панели сравнения возвращается бейджу — открыли им, к нему
    *  и вернулись (спека «Клавиатура»); один помощник на оба пути закрытия. */
@@ -254,7 +275,11 @@ export function ChatView({
     }
     dismissAll();
   }, [overlay, dismissAll, focusModelBadge]);
-  useOverlayDismiss(overlay !== "none" || pending !== undefined, dismissAll, dismissOnEscape);
+  useOverlayDismiss(
+    overlay !== "none" || pending !== undefined || panelPickerOpen,
+    dismissAll,
+    dismissOnEscape,
+  );
 
   /** Фокус закрытой панели возвращается бейджу: сравнение открыли им, к нему и
    *  вернулись (спека «Клавиатура»). Узкий случай — открытые пикеры композера
@@ -328,6 +353,14 @@ export function ChatView({
         />
       ) : null}
       {pending ? <PluginSummary entry={pending} onAllow={allowInstall} onCancel={cancelInstall} /> : null}
+      {panelPickerOpen ? (
+        <PluginPicker
+          plugins={{ ...plugins, connect: connectFromPanel }}
+          onBrowse={onOpenPluginsPage}
+          onClose={onClosePanelPicker}
+          placement="chat"
+        />
+      ) : null}
       <div className="feed" data-testid="feed">
         {rows.length ? (
           <Feed

@@ -3,7 +3,6 @@ import { useState, type ReactNode } from "react";
 import type { Plugin, PluginCommand } from "../bridge";
 import type { PluginsState } from "../features/plugins/usePlugins";
 import type { ProjectState } from "../features/project/useProject";
-import { PluginPicker } from "./PluginPicker";
 import { ContextRow, type ContextRowData } from "./ContextRow";
 import { FileTree } from "./FileTree";
 
@@ -25,8 +24,11 @@ export type ContextPanelData = {
   onToggleFs: () => void;
   /** Клик по кнопке команды панели: слой прав решает вопрос одобрения и запуск. */
   onRunCommand: (plugin: Plugin, command: PluginCommand) => void;
-  /** «Подключить» и «Browse plugins…» ведут в раздел «Плагины» (существующие ходы). */
-  onOpenPluginsPage: () => void;
+  /** Кнопка «Подключить» панели: пикер открывается оверлеем области чата —
+   *  открытость держит App, рисует ChatView (отрезание верхом панели —
+   *  замечание владельца 2026-10-07 — ушло вместе с монтированием в панели;
+   *  «Browse plugins…» идёт из пикера, здесь его больше нет). */
+  onConnectPlugins: () => void;
   /** Кластер кнопок окна (тема + свернуть/развернуть/закрыть): шапка панели — его
    *  дом при ширине от 1200 px, правый край окна (WindowCluster.tsx); при узком
    *  окне панель складывается и кластер живёт в шапке чата. */
@@ -103,9 +105,7 @@ function toolRows(
       onClick: () => onRunCommand(plugin, command),
     })),
   }));
-}
-
-/** Правая колонка: заголовок, дерево файлов, разделы «Проект» / «Инструменты» /
+}/** Правая колонка: заголовок, дерево файлов, разделы «Проект» / «Инструменты» /
  *  «Безопасность этого чата». При ширине окна < 1200 px панель открывается оверлеем
  *  поверх чата — тот же элемент, другое место (docs/DESIGN.md, раздел 5). */
 export function ContextPanel({
@@ -116,18 +116,11 @@ export function ContextPanel({
   onToggleFs,
   plugins,
   onRunCommand,
-  onOpenPluginsPage,
+  onConnectPlugins,
   cluster,
 }: ContextPanelData) {
   // Вкладки принадлежат панели, а не дереву: переключение не убирает дерево из экрана.
   const [tab, setTab] = useState("Файлы");
-  // Пикер плагинов — существующий: панель открывает его рядом с собой, подключение
-  // идёт тем же ходом, что из композера; окно закрывается сразу после подключения.
-  const [connecting, setConnecting] = useState(false);
-  const connectFromPanel = (id: Parameters<PluginsState["connect"]>[0], scope?: Parameters<PluginsState["connect"]>[1]): void => {
-    plugins.connect(id, scope);
-    setConnecting(false);
-  };
   // Строку папки рисует панель по состоянию проекта; пока папка не выбрана, на её месте
   // строка фикстуры («Папка не выбрана», длинный путь) — обе сразу были бы лишними.
   // Строку папки знает только панель — по состоянию проекта; фикстуре она остаётся в
@@ -165,7 +158,7 @@ export function ContextPanel({
       </div>
       <div className="context__section">
         <div className="context__section-title">Инструменты</div>
-        {toolRows(plugins, engineDown, onRunCommand, () => setConnecting(true)).map((row, index) => (
+        {toolRows(plugins, engineDown, onRunCommand, onConnectPlugins).map((row, index) => (
           <ContextRow key={`${row.label}-${index}`} {...row} />
         ))}
       </div>
@@ -175,13 +168,6 @@ export function ContextPanel({
           <ContextRow key={row.label} {...row} />
         ))}
       </div>
-      {connecting ? (
-        <PluginPicker
-          plugins={{ ...plugins, connect: connectFromPanel }}
-          onBrowse={onOpenPluginsPage}
-          onClose={() => setConnecting(false)}
-        />
-      ) : null}
     </aside>
   );
 }

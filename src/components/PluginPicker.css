@@ -17,6 +17,16 @@
   box-shadow: var(--shadow);
 }
 
+/* Дверь правой панели («Подключить»): пикер — оверлей области чата под шапкой,
+   не внутри самой панели — та отрезала его верхом правой части («мне ничего не
+   видно», владелец 2026-10-07). Узор панели сравнения: top 56, правый край. */
+.plugin-picker--chat {
+  left: auto;
+  bottom: auto;
+  top: 56px;
+  right: var(--space-5);
+}
+
 .plugin-picker__head {
   display: flex;
   align-items: center;

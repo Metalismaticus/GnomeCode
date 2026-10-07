@@ -66,16 +66,23 @@ export function useFeed() {
       setEvents((known) => (event.type === "reset" ? [] : [...known, event]));
     let stop: () => void = () => {};
     let cancelled = false;
-    bridge()
-      .listen(listener)
-      .then((off) => {
+    async function subscribe() {
+      try {
+        const off = await bridge().listen(listener);
         if (cancelled) {
           off();
           return;
         }
         stop = off;
-      })
-      .catch((reason: unknown) => setError(String(reason)));
+        // Подписка на месте: строки, рождённые до монтирования окна
+        // («движок поднимается…»), можно повторить — дублей нет, один
+        // идентификатор строки один сворачивает.
+        await bridge().feedReplay();
+      } catch (reason: unknown) {
+        setError(String(reason));
+      }
+    }
+    void subscribe();
     return () => {
       cancelled = true;
       stop();

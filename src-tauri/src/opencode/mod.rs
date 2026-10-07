@@ -20,7 +20,8 @@ use serde_json::{json, Value};
 
 use tauri::Emitter;
 
-use client::{Api, EventStream, Feed, FeedEvent, Step};
+use client::{Api, EventStream, Feed, Step};
+pub use client::FeedEvent;
 use engine::Engine;
 
 /// Имя канала Tauri, по которому лента получает строки.
@@ -29,20 +30,73 @@ pub const FEED_CHANNEL: &str = "chat-feed";
 const NOTICE_RESTART: &str = "Сервер OpenCode недоступен, перезапускаю…";
 const NOTICE_RECONNECT: &str = "Поток прерван, переподключаюсь…";
 const NOTICE_RECOVERED: &str = "Сервер OpenCode снова отвечает";
+pub const NOTICE_STARTING: &str = "Движок OpenCode поднимается…";
+pub const NOTICE_READY: &str = "Движок OpenCode готов";
 const NOTICE_NO_ENGINE: &str = "Движок OpenCode не запущен";
 const RETRY_SECONDS: u64 = 5;
+
+/// Момент старта процесса: метки фаз печатаются от него — диагностика «при
+/// старте зависает» ведёт числа (docs/TESTING.md, «Замеры»).
+static STARTED: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
+
+/// Отметить начало процесса: зовёт `run()` первым делом.
+pub fn mark_start() {
+    let _ = STARTED.set(std::time::Instant::now());
+}
+
+/// Метка фазы старта: «старт: N мс — <фаза>» в консоль. GUI-версия консоли не
+/// имеет — вызов ничего не стоит; dev-сборка и проверки видят лог старта.
+pub fn log_startup(phase: &str) {
+    let at = STARTED.get_or_init(std::time::Instant::now).elapsed().as_millis();
+    println!("старт: {at} мс — {phase}");
+}
 
 /// Куда уходят строки ленты. Продукт отдаёт их окну, проверка — своему списку.
 pub trait Sink: Send + Sync + 'static {
     fn emit(&self, event: FeedEvent);
 }
 
-/// Подписчик окна Tauri.
-pub struct WindowSink(pub tauri::AppHandle);
+/// Подписчик окна Tauri: событие уходит окну и остаётся в буфере — вебвью
+/// монтируется позже первых строк моста («движок поднимается…»), их возврат
+/// делает команда `feed_replay` после первой подписки интерфейса.
+pub struct WindowSink {
+    app: tauri::AppHandle,
+    /// Недошедшие строки: последний круг ленты, повтор — интерфейсу с чистой лентой.
+    log: Mutex<Vec<FeedEvent>>,
+}
+
+impl WindowSink {
+    /// Единственный способ собрать: поля закрыты — сборка и повтор из одного модуля.
+    pub fn new(app: tauri::AppHandle) -> Self {
+        Self {
+            app,
+            log: Mutex::new(Vec::new()),
+        }
+    }
+}
+
+/// Глубина повторa: лента-уведомления и подъём помещаются с запасом; лента
+/// длинного чата не реплеируется целиком — она и так видна до перезапуска.
+const REPLAY_LIMIT: usize = 100;
+
+impl WindowSink {
+    /// Повтор строк, которых не было в окне, когда они рождались.
+    pub fn replay(&self) {
+        let log = self.log.lock().ok().map(|held| held.clone()).unwrap_or_default();
+        for event in log {
+            let _ = self.app.emit(FEED_CHANNEL, event);
+        }
+    }
+}
 
 impl Sink for WindowSink {
     fn emit(&self, event: FeedEvent) {
-        let _ = self.0.emit(FEED_CHANNEL, event);
+        if let Ok(mut log) = self.log.lock() {
+            log.push(event.clone());
+            let extra = log.len().saturating_sub(REPLAY_LIMIT);
+            log.drain(..extra);
+        }
+        let _ = self.app.emit(FEED_CHANNEL, event);
     }
 }
 
@@ -117,23 +171,38 @@ pub struct Chat {
 impl Chat {
     /// Поднять движок и начать ленту — то, что делает приложение при старте.
     /// Хранилище даёт путь к возвращению к чату прошлого запуска, его ведёт поток ленты.
+    ///
+    /// Подъём — в потоке ленты, не в вызывающем: окно появляется сразу и лента
+    /// честно показывает «движок поднимается…», пока сервер не ответит (замечание
+    /// владельца 2026-10-07: при холодном старте окно неотвечающее — setup ждёт
+    /// `/api/config` до 30 с). Сессия прошлого запуска читается здесь же.
     pub fn start(store: Arc<crate::state::Store>, sink: Arc<dyn Sink>) -> Chat {
-        match Engine::start() {
-            Ok(engine) => Chat::with_saved(Box::new(engine), sink, Some(store)),
-            Err(reason) => {
-                // Движка нет — приложение всё равно должно открыться и сказать об этом в ленте.
-                sink.emit(FeedEvent::notice(
-                    "engine",
-                    &format!("{NOTICE_NO_ENGINE}: {reason}"),
-                ));
-                let (tx, rx) = std::sync::mpsc::channel();
-                thread::spawn(move || supervise_missing(rx, sink));
-                Chat {
-                    tx,
-                    endpoint: Arc::new(Mutex::new(None)),
+        let (tx, rx) = std::sync::mpsc::channel();
+        // До подъёма движка адреса у окна нет: команды, которым нужен сервер,
+        // отвечают «движок ещё не готов» (комментарий к `endpoint`).
+        let endpoint = Arc::new(Mutex::new(None));
+        let known = Arc::clone(&endpoint);
+        let saved = store.load().session;
+        thread::spawn(move || {
+            sink.emit(FeedEvent::notice("engine", NOTICE_STARTING));
+            match Engine::start() {
+                Ok(engine) => {
+                    crate::opencode::log_startup("движок готов");
+                    sink.emit(FeedEvent::notice("engine", NOTICE_READY));
+                    supervise(Box::new(engine), rx, sink, known, saved, Some(store));
+                }
+                Err(reason) => {
+                    // Движка нет — приложение всё равно открыто и об этом говорит
+                    // в ленте; поток ленты ждёт появления движка дальше.
+                    sink.emit(FeedEvent::notice(
+                        "engine",
+                        &format!("{NOTICE_NO_ENGINE}: {reason}"),
+                    ));
+                    supervise_missing(rx, sink);
                 }
             }
-        }
+        });
+        Chat { tx, endpoint }
     }
 
     // Лента на своём движке с хранилищем: чат, который вела прошлая жизнь окна,
