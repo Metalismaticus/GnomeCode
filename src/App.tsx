@@ -1,15 +1,23 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
-import { bridge, subscribeToFeed } from "./bridge";
+import { bridge } from "./bridge";
+import {
+  useChatModels,
+  useFeedReset,
+  useNarrow,
+  usePanelOverlay,
+  useSavedState,
+} from "./app/hooks";
+import { useThemeToggle } from "./app/theme";
+import { chatsList, projectsList } from "./app/lists";
 import { ChatView } from "./components/ChatView";
 import { ContextPanel } from "./components/ContextPanel";
 import { PluginsPage } from "./components/PluginsPage";
 import { SettingsPage } from "./components/SettingsPage";
-import { Sidebar, type SidebarChat, type SidebarProject } from "./components/Sidebar";
+import { Sidebar } from "./components/Sidebar";
 import { WindowCluster } from "./components/WindowCluster";
 import { panels } from "./fixture";
-import type { ChatModelChoice } from "./bridge";
-import { chatTitleOf, loadState, patchState, DEFAULT_MODEL, type WindowState } from "./appstate";
+import { patchState, type WindowState } from "./appstate";
 import { useApproval } from "./features/plugins/useApproval";
 import { usePlugins } from "./features/plugins/usePlugins";
 import { useProject } from "./features/project/useProject";
@@ -22,192 +30,6 @@ import "./styles/app.css";
  *  выходе; список плагинов при этом один на окно (App держит его сам), и кнопки
  *  команд в шапке пересчитываются сразу, в том числе после Enable/Disable раздела. */
 type Page = "chat" | "plugins" | "settings";
-
-/** Ширина, ниже которой правая панель складывается в кнопку `☰` (docs/DESIGN.md, раздел 5). */
-const NARROW = "(max-width: 1199px)";
-
-/** Узкое ли окно: этим же условием панель уезжает в оверлей, а кнопка `☰` появляется. */
-function useNarrow(): boolean {
-  const [narrow, setNarrow] = useState(
-    () => typeof window !== "undefined" && window.matchMedia(NARROW).matches,
-  );
-  useEffect(() => {
-    const query = window.matchMedia(NARROW);
-    const change = () => setNarrow(query.matches);
-    query.addEventListener("change", change);
-    return () => query.removeEventListener("change", change);
-  }, []);
-  return narrow;
-}
-
-/** Состояние прошлого запуска — один запрос при старте. StrictMode зовёт эффект
- *  дважды: подписка первого размывается, второй ответ перезапишет те же поля и
- *  двойной записи не оставит. */
-function useSavedState(apply: (saved: WindowState) => void): void {
-  useEffect(() => {
-    let alive = true;
-    loadState().then((saved) => {
-      if (alive && saved) {
-        apply(saved);
-      }
-    });
-    return () => {
-      alive = false;
-    };
-  }, [apply]);
-}
-
-/** Оверлей правой панели закрывается по Esc и клику снаружи; клик по самой `☰`
- *  остаётся за кнопкой — иначе открытие тут же закрылось бы. */
-function usePanelOverlay(narrow: boolean, panelOpen: boolean, close: (open: boolean) => void): void {
-  useEffect(() => {
-    if (!narrow || !panelOpen) {
-      return;
-    }
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        close(false);
-      }
-    };
-    const onClick = (event: MouseEvent) => {
-      const target = event.target as Element | null;
-      // Источник-файл сам раскрывает панель: тот же клик не должен её закрыть.
-      if (
-        target?.closest(".context") ||
-        target?.closest('[data-testid="panel-toggle"]') ||
-        target?.closest('[data-testid="source-file"]')
-      ) {
-        return;
-      }
-      close(false);
-    };
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("click", onClick);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("click", onClick);
-    };
-  }, [narrow, panelOpen, close]);
-}
-
-/** Переключатель темы: тема живёт в `html[data-theme]`, правка уходит в состояние окна. */
-function useThemeToggle(theme: Theme, setTheme: (theme: Theme) => void): () => void {
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-  }, [theme]);
-  return useCallback(() => {
-    const next: Theme = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    void patchState({ theme: next });
-  }, [theme, setTheme]);
-}
-
-/** Событие `reset` ленты (новый чат): титул и время чата сбрасываются вместе с
- *  лентой — следующий вопрос станет титулом нового чата. StrictMode зовёт
- *  эффект дважды: двойной reset те же поля не портит. Подписка и её отписка —
- *  один шаг моста (bridge.subscribeToFeed), повторов в хуках нет. */
-function useFeedReset(reset: () => void): void {
-  useEffect(
-    () =>
-      subscribeToFeed((event) => {
-        if (event.type === "reset") {
-          reset();
-        }
-      }),
-    [reset],
-  );
-}
-
-/** Титул и начало чата и модели (своя у чата, по умолчанию — настроек): один
- *  источник для шапки, сайдбара, страницы настроек и запроса движку. Выбор
- *  бейджа сразу показывается и уходит в состояние окна; выбор дефолта меняет
- *  только бейдж чата без своей модели (спека настроек, «Решено за вас» №7). */
-function useChatModels(): {
-  title: string;
-  time: number | null;
-  model: string;
-  defaultModel: string;
-  remember: (question: string) => void;
-  choose: (choice: ChatModelChoice) => void;
-  chooseDefault: (choice: ChatModelChoice) => void;
-  applySaved: (saved: WindowState) => void;
-  /** «Новый чат»: титул и время чата сбрасываются вместе с лентой. */
-  dropChat: () => void;
-} {
-  const [title, setTitle] = useState("");
-  const [time, setTime] = useState<number | null>(null);
-  /** Модель текущего чата: из состояния окна; нет — модель по умолчанию
-   *  настроек. Бейдж шапки и запрос движку идут одной строкой. */
-  const [ownModel, setOwnModel] = useState<string | null>(null);
-  /** Модель по умолчанию для новых чатов: настройка страницы «Настройки». */
-  const [defaultModel, setDefaultModel] = useState<string>(DEFAULT_MODEL);
-
-  /** Титул чата: первый вопрос. Повторные вопросы титул не меняют; время начала
-   *  чата пишется тем же патчем — группы дат сайдбара строятся по нему. */
-  const remember = useCallback(
-    (question: string) => {
-      if (title) {
-        return;
-      }
-      const named = chatTitleOf(question);
-      const now = Date.now();
-      setTitle(named);
-      setTime(now);
-      void patchState({ chatTitle: named, chatTime: now });
-    },
-    [title],
-  );
-
-  /** «Выбрать» в панели сравнения: бейдж шапки обновляется сразу, выбор идёт в
-   *  состояние окна — запрос движку несёт идентификатор модели. */
-  const choose = useCallback((choice: ChatModelChoice) => {
-    setOwnModel(choice.name);
-    void patchState({ chatModel: choice });
-  }, []);
-
-  /** «По умолчанию» в панели настроек: дефолт меняется сразу; бейдж обновляется
-   *  только у чата без своей модели — чат со своей моделью не затрагивается. */
-  const chooseDefault = useCallback((choice: ChatModelChoice) => {
-    setDefaultModel(choice.name);
-    void patchState({ defaultModel: choice });
-  }, []);
-
-  /** Модель, титул и время из прошлого запуска; папку и тему берёт App рядом. */
-  const applySaved = useCallback((saved: WindowState) => {
-    if (saved.chatTitle) {
-      setTitle(saved.chatTitle);
-    }
-    if (saved.chatModel) {
-      setOwnModel(saved.chatModel.name);
-    }
-    if (saved.defaultModel) {
-      setDefaultModel(saved.defaultModel.name);
-    }
-    if (saved.chatTime) {
-      setTime(saved.chatTime);
-    }
-  }, []);
-
-  /** «Новый чат»: титул и время сбрасываются — первый вопрос станет титулом
-   *  нового чата; модель чата не трогается (выбранная модель остаётся и у
-   *  нового чата, сброс только в настройках по умолчанию). */
-  const dropChat = useCallback(() => {
-    setTitle("");
-    setTime(null);
-  }, []);
-
-  return {
-    title,
-    time,
-    model: ownModel ?? defaultModel,
-    defaultModel,
-    remember,
-    choose,
-    chooseDefault,
-    applySaved,
-    dropChat,
-  };
-}
 
 /** Главное окно: корень только собирает три колонки, держит тему и оверлей панели.
  *  Тема, титул чата и папка приходят из состояния окна (`src/appstate.ts`): в окне
@@ -224,8 +46,9 @@ export default function App() {
   const closePanelPicker = useCallback(() => setPanelPicker(false), []);
   const narrow = useNarrow();
   /** Прямой доступ раздела для снимков и сценария: `?состояние=плагины-раздел`
-   *  и `?состояние=плагины-обновления` (вкладка Updates пункта 4), `?состояние=настройки*`
-   *  (страница настроек пункта 12 — вкладки «настройки-модели» и другие). */
+   *  и `?состояние=плагины-обновления` (вкладка Updates), `?состояние=настройки*`
+   *  (страница настроек — вкладки «настройки-модели» и другие). Состояния
+   *  страницы — docs/TESTING.md, раздел «Полигон». */
   const [page, setPage] = useState<Page>(
     params.feed.startsWith("настройки")
       ? "settings"
@@ -289,7 +112,7 @@ export default function App() {
 
   /** Право этого чата на файлы: включён, раз папка проекта выбрана. Владелец
    *  тумблером правой панели его выключает и включает (замечание владельца
-   *  2026-10-06: «не нажимаются переключатели») — filесы гейтит слой отправки
+   *  2026-10-06: «не нажимаются переключатели») — файлы гейтит слой отправки
    *  (ChatView.ask), в движок меткой не уходит. */
   const [fsAllow, setFsAllow] = useState(true);
 
@@ -356,26 +179,4 @@ export default function App() {
       )}
     </div>
   );
-}
-
-/** Проекты сайдбара: настоящая папка проекта, когда она есть, иначе фикстура.
- *  Название — папка, вторая линия — полный путь (спека «Двухстрочные строки»). */
-function baseName(path: string): string {
-  return path.split(/[\\/]/).filter(Boolean).pop() ?? path;
-}
-
-function projectsList(data: ReturnType<typeof panels>, root: string): SidebarProject[] {
-  if (root) {
-    return [{ title: baseName(root), path: root }];
-  }
-  return data.projects;
-}
-
-/** Чаты сайдбара: настоящий титул, когда он есть, иначе фиксёрный список;
- *  время чата несёт вторую линию и группу дат. */
-function chatsList(data: ReturnType<typeof panels>, title: string, time: number | null): SidebarChat[] {
-  if (title) {
-    return [{ title, active: true, ...(time ? { time } : {}) }];
-  }
-  return data.chats;
 }
