@@ -12,3 +12,35 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* Ползунки прокрутки — в цвет темы, одно место на все прокручиваемые области:
+   лента, дерево файлов, панели, списки (замечание владельца 2026-10-07: в
+   тёмной теме были системно-белые). Цвета — токены тем; угол кросс-скролла
+   тоже из дорожки, иначе остаётся системно-белым; кнопки-стрелки на концах
+   убраны — с собственной стилизацией они рисуются системно-светлыми кусками.
+   Поведение прокрутки (колесо, скорость, перетаскивание ползунка) не тронуто. */
+::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: var(--radius-sm);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+}

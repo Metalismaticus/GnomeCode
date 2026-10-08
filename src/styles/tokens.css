@@ -12,6 +12,9 @@
   --radius-md: 10px;
   --radius-lg: 16px;
 
+  /* Ползунок прокрутки — тонкий, против системного ~17 px (правила — app.css). */
+  --scrollbar-size: 10px;
+
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -68,6 +71,14 @@
   --switch-track: #434f7d;
   --switch-knob: #707d9d;
 
+  /* Ползунки прокрутки (замечание владельца 2026-10-07: «ползунки прокрутки в
+     темной теме белы, а должны быть в цвет») — из палитры темы, глобальные
+     правила в app.css. Ползунок светлее дорожки — читается на ней; наведение —
+     акцент. */
+  --scrollbar-track: var(--bg-hover);
+  --scrollbar-thumb: var(--border-strong);
+  --scrollbar-thumb-hover: var(--accent);
+
   --code-bg: #0b1020;
   /* Подсветка синтаксиса код-блока — токенами (CodeBlock.css). */
   --code-keyword: #6d8cff;
@@ -108,6 +119,12 @@
      включённая ручка — --on-accent цветом акцента (ContextRow.css). */
   --switch-track: #cfcfdd;
   --switch-knob: #ffffff;
+
+  /* Ползунки прокрутки — пара к тёмной теме, одно место — токены (app.css):
+     ползунок темнее дорожки светлой темы, наведение — акцент. */
+  --scrollbar-track: var(--bg-hover);
+  --scrollbar-thumb: var(--border-strong);
+  --scrollbar-thumb-hover: var(--accent);
 
   --code-bg: #1e1e2e;
   /* Подсветка синтаксиса код-блока — токенами (CodeBlock.css). */
