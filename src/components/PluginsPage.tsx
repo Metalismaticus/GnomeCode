@@ -16,7 +16,6 @@ import { CatalogPicker } from "./CatalogPicker";
 import { PluginConfig } from "./PluginConfig";
 import { PluginSummary } from "./PluginSummary";
 import { PluginUpdates } from "./PluginUpdates";
-import { WindowButtons } from "./WindowButtons";
 import { params } from "../viewparams";
 
 import "./PluginsPage.css";
@@ -142,7 +141,6 @@ export function PluginsPage({ plugins }: { plugins: PluginsState }) {
             </button>
           ))}
         </div>
-        <WindowButtons />
       </div>
       <div className="plugins-page__body">
         {tab === "installed" ? (

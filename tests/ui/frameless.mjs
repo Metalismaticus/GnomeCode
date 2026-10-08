@@ -1,7 +1,9 @@
 // Окно без рамки — своя шапка (docs/ROADMAP.md, «Окно без рамки: своя шапка»):
-// кнопки свернуть/развернуть/закрыть стоят в шапке чата и в верхних полосах
-// страниц «Плагины» и «Настройки», верхние полосы размечены зоной перетаскивания
-// (data-tauri-drag-region), клики по кнопкам уходят мосту окна.
+// свернуть/развернуть/закрыть — один набор на экране, кластер «тема + кнопки»
+// в правом краю окна: шапка правой панели при ширине от 1200 px, шапка чата
+// при узкой; страницы «Плагины» и «Настройки» своих копий не рисуют. Верхние
+// полосы размечены зоной перетаскивания (data-tauri-drag-region), клики по
+// кнопкам уходят мосту окна.
 //
 //   node tests/ui/frameless.mjs
 // Итог: код возврата и последняя строка вывода — как у любой проверки (tests/lib/runner_lib.py).
@@ -122,18 +124,30 @@ try {
     }
     await narrow.close();
 
-    // д) Страница «Плагины»: своя кнопка закрытия и зона перетаскивания -----------
+    // д) Страница «Плагины»: своих кнопок окна нет — единственный набор остаётся
+    //    в шапке правой панели и уходит мосту; полоса страницы — перетаскивание --
     await page.goto(`${iface.url}?состояние=плагины-раздел`, { waitUntil: "domcontentloaded", timeout: 90_000 });
     await page.waitForSelector('[data-testid="plugins-page"]', { timeout: 90_000 });
-    try {
-      await page.waitForSelector(`[data-testid="plugins-page"] ${CLOSE}`, { timeout: 5000 });
-    } catch {
-      done(1, `на странице «Плагины» нет кнопки окна: не появился [data-testid] из ${BUTTONS}`);
+    const pluginsOwn = await page.$$eval(
+      '[data-testid="plugins-page"] [data-testid="window-buttons"]',
+      (els) => els.length,
+    );
+    if (pluginsOwn !== 0) {
+      done(1, `на странице «Плагины» своя копия кнопок окна (${pluginsOwn} набор поверх кластера шапки) — у экрана два набора`);
     }
-    await page.click(`[data-testid="plugins-page"] ${CLOSE}`);
+    const pluginsSets = await page.$$eval('[data-testid="window-buttons"]', (els) => els.length);
+    if (pluginsSets !== 1) {
+      done(1, `на «Плагинах» наборов кнопок окна ${pluginsSets}, а не один: единственный дом кнопок — шапка правой панели`);
+    }
+    try {
+      await page.waitForSelector(`${PANEL} ${CLOSE}`, { timeout: 5000 });
+    } catch {
+      done(1, `на «Плагинах» в шапке правой панели нет кнопки окна: не появился [data-testid] из ${BUTTONS}`);
+    }
+    await page.click(`${PANEL} ${CLOSE}`);
     const pluginsClose = await page.evaluate(() => window.__windowCalls ?? []);
     if (!pluginsClose.includes("close")) {
-      done(1, `кнопка закрытия страницы «Плагины» не ушла мосту: window.__windowCalls = ${JSON.stringify(pluginsClose)}`);
+      done(1, `кнопка закрытия на «Плагинах» не ушла мосту: window.__windowCalls = ${JSON.stringify(pluginsClose)}`);
     }
     if (!(await page.$eval('[data-testid="plugins-page"] .plugins-page__head', (el) => el.hasAttribute("data-tauri-drag-region")))) {
       done(1, DRAG("plugins-page__head"));
@@ -142,25 +156,37 @@ try {
       await hitOwn(page, `[data-testid="plugin-tab-${tab}"]`, `вкладка «${tab}» страницы «Плагины»`);
     }
 
-    // е) Страница «Настройки»: своя кнопка закрытия и зона перетаскивания ---------
+    // е) Страница «Настройки»: своих кнопок окна нет — тот же единственный набор
+    //    в шапке правой панели; полоса страницы — перетаскивание ---------------
     await page.goto(`${iface.url}?состояние=настройки`, { waitUntil: "domcontentloaded", timeout: 90_000 });
     await page.waitForSelector('[data-testid="settings-page"]', { timeout: 90_000 });
-    try {
-      await page.waitForSelector(`[data-testid="settings-page"] ${CLOSE}`, { timeout: 5000 });
-    } catch {
-      done(1, `на странице «Настройки» нет кнопки окна: не появился [data-testid] из ${BUTTONS}`);
+    const settingsOwn = await page.$$eval(
+      '[data-testid="settings-page"] [data-testid="window-buttons"]',
+      (els) => els.length,
+    );
+    if (settingsOwn !== 0) {
+      done(1, `на странице «Настройки» своя копия кнопок окна (${settingsOwn} набор поверх кластера шапки) — у экрана два набора`);
     }
-    await page.click(CLOSE);
+    const settingsSets = await page.$$eval('[data-testid="window-buttons"]', (els) => els.length);
+    if (settingsSets !== 1) {
+      done(1, `на «Настройках» наборов кнопок окна ${settingsSets}, а не один: единственный дом кнопок — шапка правой панели`);
+    }
+    try {
+      await page.waitForSelector(`${PANEL} ${CLOSE}`, { timeout: 5000 });
+    } catch {
+      done(1, `на «Настройках» в шапке правой панели нет кнопки окна: не появился [data-testid] из ${BUTTONS}`);
+    }
+    await page.click(`${PANEL} ${CLOSE}`);
     const settingsClose = await page.evaluate(() => window.__windowCalls ?? []);
     if (!settingsClose.includes("close")) {
-      done(1, `кнопка закрытия страницы «Настройки» не ушла мосту: window.__windowCalls = ${JSON.stringify(settingsClose)}`);
+      done(1, `кнопка закрытия на «Настройках» не ушла мосту: window.__windowCalls = ${JSON.stringify(settingsClose)}`);
     }
     if (!(await page.$eval('[data-testid="settings-page"] .settings-page__head', (el) => el.hasAttribute("data-tauri-drag-region")))) {
       done(1, DRAG("settings-page__head"));
     }
 
-    // ж) Тело страницы не наезжает на вкладки: голова растянута верхней полосой
-    //    окна (титул + кнопки окна), фиксированных 48 px больше нет -------------
+    // ж) Тело страницы не наезжает на вкладки: голова растянута полосой титула
+    //    и вкладками, фиксированных 48 px больше нет -----------------------------
     const gap = await page.$eval('[data-testid="settings-page"]', (root) => {
       const tabs = root.querySelector(".settings-page__tabs").getBoundingClientRect();
       const body = root.querySelector(".settings-page__body").getBoundingClientRect();
@@ -182,9 +208,28 @@ try {
     await page.click('[data-testid="compare-close"]');
     await page.waitForFunction(() => !document.querySelector('[data-testid="compare-panel"]'), undefined, { timeout: 5000 });
 
+    // и) Узкое окно на страницах: кластер живёт в шапке чата (см. г), на страницах
+    //    кнопок окна нет вовсе; их полосы остаются зонами перетаскивания ----------
+    const narrowPage = await browser.newPage({ viewport: { width: 1100, height: 760 } });
+    for (const [state, marker, head] of [
+      ["настройки", '[data-testid="settings-page"]', ".settings-page__head"],
+      ["плагины-раздел", '[data-testid="plugins-page"]', ".plugins-page__head"],
+    ]) {
+      await narrowPage.goto(`${iface.url}?состояние=${state}`, { waitUntil: "domcontentloaded", timeout: 90_000 });
+      await narrowPage.waitForSelector(marker, { timeout: 90_000 });
+      const sets = await narrowPage.$$eval('[data-testid="window-buttons"]', (els) => els.length);
+      if (sets !== 0) {
+        done(1, `при узком окне на странице «${state}» ${sets} набор(а) кнопок окна — кластер живёт в шапке чата, страницам свои копии не нужны`);
+      }
+      if (!(await narrowPage.$eval(`${marker} ${head}`, (el) => el.hasAttribute("data-tauri-drag-region")))) {
+        done(1, DRAG(head));
+      }
+    }
+    await narrowPage.close();
+
     await done(
       0,
-      `окно без рамки: кнопки свернуть/развернуть/закрыть и тема стоят в правом краю окна (шапка правой панели при ширине от 1200 px, шапка чата при узком) и уходят мосту (${calls.length} вызова); на страницах «Плагины» и «Настройки» кнопки свои; верхние полосы чата, правой панели, «Плагинов» и «Настроек» размечены data-tauri-drag-region — перетаскивание за шапку; кластер кнопок один, вкладки страниц и кнопки шапок не накрыты`,
+      `окно без рамки: свернуть/развернуть/закрыть и тема — один набор в правом краю окна (шапка правой панели при ширине от 1200 px, шапка чата при узком) и уходят мосту (${calls.length} вызова); у страниц «Плагины» и «Настройки» своих копий нет, при узком окне кнопок окна на них нет вовсе; верхние полосы чата, правой панели, «Плагинов» и «Настроек» размечены data-tauri-drag-region — перетаскивание за шапку; кластер кнопок один, вкладки страниц и кнопки шапок не накрыты`,
     );
   } finally {
     await browser.close();

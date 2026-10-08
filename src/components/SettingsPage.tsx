@@ -16,7 +16,6 @@ import { ModelsSection } from "./SettingsModels";
 import { Row } from "./SettingsRows";
 import { RuleButtons, VALUE_HINT } from "./PluginConfig";
 import { ThemeSwitch } from "./ThemeSwitch";
-import { WindowButtons } from "./WindowButtons";
 
 import "./SettingsPage.css";
 import "./PluginConfig.css";
@@ -107,10 +106,7 @@ function PageHead({ tab, onTab }: { tab: Tab; onTab: (tab: Tab) => void }) {
   }, []);
   return (
     <div className="settings-page__head" data-tauri-drag-region>
-      <div className="settings-page__topline" data-tauri-drag-region>
-        <h1 className="settings-page__title" data-tauri-drag-region>Настройки</h1>
-        <WindowButtons />
-      </div>
+      <h1 className="settings-page__title" data-tauri-drag-region>Настройки</h1>
       <div className="settings-page__tabs" role="tablist" aria-label="Разделы настроек">
         {TABS.map((one, index) => (
           <button

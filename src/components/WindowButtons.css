@@ -8,10 +8,6 @@
   gap: var(--space-1);
 }
 
-.plugins-page__head .window-buttons {
-  margin-left: auto;
-}
-
 .window-buttons__btn {
   display: inline-flex;
   align-items: center;
