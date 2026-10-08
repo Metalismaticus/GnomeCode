@@ -9,6 +9,7 @@
 
 pub mod client;
 pub mod engine;
+pub mod job;
 pub mod session;
 
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};

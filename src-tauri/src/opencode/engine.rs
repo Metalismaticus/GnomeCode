@@ -14,6 +14,7 @@ use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use super::client::{Api, Endpoint};
+use super::job::Job;
 
 /// Две известные установки desktop-версии opencode: первая — ресурсы приложения,
 /// вторая — папка версий CLI, номер версии меняется, поэтому ищем glob.
@@ -33,6 +34,9 @@ pub struct Engine {
     port: u16,
     password: String,
     child: Option<Child>,
+    /// Job хозяина: ручка живёт у процесса приложения, её закрытие (в том числе
+    /// жёстким убийством) убивает движок-ребёнка — сироты не остаётся.
+    job: Job,
     log: Arc<Mutex<VecDeque<String>>>,
 }
 
@@ -44,6 +48,7 @@ impl Engine {
             port: free_port()?,
             password: make_password(),
             child: None,
+            job: Job::new().map_err(|e| format!("не создал Job Object: {e}"))?,
             log: Arc::new(Mutex::new(VecDeque::new())),
         };
         engine.spawn()?;
@@ -108,6 +113,13 @@ impl Engine {
         let mut child = command
             .spawn()
             .map_err(|e| format!("не запустил движок {}: {e}", self.exe.display()))?;
+        // Ребёнок — в job хозяина: смерть процесса приложения (даже жёсткая)
+        // закрывает его ручку job и убивает движок (opencode/job.rs).
+        if let Err(reason) = self.job.assign(&child) {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(format!("движок вне Job Object: {reason}"));
+        }
         if let Some(out) = child.stdout.take() {
             pump(out, Arc::clone(&self.log), true);
         }

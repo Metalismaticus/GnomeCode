@@ -31,5 +31,15 @@ ureq = { version = "2", default-features = false, features = ["tls"] }
 # реестр файлы ключей не хранят. native без клона якорей — ради одной записи.
 keyring = { version = "3", default-features = false, features = ["windows-native"] }
 
+[target.'cfg(windows)'.dependencies]
+# Job Object для дочернего движка (opencode/job.rs): KILL_ON_JOB_CLOSE убивает
+# движок-ребёнка при смерти процесса приложения. Крейт уже в дереве через tauri —
+# версия та же, новых крейтов Cargo.lock не получает.
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_JobObjects",
+] }
+
 [profile.dev]
 incremental = true
