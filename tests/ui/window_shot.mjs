@@ -14,12 +14,12 @@ const OUT_DIR = "shots";
 // Ракурсы из спецификации экрана, «Где снимать»: два канонических плюс состояния и тема,
 // которые иначе снять нечем — все они одной командой и одним файлом проверки.
 const SHOTS = [
-  { name: "main-window-1440x900", size: [1440, 900], query: "", texts: ["Новый чат", "Контекст проекта"] },
+  { name: "main-window-1440x900", size: [1440, 900], query: "", wait: "header", texts: ["Новый чат", "Контекст проекта"] },
   { name: "main-window-1440x900-light", size: [1440, 900], query: "?тема=светлая", wait: "theme", texts: ["Новый чат"] },
   { name: "main-window-1440x900-empty", size: [1440, 900], query: "?состояние=пусто", wait: "empty", texts: ["Добро пожаловать в GnomeCode", "Открыть проект"] },
   { name: "main-window-1440x900-error", size: [1440, 900], query: "?состояние=ошибка", text: "Сервер OpenCode недоступен", texts: ["Не отвечает"] },
   { name: "main-window-1440x900-long", size: [1440, 900], query: "?состояние=много", wait: "rows:100", texts: ["Открыть проект из Documents"] },
-  { name: "main-window-1024x640", size: [1024, 640], query: "", texts: ["Новый чат"] },
+  { name: "main-window-1024x640", size: [1024, 640], query: "", wait: "header", texts: ["Новый чат"] },
   { name: "main-window-1024x640-panel", size: [1024, 640], query: "?правая=открыта", wait: "panel", texts: ["Контекст проекта"] },
   // Кадры пункта 11 (docs/specs/2026-10-06-11-glavnoe.md, «Где снимать»): приветствие
   // и разбор в обеих темах плюс минимум.
@@ -30,11 +30,17 @@ const SHOTS = [
   { name: "glavnoe-1024x640-pusto", size: [1024, 640], query: "?состояние=пусто", wait: "empty", texts: ["Добро пожаловать в GnomeCode"] },
 ];
 
-const WAITED = { theme: 15000, empty: 15000, panel: 15000 };
+const WAITED = { header: 90_000, theme: 15000, empty: 15000, panel: 15000 };
 
 /** Чего ждём на странице перед снимком: иначе светлая тема снимется тёмной,
- *  а пустое состояние — лентой. Ошибка здесь называет ракурс и признак. */
+ *  а пустое состояние — лентой. Ошибка здесь называет ракурс и признак.
+ *  «header» — дефолтные ракурсы без своего признака: после domcontentloaded
+ *  шапка чата — первый якорь смонтированного интерфейса (ловушка TESTING). */
 const settled = async (page, shot) => {
+  if (shot.wait === "header") {
+    await page.waitForSelector('[data-testid="chat-header"]', { timeout: WAITED.header });
+    return;
+  }
   if (shot.wait === "theme") {
     await page.waitForFunction(() => document.documentElement.dataset.theme === "light", undefined, {
       timeout: WAITED.theme,
@@ -101,7 +107,7 @@ try {
     for (const shot of SHOTS) {
       const [width, height] = shot.size;
       const page = await browser.newPage({ viewport: { width, height } });
-      await page.goto(`${url}${shot.query}`, { waitUntil: "networkidle" });
+      await page.goto(`${url}${shot.query}`, { waitUntil: "domcontentloaded", timeout: 90_000 });
       try {
         await settled(page, shot);
       } catch {

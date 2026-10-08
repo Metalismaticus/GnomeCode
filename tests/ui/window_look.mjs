@@ -79,6 +79,19 @@ const topmostAt = (page, selector) =>
     return hit.getAttribute("data-testid") || hit.className || hit.tagName;
   }, selector);
 
+/** Якорь смонтированной страницы с одним повтором: после domcontentloaded vite мог
+ *  уйти в собственную перезагрузку на оптимизации зависимостей и страница так и не
+ *  смонтировалась (полная группа 2026-10-07 — 90 с ожидания впустую). Повтор не трогает
+ *  утверждений: ширины и цвета читаются после, честно красное остаётся красным. */
+const waitReady = async (page, selector) => {
+  try {
+    await page.waitForSelector(selector, { timeout: 45_000 });
+  } catch {
+    await page.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
+    await page.waitForSelector(selector, { timeout: 90_000 });
+  }
+};
+
 const measure = (page) =>
   page.evaluate(() => {
     const box = (sel) => {
@@ -134,7 +147,11 @@ try {
   try {
     // --- 1440×900: три колонки, ширины из DESIGN.md §5 ---------------------------------
     const wide = await browser.newPage({ viewport: WIDE });
-    await wide.goto(`${url}?состояние=много`, { waitUntil: "networkidle" });
+    // domcontentloaded, а не networkidle, и запас (ловушка TESTING): networkidle на
+    // медленном старте vite не дожидался страницы; ширины читает evaluate — auto-wait
+    // его не ждёт, поэтому колонки дожидаемся явно.
+    await wide.goto(`${url}?состояние=много`, { waitUntil: "domcontentloaded", timeout: 90_000 });
+    await waitReady(wide, ".context");
     const wideSidebar = await widthOf(wide, ".sidebar");
     if (wideSidebar !== SIDEBAR_W) {
       done(1, `сайдбар при 1440×900 — ${wideSidebar} px, а не ${SIDEBAR_W} px`);
@@ -232,7 +249,8 @@ try {
     // --- Фокус с клавиатуры: обводка 2 px у главной кнопки и у поля ввода -------------
     // Свежая страница: порядок обхода начинается с начала окна, а не с места последнего клика.
     const keys = await browser.newPage({ viewport: WIDE });
-    await keys.goto(url, { waitUntil: "networkidle" });
+    await keys.goto(url, { waitUntil: "domcontentloaded", timeout: 90_000 });
+    await waitReady(keys, '[data-testid="btn-primary"]');
     await keys.keyboard.press("Tab");
     const firstFocus = await focusRing(keys);
     if (!firstFocus || !String(firstFocus.cls).includes("primary")) {
@@ -253,7 +271,8 @@ try {
 
     // --- 1024×640: сайдбар сужается, правая панель складывается в кнопку ☰ ------------
     const narrow = await browser.newPage({ viewport: NARROW });
-    await narrow.goto(url, { waitUntil: "networkidle" });
+    await narrow.goto(url, { waitUntil: "domcontentloaded", timeout: 90_000 });
+    await waitReady(narrow, ".sidebar");
     const narrowSidebar = await widthOf(narrow, ".sidebar");
     if (narrowSidebar !== SIDEBAR_NARROW_W) {
       done(1, `сайдбар при 1024×640 - ${narrowSidebar} px, а не ${SIDEBAR_NARROW_W} px`);
@@ -352,7 +371,8 @@ try {
     // пикер ни открылся, окно его лежит в области чата, как панель сравнения:
     // не выше шапки чата, не за её пределами и не под панелью.
     const docks = await browser.newPage({ viewport: WIDE });
-    await docks.goto(`${url}?состояние=проект`, { waitUntil: "networkidle" });
+    await docks.goto(`${url}?состояние=проект`, { waitUntil: "domcontentloaded", timeout: 90_000 });
+    await waitReady(docks, '[data-testid="context-connect"]');
     await docks.click('[data-testid="context-connect"]');
     try {
       await docks.waitForSelector('[data-testid="plugin-picker"]', { timeout: 5000 });
@@ -399,7 +419,8 @@ try {
 
     // --- Пустое состояние: сборка вверху ленты, заголовок 22 px (спека §3) -------------
     const empty = await browser.newPage({ viewport: WIDE });
-    await empty.goto(`${url}?состояние=пусто`, { waitUntil: "networkidle" });
+    await empty.goto(`${url}?состояние=пусто`, { waitUntil: "domcontentloaded", timeout: 90_000 });
+    await waitReady(empty, '[data-testid="empty"]');
     const emptyBox = await empty.evaluate(() => {
       const block = document.querySelector('[data-testid="empty"]');
       const feed = document.querySelector('[data-testid="feed"]');
