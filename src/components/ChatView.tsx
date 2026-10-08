@@ -1,15 +1,13 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useState } from "react";
 
-import type { ApprovalDecision, ChatModelChoice, PluginScope } from "../bridge";
+import type { ApprovalDecision, PluginScope } from "../bridge";
 import type { CatalogEntry } from "../catalog";
 import type { CompareModel } from "../compare";
 import { useFeed } from "../chat";
 import { useCompare } from "../features/compare/useCompare";
-import type { ApprovalState } from "../features/plugins/useApproval";
 import { useCatalog } from "../features/plugins/useCatalog";
-import { useHeldSummary, type PluginsState } from "../features/plugins/usePlugins";
+import { useHeldSummary } from "../features/plugins/usePlugins";
 import { useToolsets } from "../features/plugins/useToolsets";
-import type { ProjectState } from "../features/project/useProject";
 import { params } from "../viewparams";
 import { ComparePanel } from "./ComparePanel";
 import { ChatHeader } from "./ChatHeader";
@@ -20,66 +18,11 @@ import { Feed } from "./Feed";
 import { PluginApproval } from "./PluginApproval";
 import { PluginPicker } from "./PluginPicker";
 import { PluginSummary } from "./PluginSummary";
+import { MODEL_BADGE } from "./chat/overlay";
+import type { ChatViewProps, Overlay } from "./chat/types";
+import { useOverlayDismiss } from "./chat/useOverlayDismiss";
 
 import "./ChatView.css";
-
-/** Что открыто в композере: меню «+», список плагинов, окно Tool Sets, каталог,
- *  панель «Plugins in this chat» или ничего. Окно одобрения — не здесь: его
- *  открытость держит `useApproval`; сводку прав установки держит `pending` —
- *  она живёт и при открытом каталоге. */
-type Overlay = "none" | "menu" | "plugins" | "toolsets" | "catalog" | "chat-plugins" | "compare";
-
-/** Закрытие открытого оверлея по Esc и клику снаружи — иначе меню и список
- *  висят поверх поля ввода и перехватывают клик по «отправить». Снаружи
- *  ловится mousedown, а не click: окно одобрения открывается асинхронно,
- *  после клика по кнопке команды — продолжение клика ещё всплывает до window,
- *  и слушатель click успел бы закрыть то, что этот же клик открыл. mousedown
- *  открывающего жеста всегда раньше подписки, поэтому оверлей переживает свой клик. */
-const MODEL_BADGE = '[data-testid="model-badge"]';
-
-function useOverlayDismiss(
-  open: boolean,
-  /** Клик снаружи: закрытие без возврата фокуса — фокус уводит сам жест. */
-  close: () => void,
-  /** Esc — отдельный жест: панель сравнения возвращает фокус бейджу (спека
-   *  «Клавиатура»), остальным оверлеям возврата нет. */
-  onEscape: () => void,
-): void {
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onEscape();
-      }
-    };
-    const onMouseDown = (event: MouseEvent) => {
-      const target = event.target as Element | null;
-      if (
-        !target?.closest(".add-menu") &&
-        !target?.closest(".plugin-picker") &&
-        !target?.closest(".toolset-picker") &&
-        !target?.closest(".catalog-picker") &&
-        !target?.closest(".plugin-summary") &&
-        !target?.closest(".plugin-approval") &&
-        !target?.closest(".chat-plugins") &&
-        !target?.closest(".compare-panel") &&
-        !target?.closest('[data-testid="composer-add"]') &&
-        !target?.closest(MODEL_BADGE) &&
-        !target?.closest('[data-testid="header-plugins-area"]')
-      ) {
-        close();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("mousedown", onMouseDown);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("mousedown", onMouseDown);
-    };
-  }, [open, close, onEscape]);
-}
 
 /** Центральная колонка: шапка, лента, композер. Ядро окна — то, что тянется. */
 export function ChatView({
@@ -100,43 +43,7 @@ export function ChatView({
   onNewChat,
   panelPickerOpen,
   onClosePanelPicker,
-}: {
-  title: string;
-  onTogglePanel: () => void;
-  panelOpen: boolean;
-  /** Окно уже 1200 px: правая панель складывается — кластер кнопок окна
-   *  возвращается в шапку чата (WindowCluster.tsx). */
-  narrow: boolean;
-  /** Кластер кнопок окна: тема + свернуть/развернуть/закрыть — правый край. */
-  cluster: ReactNode;
-  /** Файлы контекста: уходят с вопросом, чипы живут в композере. */
-  project: ProjectState;
-  /** Первый вопрос владельца становится титулом чата (src/appstate.ts). */
-  onFirstQuestion?: (question: string) => void;
-  /** Право чата на файлы: выключено — вопрос уходит без файлов, чипы же
-   *  остаются на экране. Тумблер правой панели переключает его (App). */
-  fsAllow: boolean;
-  /** Клик по источнику-плагину: раздел «Плагины» открывается вместо чата. */
-  onOpenPluginsPage: () => void;
-  /** Модель текущего чата: бейдж шапки и строка «Выбрана». */
-  model: string;
-  /** «Выбрать» в панели сравнения: модель чата меняется и запоминается. */
-  onChooseModel: (choice: ChatModelChoice) => void;
-  /** Плагины чата — общие с правой панелью (App держит одно состояние). */
-  plugins: PluginsState;
-  /** Окно одобрения вызова — общее с правой панелью. */
-  approval: ApprovalState;
-  /** Счётчики приветственной сборки: длина списков чатов и проектов. */
-  counts: { chats: number; projects: number };
-  /** Карточка «Новый чат» приветствия: тот же ход, что кнопка сайдбара. */
-  onNewChat: () => void;
-  /** Пикер, которого позвала кнопка «Подключить» правой панели: открытие держит
-   *  App (панель — сосед чата), позиция — оверлей области чата, как у панели
-   *  сравнения: из любой двери окно видно целиком, без отрезанной правой части. */
-  panelPickerOpen: boolean;
-  /** Закрыть пикер двери панели: Esc, клик снаружи или подключение. */
-  onClosePanelPicker: () => void;
-}) {
+}: ChatViewProps) {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   // Сравнение на снимках открывается сразу: `?состояние=сравнение*`, строка
