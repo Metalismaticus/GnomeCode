@@ -1,4 +1,6 @@
-/* Шапка чата: не ниже 48 px, чтобы строки шапки и правой панели совпали по горизонтали. */
+/* Шапка чата: не ниже 48 px, чтобы строки шапки и правой панели совпали по горизонтали.
+   Фон — фон окна, а не панель: полоса над разговором не светлее содержимого, окно
+   читается одним листом (docs/specs/2026-10-08-1-чат.md, §5). */
 
 .chat-header {
   display: flex;
@@ -7,7 +9,7 @@
   min-height: 48px;
   padding: var(--space-3) var(--space-5);
   border-bottom: 1px solid var(--border);
-  background: var(--bg-panel);
+  background: var(--bg);
 }
 
 .chat-header__title {
@@ -52,8 +54,11 @@
   outline-offset: 2px;
 }
 
-/* Кнопки подключённых плагинов: ряд с бейджем модели, в ряд; при нехватке места
-   лишние уходят в усечение — переносить шапку нельзя, она держит высоту 48 px. */
+/* Кнопки подключённых плагинов: ряд с бейджем модели, в ряд; кнопки не сжимаются
+   и не режутся краем — замер помещаемости (ChatHeader.tsx) сворачивает не
+   поместившиеся в бейдж «+N», а `overflow: hidden` страхует один кадр до замера.
+   Сам ряд не сжимается (flex-shrink: 0): его место считает замер от шапки,
+   заголовок чата уступает место ряду. */
 .chat-header__plugins {
   display: flex;
   align-items: center;
@@ -61,6 +66,41 @@
   min-width: 0;
   max-width: 50%;
   overflow: hidden;
+  flex-shrink: 0;
+}
+
+.chat-header__plugins .plugin-button {
+  flex: none;
+}
+
+/* Бейдж «+N»: тот же приглушённый вид, что у кнопок плагинов; клик открывает
+   панель «Плагины этого чата», с клавиатуры — Tab до него и Enter. */
+.chat-header__more {
+  flex: none;
+  padding: 2px var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-panel-2);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.chat-header__more:hover {
+  background: var(--bg-hover);
+}
+
+.chat-header__more:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Проба замера: вне потока и невидима, но измерима — ряд заранее знает ширину
+   бейджа и не занижает, сколько кнопок помещается. */
+.chat-header__more--idle {
+  position: absolute;
+  visibility: hidden;
 }
 
 /* Кнопка правой панели: призрачная, 32×32. При ширине ≥ 1200 px не рисуется вовсе —

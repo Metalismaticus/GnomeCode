@@ -18,26 +18,43 @@ const TONE: Record<string, string> = {
   "Сообщение не ушло": "feed__row--down",
 };
 
-/** Детали вызова плагина под его строкой (docs/SPEC/plugins.md, сцена J):
- *  Usage/Audit — какой плагин сгенерировал вызов, где и чем. Модель пока одна
- *  (ниже константа — переключение появится с панелью «Сравнение моделей»),
+/** Первый символ строки вызова — знак статуса: ✓ успех, ⚠ отказ, ⧗ работает. */
+const SIGN = /^(✓|⚠|⧗)/;
+
+const SIGN_TONE: Record<string, string> = {
+  "✓": "feed__sign--ok",
+  "⚠": "feed__sign--warn",
+  "⧗": "feed__sign--run",
+};
+
+/** Детали раскрытого шага под его строкой: у вызова плагина — Плагин / Чат /
+ *  Скилл / Модель (docs/SPEC/plugins.md, сцена J): Usage/Audit — какой плагин
+ *  сгенерировал вызов, где и чем. У вызова с файлом — полный путь. Модель пока
+ *  одна (ниже константа — переключение появится с панелью «Сравнение моделей»),
  *  скиллов в продукте ещё нет (Этап 3) — деталь честно «—», не выдуманная.
- *  Обычные tool-строки движка деталей не открывают: плагин неизвестен. */
+ *  Раскрывается только то, что строка знает: выдуманных деталей нет (спека §7). */
 function RowDetails({ row, chatTitle }: { row: FeedRow; chatTitle: string }) {
   return (
     <div className="feed__details" data-testid="feed-row-details">
-      <div className="feed__detail">Плагин: {row.plugin}</div>
-      <div className="feed__detail">Чат: {chatTitle}</div>
-      <div className="feed__detail">Скилл: —</div>
-      <div className="feed__detail">Модель: {DEFAULT_MODEL}</div>
+      {row.plugin ? (
+        <>
+          <div className="feed__detail">Плагин: {row.plugin}</div>
+          <div className="feed__detail">Чат: {chatTitle}</div>
+          <div className="feed__detail">Скилл: —</div>
+          <div className="feed__detail">Модель: {DEFAULT_MODEL}</div>
+        </>
+      ) : null}
+      {row.file ? <div className="feed__detail">Файл: {row.file}</div> : null}
     </div>
   );
 }
 
 /** Что строка, раскрывающаяся деталями, добавляет к обычной: клик по любой точке
- *  строки — открыть, повторный — закрыть; без роли только строки вызова инструмента. */
+ *  строки — открыть, повторный — закрыть; с клавиатуры — Enter или пробел. У
+ *  строки без известных деталей (нет ни плагина, ни файла) роли кнопки нет —
+ *  она просто тихий шаг. */
 function expansion(row: FeedRow, open: boolean, toggle: (id: string) => void) {
-  if (!row.plugin) {
+  if (row.kind !== "tool" || (!row.plugin && !row.file)) {
     return {};
   }
   return {
@@ -52,6 +69,22 @@ function expansion(row: FeedRow, open: boolean, toggle: (id: string) => void) {
       }
     },
   };
+}
+
+/** Свёрнутый шаг вызова: знак статуса + текст вызова + чеврон (спека §7).
+ *  Бегущий ⧗ тоже свёрнут — прогресс виден пульсирующим знаком. Чеврон стоит
+ *  только у строк с известными деталями; по умолчанию шаг свёрнут всегда. */
+function ToolLine({ row }: { row: FeedRow }) {
+  const sign = SIGN.exec(row.text)?.[1] ?? "";
+  const rest = sign ? row.text.slice(sign.length).trimStart() : row.text;
+  return (
+    <span className="feed__step">
+      {sign ? <span className={`feed__sign ${SIGN_TONE[sign] ?? ""}`}>{sign}</span> : null}
+      {sign ? " " : ""}
+      {rest || "…"}
+      {row.plugin || row.file ? <span className="feed__chevron" aria-hidden="true">▸</span> : null}
+    </span>
+  );
 }
 
 /** Ответ модели Markdown-lite (спека «Компоненты»): заголовки — ступени,
@@ -113,7 +146,7 @@ export function Feed({
   /** Клик по источнику-плагину: открыть раздел «Плагины». */
   onSourcePlugin: (id: string) => void;
 }) {
-  /** Раскрытая строка вызова плагина: клик по строке — открыть, повторный — закрыть. */
+  /** Раскрытая строка вызова: клик по строке — открыть, повторный — закрыть. */
   const [opened, setOpened] = useState<string | undefined>(undefined);
   const toggle = (id: string): void => {
     setOpened((open) => (open === id ? undefined : id));
@@ -124,17 +157,22 @@ export function Feed({
     <>
       {rows.map((row) => {
         const tone = TONE[Object.keys(TONE).find((text) => row.text.startsWith(text)) ?? ""] ?? "";
-        const expanded = Boolean(row.plugin) && opened === row.id;
+        /** Шаг с известными деталями — кнопка: роль, клик и обводка фокуса. */
+        const expandable = row.kind === "tool" && Boolean(row.plugin || row.file);
+        const expanded = expandable && opened === row.id;
         const block = blocks.get(row.id);
         return (
           <Fragment key={row.id}>
             <div
-              className={`feed__row feed__row--${row.kind}${tone ? ` ${tone}` : ""}${row.plugin ? " feed__row--expandable" : ""}`}
+              className={`feed__row feed__row--${row.kind}${tone ? ` ${tone}` : ""}${expandable ? " feed__row--expandable" : ""}`}
               data-kind={row.kind}
-              {...(expansion(row, expanded, toggle) as object)}          >
-              {row.kind === "assistant" ? <AssistantText text={row.text} /> : row.text || "…"}
-              {expanded ? <RowDetails row={row} chatTitle={chatTitle} /> : null}
+              {...(expansion(row, expanded, toggle) as object)}
+            >
+              {row.kind === "tool" ? <ToolLine row={row} /> : null}
+              {row.kind === "assistant" ? <AssistantText text={row.text} /> : null}
+              {row.kind !== "tool" && row.kind !== "assistant" ? row.text || "…" : null}
             </div>
+            {expanded ? <RowDetails row={row} chatTitle={chatTitle} /> : null}
             {block ? (
               <SourcesBlock sources={block} onFile={onSourceFile} onPlugin={onSourcePlugin} />
             ) : null}

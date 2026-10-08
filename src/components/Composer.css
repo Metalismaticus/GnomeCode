@@ -1,12 +1,21 @@
-/* Композер: главное действие окна, поэтому он на виду (docs/specs/2026-10-05-4-glavnoe-okno.md,
-   «Иерархия»). «+» приглушён, «↑» с текстом — акцентный, на пустом поле выключен. */
+/* Композер: главное действие окна, поэтому он на виду. Подложки и линии-границы
+   нет — композер не панель: его отделяет воздух и рамка самого поля (фон --bg,
+   docs/specs/2026-10-08-1-чат.md, §6). Поле стоит на колонке чтения — вопрос,
+   ответ и ввод читаются одной линией. */
 
 .composer {
   padding: var(--space-4) var(--space-5);
-  border-top: 1px solid var(--border);
-  background: var(--bg-panel);
+  background: var(--bg);
   /* Меню «+» и список плагинов всплывают над полем ввода — им нужен якорь. */
   position: relative;
+}
+
+/* Колонка чтения: чипы и поле — на одной линии с разговором ленты. */
+.composer__column {
+  width: 100%;
+  max-width: var(--feed-column);
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .composer__box {
@@ -56,18 +65,4 @@
 
 .composer__send:active:not(:disabled) {
   filter: brightness(1.04);
-}
-
-.composer__hint {
-  font-size: 11px;
-  color: var(--text-faint);
-  margin-top: var(--space-2);
-  text-align: center;
-}
-
-/* Место действия важнее подсказки: на низком окне она скрывается. */
-@media (max-height: 559px) {
-  .composer__hint {
-    display: none;
-  }
 }

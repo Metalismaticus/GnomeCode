@@ -13,7 +13,6 @@ import { ToolSetPicker } from "./ToolSetPicker";
 
 import "./Composer.css";
 
-const HINT = "Enter — перенос строки · Ctrl + Enter — отправить";
 const PLACEHOLDER = "Напишите сообщение… (Ctrl + Enter — отправить)";
 const EMPTY = "Напишите сообщение — отправлять нечего";
 
@@ -49,9 +48,10 @@ export type ComposerProps = {
   onSaveToolset: (name: string) => void;
 };
 
-/** Композер: «+» с меню и списком плагинов, поле ввода, «↑» и подсказка под ним.
- *  Кнопка отправки выключена на пустом поле, и причина видна в её подсказке
- *  (docs/DESIGN.md, раздел 6). */
+/** Композер: «+» с меню и списком плагинов, поле ввода, «↑». Кнопка отправки
+ *  выключена на пустом поле, и причина видна в её подсказке (docs/DESIGN.md,
+ *  раздел 6). Подсказки про шорткат под полем нет: он назван в placeholder'е
+ *  (docs/specs/2026-10-08-1-чат.md, §6). */
 export function Composer({
   draft,
   sending,
@@ -77,46 +77,47 @@ export function Composer({
 }: ComposerProps) {
   return (
     <div className="composer">
-      <FileChips files={files} onDetach={onDetach} />
-      <div className="composer__box">
-        <Button
-          square
-          variant="ghost"
-          className="composer__add"
-          data-testid="composer-add"
-          title="Добавить"
-          aria-expanded={addOpen || pickerOpen || toolsetsOpen || catalogOpen}
-          onClick={onToggleAdd}
-        >
-          +
-        </Button>
-        <textarea
-          className="composer__input"
-          data-testid="composer"
-          placeholder={PLACEHOLDER}
-          value={draft}
-          rows={1}
-          onChange={(event) => onDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && event.ctrlKey) {
-              event.preventDefault();
-              onSend();
-            }
-          }}
-        />
-        <Button
-          square
-          variant="ghost"
-          className={`composer__send${draft.trim() ? " composer__send--ready" : ""}`}
-          data-testid="send"
-          onClick={onSend}
-          disabled={!draft.trim() || sending}
-          title={sending ? "Отправляется" : draft.trim() ? "Отправить" : EMPTY}
-        >
-          {sending ? "…" : "↑"}
-        </Button>
+      <div className="composer__column">
+        <FileChips files={files} onDetach={onDetach} />
+        <div className="composer__box">
+          <Button
+            square
+            variant="ghost"
+            className="composer__add"
+            data-testid="composer-add"
+            title="Добавить"
+            aria-expanded={addOpen || pickerOpen || toolsetsOpen || catalogOpen}
+            onClick={onToggleAdd}
+          >
+            +
+          </Button>
+          <textarea
+            className="composer__input"
+            data-testid="composer"
+            placeholder={PLACEHOLDER}
+            value={draft}
+            rows={1}
+            onChange={(event) => onDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && event.ctrlKey) {
+                event.preventDefault();
+                onSend();
+              }
+            }}
+          />
+          <Button
+            square
+            variant="ghost"
+            className={`composer__send${draft.trim() ? " composer__send--ready" : ""}`}
+            data-testid="send"
+            onClick={onSend}
+            disabled={!draft.trim() || sending}
+            title={sending ? "Отправляется" : draft.trim() ? "Отправить" : EMPTY}
+          >
+            {sending ? "…" : "↑"}
+          </Button>
+        </div>
       </div>
-      <div className="composer__hint">{HINT}</div>
       {pickerOpen ? (
         <PluginPicker plugins={plugins} onBrowse={onBrowsePlugins} onClose={onClosePlugins} />
       ) : null}

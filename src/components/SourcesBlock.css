@@ -1,17 +1,25 @@
-/* Блок «Sources used» под ответом: те же панели, что у деталей вызова, —
-   вкладка разговора, а не отдельное окно (docs/DESIGN.md, разделы 1 и 4). */
+/* Блок «Sources used» под ответом: тихая подпись и чипы без акцентной заливки —
+   источники не действия первого порядка, акцентных пятен в центре окна два
+   (docs/specs/2026-10-08-1-чат.md, §8). Блок стоит на колонке чтения. */
 
 .sources {
-  margin-top: var(--space-1);
+  width: 100%;
+  max-width: var(--feed-column);
+  margin-left: auto;
+  margin-right: auto;
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
   background: var(--bg-panel-2);
   border: 1px solid var(--border);
-  max-width: 85%;
 }
 
+/* Метка в стиле §3 спецификации: мелкая, разреженная, слабым цветом. Капитель —
+   вариативными шрифтами, а не text-transform: он меняет отрисованный текст,
+   и дословная сверка кадра («Sources used») перестаёт его находить. */
 .sources__title {
-  font-size: 12px;
+  font-size: 11px;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.08em;
   color: var(--text-faint);
 }
 
@@ -23,11 +31,24 @@
 }
 
 .sources__item {
+  max-width: 100%;
   padding: 2px var(--space-2);
   border-radius: var(--radius-sm);
-  background: var(--badge-bg);
-  border: 1px solid var(--badge-border);
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border);
   color: var(--text);
   font-family: var(--font-mono);
   font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sources__item:hover {
+  border-color: var(--accent);
+}
+
+.sources__item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
