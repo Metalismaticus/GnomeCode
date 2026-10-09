@@ -14,6 +14,8 @@ import type {
   PluginScope,
   ProviderRow,
   RuleEntry,
+  StatsPeriod,
+  StatsSummary,
   ToolSet,
   TreeNode,
   UpdatesNote,
@@ -161,6 +163,10 @@ export const tauriBridge = (): Bridge => ({
   },
   async setDefault(category: string, value: string) {
     return (await invoke<RuleEntry[]>("settings_set_default", { category, value })) as RuleEntry[];
+  },
+  async statsSummary(period: StatsPeriod) {
+    // Сводку считает Rust одним вызовом: stats.jsonl целиком в интерфейс не идёт.
+    return (await invoke<StatsSummary>("stats_summary", { period })) as StatsSummary;
   },
   async dataFolder() {
     return (await invoke<string>("data_folder")) as string;

@@ -154,6 +154,38 @@ export type ProviderRow = {
 /** Строка умолчаний прав (секция «default» rules.json): категория и значение. */
 export type RuleEntry = { category: string; value: string };
 
+/** Период сводки статистики: последние 7 дней, 30 или всё. */
+export type StatsPeriod = "7" | "30" | "all";
+
+/** Сумма расхода группы (stats_summary, считает Rust по stats.jsonl): токены
+ *  по частям, время и деньги по ценам кэша сравнения. */
+export type StatsUsage = {
+  input: number;
+  output: number;
+  reasoning: number;
+  cacheRead: number;
+  cacheWrite: number;
+  /** Деньги; null — в группе нет ни одной модели с ценами. */
+  cost: number | null;
+  /** Есть и оценённые, и неоценённые модели: сумма — известная часть. */
+  costPartial: boolean;
+  durationMs: number;
+};
+
+/** Строка деления «По моделям»: ид движка и имя из кэша, если нашлось. */
+export type StatsModel = { provider: string; model: string; name: string | null; usage: StatsUsage };
+
+/** Строка деления «По проектам»: путь папки, как он записан в строках расхода. */
+export type StatsProject = { path: string; usage: StatsUsage };
+
+/** Ответ stats_summary: итог, деления и дата применённого кэша цен. */
+export type StatsSummary = {
+  totals: StatsUsage;
+  projects: StatsProject[];
+  models: StatsModel[];
+  pricedAt: number | null;
+};
+
 export type Listener = (event: FeedEvent) => void;
 export type Bridge = {
   /** Вопрос владельца; `files` — пути файлов, которые уйдут с ним движку. */
@@ -240,6 +272,9 @@ export type Bridge = {
   defaults(): Promise<RuleEntry[]>;
   /** Сменить умолчание одной категории: действует на следующий вызов плагина. */
   setDefault(category: string, value: string): Promise<RuleEntry[]>;
+  /** Сводка расхода раздела «Статистика»: суммы по проектам, моделям и периоду
+   *  считает Rust одним вызовом; цены — только из кэша сравнения, сеть не зовётся. */
+  statsSummary(period: StatsPeriod): Promise<StatsSummary>;
   /** Полный путь папки данных: показ вкладки «Папка данных»; смены пути здесь нет. */
   dataFolder(): Promise<string>;
   /** Свои кнопки окна без рамки: системные действия текущего окна. */

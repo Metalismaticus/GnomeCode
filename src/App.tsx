@@ -10,26 +10,29 @@ import {
 } from "./app/hooks";
 import { useThemeToggle } from "./app/theme";
 import { chatsList, projectsList } from "./app/lists";
+import { moneyOf } from "./compare";
 import { ChatView } from "./components/ChatView";
 import { ContextPanel } from "./components/ContextPanel";
 import { PluginsPage } from "./components/PluginsPage";
 import { SettingsPage } from "./components/SettingsPage";
 import { Sidebar } from "./components/Sidebar";
+import { StatsPage } from "./components/StatsPage";
 import { WindowCluster } from "./components/WindowCluster";
 import { panels } from "./fixture";
 import { patchState, type WindowState } from "./appstate";
 import { useApproval } from "./features/plugins/useApproval";
 import { usePlugins } from "./features/plugins/usePlugins";
 import { useProject } from "./features/project/useProject";
+import { useStats } from "./features/stats/useStats";
 import { params, type Theme } from "./viewparams";
 
 import "./styles/app.css";
 
-/** Что открыто в окне: чат или раздел «Плагины» (docs/SPEC/plugins.md, сцена A).
- *  Страницы размонтируют друг друга — черновик композера и оверлеи чата гаснут при
+/** Что открыто в окне: чат, «Плагины», «Статистика» или настройки. Страницы
+ *  размонтируют друг друга — черновик композера и оверлеи чата гаснут при
  *  выходе; список плагинов при этом один на окно (App держит его сам), и кнопки
  *  команд в шапке пересчитываются сразу, в том числе после Enable/Disable раздела. */
-type Page = "chat" | "plugins" | "settings";
+type Page = "chat" | "plugins" | "settings" | "stats";
 
 /** Главное окно: корень только собирает три колонки, держит тему и оверлей панели.
  *  Тема, титул чата и папка приходят из состояния окна (`src/appstate.ts`): в окне
@@ -54,7 +57,9 @@ export default function App() {
       ? "settings"
       : params.feed === "plugins-section" || params.feed === "plugins-updates"
         ? "plugins"
-        : "chat",
+        : params.feed === "статистика" || params.feed === "статистика-пусто"
+          ? "stats"
+          : "chat",
   );
   const data = panels(params.feed);
   // Папка проекта и титул чата: сначала фикстура/пусто, после ответа моста — сохранённые.
@@ -69,6 +74,9 @@ export default function App() {
   const plugins = usePlugins();
   const approval = useApproval(plugins.refresh);
   const chat = useChatModels();
+  /** Расход активного проекта для сайдбара («этот проект стоил X»): итог за
+   *  всё время — одной командой моста, экран статистики держит свой период. */
+  const stats = useStats("all");
 
   /** «Новый чат»: лента чистится событием `reset`, движку поднимается новая
    *  сессия; титул и время чата сбрасывает тот же ход (использование — кнопка
@@ -108,7 +116,14 @@ export default function App() {
   usePanelOverlay(narrow, panelOpen, setPanelOpen);
 
   const chats = chatsList(data, chat.title, chat.time);
-  const projects = projectsList(data, projectRoot);
+  /** Проекты с линией стоимости: деньги известной части — у строки активного
+   *  проекта второй линией, когда по нему есть записи расхода. */
+  const lifetime = stats.summary?.projects.find((one) => one.path === projectRoot);
+  const projects = projectsList(data, projectRoot).map((one) =>
+    one.path !== undefined && one.path === projectRoot && lifetime?.usage.cost != null
+      ? { ...one, cost: moneyOf(lifetime.usage.cost) }
+      : one,
+  );
 
   /** Право этого чата на файлы: включён, раз папка проекта выбрана. Владелец
    *  тумблером правой панели его выключает и включает (замечание владельца
@@ -128,6 +143,7 @@ export default function App() {
         onToggleTheme={toggleTheme}
         onPickFolder={project.pick}
         onOpenPlugins={() => setPage("plugins")}
+        onOpenStats={() => setPage("stats")}
         onOpenSettings={() => setPage("settings")}
         settingsOpen={page === "settings"}
         onOpenChat={() => setPage("chat")}
@@ -143,6 +159,8 @@ export default function App() {
           onChooseDefault={chat.chooseDefault}
           onClose={closeSettings}
         />
+      ) : page === "stats" ? (
+        <StatsPage />
       ) : (
         <ChatView
           title={chat.title || "Новый чат"}

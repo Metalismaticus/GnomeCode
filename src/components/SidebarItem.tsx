@@ -9,6 +9,7 @@ import "./SidebarItem.css";
 export function SidebarItem({
   title,
   sub,
+  sub2,
   active = false,
   page = false,
   glyph,
@@ -18,6 +19,8 @@ export function SidebarItem({
   title: string;
   /** Вторая линия из реальных данных; нет данных — линии нет. */
   sub?: string;
+  /** Третья линия (стоимость проекта, «Этот проект стоил X»); нет данных — линии нет. */
+  sub2?: string;
   active?: boolean;
   /** aria-current="page": постоянная подсветка открытой страницы (настройки). */
   page?: boolean;
@@ -45,6 +48,7 @@ export function SidebarItem({
         <span className="sidebar-item__title">{title}</span>
       )}
       {sub ? <span className="sidebar-item__sub">{sub}</span> : null}
+      {sub2 ? <span className="sidebar-item__sub">{sub2}</span> : null}
     </button>
   );
 }

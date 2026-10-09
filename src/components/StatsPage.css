@@ -1,0 +1,199 @@
+/* Раздел «Статистика» (docs/BATCH.md, пункт 2, шаг «экран»): итог сверху,
+   деления по проектам и моделям — таблицей строк с выровненными числами.
+   Тянется между сайдбаром и правой панелью, как чат и раздел «Плагины».
+   Числа — tabular-nums (docs/DESIGN.md, раздел 3), токены цветов не красятся. */
+
+.stats-page {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: var(--space-5);
+  gap: var(--space-4);
+}
+
+.stats-page__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  flex-wrap: wrap;
+}
+
+.stats-page__title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.stats-page__periods {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.stats-page__period {
+  border: 1px solid transparent;
+  background: none;
+  color: var(--text-dim);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-page__period:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.stats-page__period[aria-pressed="true"] {
+  background: var(--badge-bg);
+  border-color: var(--badge-border);
+  color: var(--text);
+}
+
+.stats-page__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* Итог: три числа — токены, деньги, время; у денег пометка про модели без цен
+   и дата применённого кэша цен. */
+
+.stats-page__totals {
+  display: flex;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+}
+
+.stats-page__total {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 120px;
+}
+
+.stats-page__total-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+}
+
+.stats-page__total-value {
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-page__priced {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* Деления: заголовок колонок и строки на одной сетке — числа выровнены. */
+
+.stats-page__group {
+  display: flex;
+  flex-direction: column;
+}
+
+.stats-page__group-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 var(--space-1);
+}
+
+.stats-page__columns,
+.stats-page__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px 170px 96px;
+  gap: var(--space-3);
+  align-items: baseline;
+}
+
+.stats-page__columns {
+  color: var(--text-faint);
+  font-size: 11px;
+  padding: var(--space-1) 0;
+}
+
+.stats-page__columns span:not(:first-child) {
+  text-align: right;
+}
+
+.stats-page__row {
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--border);
+}
+
+.stats-page__who {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.stats-page__name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stats-page__sub {
+  font-size: 11px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stats-page__num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  min-width: 0;
+}
+
+.stats-page__num--money {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.stats-page__partial {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: right;
+}
+
+/* В линии проекта маркер — рядом с деньгами через разделитель: своей строкой
+   (block внутри inline) вставал криво, без зазора — слипался («$1.61часть…»). */
+.stats-page__sub .stats-page__partial {
+  margin-left: var(--space-2);
+}
+
+.stats-page__sub .stats-page__partial::before {
+  content: "· ";
+}
+
+.stats-page__note {
+  color: var(--text-dim);
+  padding: var(--space-5);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+}
+
+@media (max-width: 1199px) {
+  .stats-page__columns,
+  .stats-page__row {
+    grid-template-columns: minmax(0, 1fr) 90px 140px 84px;
+    gap: var(--space-2);
+  }
+}

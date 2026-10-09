@@ -3,7 +3,7 @@
 
 import { fixture } from "../fixture";
 import type { WindowState, WindowPatch } from "../appstate";
-import type { ApprovalDecision, Bridge, Listener, PluginScope } from "./types";
+import type { ApprovalDecision, Bridge, Listener, PluginScope, StatsPeriod } from "./types";
 import { readFixtureState, writeFixtureState } from "../fixtureState";
 import {
   applyUpdate as applyUpdateFixture,
@@ -19,6 +19,7 @@ import {
 import { params } from "../viewparams";
 import { entries as fixtureCatalog, install as installFixture } from "../fixtureCatalog";
 import { list as fixtureCompare } from "../fixtureCompare";
+import { summary as fixtureStats } from "../fixtureStats";
 import {
   addEndpoint as addEndpointFixture,
   providers as settingsProviders,
@@ -237,6 +238,10 @@ export const fixtureBridge = (): Bridge => ({
   },
   async setDefault(category: string, value: string) {
     return setDefaultFixture(category, value);
+  },
+  async statsSummary(period: StatsPeriod) {
+    // Сводка — данные фикстуры: сценарий сверяет суммы строк с итогом на экране.
+    return fixtureStats(period);
   },
   async dataFolder() {
     return DATA_FOLDER;

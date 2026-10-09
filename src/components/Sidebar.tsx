@@ -9,7 +9,7 @@ import logoMark from "../../docs/refs/owner-2026-10-05-3-icon.png";
 
 import "./Sidebar.css";
 
-export type SidebarProject = { title: string; path?: string };
+export type SidebarProject = { title: string; path?: string; cost?: string };
 export type SidebarChat = { title: string; active?: boolean; time?: number };
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -74,6 +74,7 @@ export function Sidebar({
   onToggleTheme,
   onPickFolder,
   onOpenPlugins,
+  onOpenStats,
   onOpenSettings,
   settingsOpen,
   onOpenChat,
@@ -87,6 +88,8 @@ export function Sidebar({
   onPickFolder: () => void;
   /** Раздел «Плагины» из главной левой навигации (docs/SPEC/plugins.md, сцена A). */
   onOpenPlugins: () => void;
+  /** Раздел «Статистика» из главной левой навигации (docs/BATCH.md, пункт 2). */
+  onOpenStats: () => void;
   /** Страница настроек из главной левой навигации (docs/specs/2026-10-06-12-nastrojki.md). */
   onOpenSettings: () => void;
   /** Страница настроек открыта: шестерёнка подсвечена постоянно (aria-current="page"). */
@@ -112,6 +115,7 @@ export function Sidebar({
         Новый чат
       </Button>
       <SidebarItem title="Плагины" testid="sidebar-plugins" onClick={onOpenPlugins} />
+      <SidebarItem title="Статистика" testid="sidebar-stats" onClick={onOpenStats} />
       <SidebarItem
         title="Настройки"
         glyph={<SettingsGlyph />}
@@ -128,6 +132,7 @@ export function Sidebar({
               key={project.title}
               title={project.title}
               sub={project.path}
+              sub2={project.cost ? `Этот проект стоил ${project.cost}` : undefined}
               testid="sidebar-project"
             />
           ))

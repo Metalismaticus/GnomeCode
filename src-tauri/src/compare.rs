@@ -296,7 +296,9 @@ fn sort(models: &mut [Model]) {
 
 /// Слаг сайта: нижний регистр, всё кроме букв и цифр — в дефис (packages/stats
 /// app/src/routes/model-catalog.ts, `catalogSlug`) — по нему цены и ищутся.
-fn slug(value: &str) -> String {
+/// Общее место: по тем же слагам статистика сводит расход строк с ценами кэша
+/// (src-tauri/src/stats.rs) — второй слаг-функции в проекте нет.
+pub fn slug(value: &str) -> String {
     let mut out = String::new();
     let mut dash = false;
     for letter in value.trim().to_lowercase().chars() {

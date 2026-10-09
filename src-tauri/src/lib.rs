@@ -186,6 +186,16 @@ async fn compare_refresh(app: AppHandle, chat: State<'_, Chat>) -> Result<compar
     Ok(snapshot)
 }
 
+/// Сводка расхода для раздела «Статистика»: суммы по stats.jsonl считает
+/// stats.rs одним вызовом — экран тысяч строк не видит. Цены берутся только
+/// из кэша сравнения (`compare::fresh_cache`), сеть не зовётся: «Обновить
+/// цены» остаётся кнопкой панели сравнения.
+#[tauri::command]
+fn stats_summary(app: AppHandle, period: String) -> Result<stats::Summary, String> {
+    let prices = compare::fresh_cache(&compare::file(data_dir(&app)));
+    stats::summary(&stats::file(), &period, prices.as_ref())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     crate::opencode::mark_start();
@@ -228,6 +238,7 @@ pub fn run() {
             settings_set_default,
             state_get,
             state_patch,
+            stats_summary,
             window_minimize,
             window_toggle_maximize,
             window_close
