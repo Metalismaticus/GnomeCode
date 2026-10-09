@@ -7,7 +7,7 @@
 // Итог: код возврата и последняя строка вывода — как у любой проверки.
 // Ограничение: снимается страница интерфейса, а не окно Tauri — WebView2
 // Playwright не водит (docs/TESTING.md, «Ловушки стека»).
-import { done, startInterface, startShot, INSTALL } from "../lib/ui_lib.mjs";
+import { closeMore, done, openMore, startInterface, startShot, INSTALL } from "../lib/ui_lib.mjs";
 
 const OUT_DIR = "shots";
 const WIDE = { width: 1440, height: 900 };
@@ -46,7 +46,11 @@ try {
       await page.click(CONNECT);
       await page.waitForSelector(PICKER, { timeout: 5000 });
       await page.click(`${PICKER} [data-testid="plugin-row"][data-plugin="${SOLO}"]`);
+      // Подтверждение подключения — пункт команды в меню «⋯» («тихий хром», §5);
+      // меню закрывается Esc, чтобы не попало в кадр.
+      await openMore(page);
       await page.waitForSelector(`[data-testid="plugin-button"][data-plugin="${SOLO}"]`, { timeout: 5000 });
+      await closeMore(page);
       await page.click('[data-testid="composer-add"]');
       await page.click(CONNECT);
       await page.waitForSelector(PICKER, { timeout: 5000 });

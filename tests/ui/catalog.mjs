@@ -8,7 +8,7 @@
 // (src/fixtureCatalog.ts, состояние `?состояние=каталог`).
 import { chromium } from "@playwright/test";
 
-import { done, startInterface, INSTALL } from "../lib/ui_lib.mjs";
+import { closeMore, done, openMore, startInterface, INSTALL } from "../lib/ui_lib.mjs";
 
 const WIDE = { width: 1440, height: 900 };
 /** Плагин каталога, который ставим: одна команда — одна кнопка. */
@@ -119,31 +119,49 @@ try {
     } catch {
       // Окно ушло — так и должно быть.
     }
+    // Пункты команд живут в открытом меню «⋯» — отсутствие читается в нём же.
+    await openMore(page);
     if ((await page.$$eval('[data-testid="plugin-button"]', (els) => els.length)) !== 0) {
-      done(1, "после «Отмена» в шапке есть кнопки плагина — установка прошла без разрешения");
+      done(1, "после «Отмена» в меню «⋯» есть пункты плагина — установка прошла без разрешения");
+    }
+    await closeMore(page);
+
+    // Каталог — оверлей чата: открытое меню «⋯» сменило его в единственном слоте.
+    // Возвращаем теми же жестами владельца, прежде чем жать Install снова.
+    await page.click('[data-testid="composer-add"]');
+    await page.click(CONNECT);
+    await page.waitForSelector(PICKER, { timeout: 5000 });
+    await page.click(BROWSE);
+    try {
+      await page.waitForSelector(CATALOG, { timeout: 5000 });
+    } catch {
+      done(1, "повторное «Browse plugins…» не открыло каталог: на экране нет [data-testid=catalog-picker]");
     }
 
-    // е) Allow: установка без конфигов и перезапуска, кнопки в шапке -------------------
+    // е) Allow: установка без конфигов и перезапуска, пункты в меню «⋯» ---------------
     await page.click(`${CATALOG} ${CARD}[data-plugin="${ENTRY}"] [data-testid="catalog-install"]`);
     await page.waitForSelector(SUMMARY, { timeout: 5000 });
     await page.click('[data-testid="summary-allow"]');
+    await openMore(page);
     try {
       await page.waitForSelector(`[data-testid="plugin-button"][data-plugin="${ENTRY}"]`, { timeout: 5000 });
     } catch {
       const got = await page.$$eval('[data-testid="plugin-button"]', (els) =>
         els.map((el) => `${el.getAttribute("data-plugin")}:${el.textContent.trim()}`),
       );
-      done(1, `после «Разрешить» в шапке нет кнопки плагина «${ENTRY}» — кнопки: ${JSON.stringify(got)}`);
+      done(1, `после «Разрешить» в меню «⋯» нет пункта плагина «${ENTRY}» — пункты: ${JSON.stringify(got)}`);
     }
     const button = await page.$eval(`[data-testid="plugin-button"][data-plugin="${ENTRY}"]`, (el) => el.textContent.trim());
-    if (button !== ENTRY_BUTTON) {
-      done(1, `на кнопке плагина «${ENTRY}» написано «${button}», а команда «${ENTRY_BUTTON}»`);
+    // Подпись пункта — «{плагин}: {команда}» (спека «тихого хрома», §5/§11).
+    if (!button.endsWith(`: ${ENTRY_BUTTON}`)) {
+      done(1, `пункт плагина «${ENTRY}» подписан «${button}», а команда «${ENTRY_BUTTON}»`);
     }
     for (const overlay of [SUMMARY, CATALOG, PICKER]) {
       if (await page.isVisible(overlay)) {
         done(1, `после установки окно ${overlay} не закрылось — сценарий разговора не возвращён владельцу`);
       }
     }
+    await closeMore(page);
 
     // ж) Установленный плагин виден в списке установленных ----------------------------
     await page.click('[data-testid="composer-add"]');
@@ -158,7 +176,7 @@ try {
 
     done(
       0,
-      `«+» → Connect plugin → Browse plugins… открывает каталог с поиском и карточками (имя, версия), Install открывает сводку прав с категориями и кнопками Разрешить/Отмена без Customize, «Отмена» ничего не ставит, «Разрешить» ставит плагин и подключает его к текущему чату кнопкой команды в шапке, окно каталога закрывается, плагин виден среди установленных`,
+      `«+» → Connect plugin → Browse plugins… открывает каталог с поиском и карточками (имя, версия), Install открывает сводку прав с категориями и кнопками Разрешить/Отмена без Customize, «Отмена» ничего не ставит, «Разрешить» ставит плагин и подключает его к текущему чату пунктом команды в меню «⋯», окно каталога закрывается, плагин виден среди установленных`,
     );
   } finally {
     await browser.close();
