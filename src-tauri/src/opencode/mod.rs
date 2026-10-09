@@ -353,6 +353,9 @@ fn supervise(
     let mut restart_asked = false;
     // Просьба «новый чат»: сессия обнуляется, лента — чистая, без строки «прерван».
     let mut new_chat_asked = false;
+    // Расход в stats.jsonl: один писатель на всю жизнь потока — обрыв потока и
+    // рестарт движка его не пересоздают, уже записанное не теряется и не дублируется.
+    let mut usage = crate::stats::Recorder::at(crate::stats::file(), store.clone());
     loop {
         if !engine.alive() {
             sink.emit(FeedEvent::notice("engine", NOTICE_RESTART));
@@ -415,6 +418,7 @@ fn supervise(
             &mut plugin_rows,
             &mut restart_asked,
             &mut new_chat_asked,
+            &mut usage,
         ) {
             return;
         }
@@ -501,6 +505,8 @@ fn pump(
     restart_asked: &mut bool,
     // Просьба «новый чат»: лента чистится здесь же, сессию обнуляет supervise.
     new_chat_asked: &mut bool,
+    // Писатель расхода: живёт дольше соединения, обрыв потока строки не теряет.
+    usage: &mut crate::stats::Recorder,
 ) -> bool {
     loop {
         while let Ok(cmd) = rx.try_recv() {
@@ -573,6 +579,8 @@ fn pump(
             Ok(Step::Idle) => continue,
             Ok(Step::Closed) => return false,
             Ok(Step::Event(event)) => {
+                // Расход — отдельный потребитель того же события: строки ленты не меняются.
+                usage.observe(&event, session);
                 for row in feed.apply(&event, session) {
                     sink.emit(row);
                 }

@@ -9,6 +9,7 @@ pub mod project;
 pub mod providers;
 pub mod providers_store;
 pub mod state;
+pub mod stats;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -249,7 +250,9 @@ pub fn run() {
             )));
             // Конфиг провайдеров (providers.json) движок читает из этой папки на
             // каждом подъёме: endpoint'ы и включённость — свежими после рестарта.
-            crate::opencode::engine::set_config_folder(data_folder);
+            crate::opencode::engine::set_config_folder(data_folder.clone());
+            // stats.jsonl живёт в той же папке данных — один источник пути.
+            crate::stats::set_folder(data_folder);
             let saved = store.load();
             app.manage(Arc::clone(&store));
             let project = Project::default();

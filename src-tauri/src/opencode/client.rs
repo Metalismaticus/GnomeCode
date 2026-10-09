@@ -406,6 +406,10 @@ pub enum ServerEvent {
     /// Сессия создана: лента начинает ждать её события, сама строка не нужна.
     #[serde(rename = "session.created")]
     SessionCreated { data: SessionRef },
+    /// Шаг модели завершён: расход провайдера за это сообщение — источник
+    /// статистики (v2.0.25, живой замер 2026-10-09). Ленте строка не нужна.
+    #[serde(rename = "session.step.ended")]
+    StepEnded { data: StepEnded },
     /// Служебное событие движка: ленте ничего не даёт, но разбираться в тип, а не в Other —
     /// иначе проверка «фикстура разобралась» проверяла бы заглушку.
     #[serde(rename = "server.connected")]
@@ -415,12 +419,67 @@ pub enum ServerEvent {
 }
 
 /// Общее начало тела события: сессия и сообщение ассистента.
+///
+/// `model` и `started` (v2.0.25, живой замер 2026-10-09) — с умолчанием: у
+/// прошлых версий движка их нет, и событие не должно переставать разбираться.
 #[derive(Debug, Clone, Deserialize)]
 pub struct StepStarted {
     #[serde(rename = "sessionID")]
     pub session: String,
     #[serde(rename = "assistantMessageID")]
     pub message: String,
+    /// Модель шага: статистика пишет её в строку расхода; у событий без модели — None.
+    #[serde(default)]
+    pub model: Option<ModelRef>,
+    /// Время отправки запроса провайдеру (unix-миллисекунды); нет — 0.
+    #[serde(default)]
+    pub started: u64,
+}
+
+/// Модель шага, как её называет движок: `{"id": …, "providerID": …}`.
+#[derive(Debug, Clone, Deserialize)]
+pub struct ModelRef {
+    #[serde(default)]
+    pub id: String,
+    #[serde(rename = "providerID", default)]
+    pub provider: String,
+}
+
+/// Завершённый шаг модели: расход за это сообщение. Поля с умолчаниями —
+/// свежая версия движка с другими полями не выключает статистику: событие
+/// разбирается всегда, чего не хватает — нули.
+#[derive(Debug, Clone, Deserialize)]
+pub struct StepEnded {
+    #[serde(rename = "sessionID", default)]
+    pub session: String,
+    #[serde(rename = "assistantMessageID", default)]
+    pub message: String,
+    #[serde(default)]
+    pub cost: f64,
+    #[serde(default)]
+    pub tokens: Tokens,
+}
+
+/// Токены шага: форма `TokenUsage.Info` движка (v2.0.25, живой замер).
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct Tokens {
+    #[serde(default)]
+    pub input: f64,
+    #[serde(default)]
+    pub output: f64,
+    #[serde(default)]
+    pub reasoning: f64,
+    #[serde(default)]
+    pub cache: Cache,
+}
+
+/// Кэш-токены шага.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct Cache {
+    #[serde(default)]
+    pub read: f64,
+    #[serde(default)]
+    pub write: f64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -529,6 +588,7 @@ impl ServerEvent {
             ServerEvent::ExecutionSucceeded { data } => Some(&data.session),
             ServerEvent::ExecutionFailed { data } => Some(&data.session),
             ServerEvent::SessionCreated { data } => Some(&data.session),
+            ServerEvent::StepEnded { data } => Some(&data.session),
             ServerEvent::ServerConnected | ServerEvent::Other => None,
         }
     }
@@ -676,6 +736,7 @@ impl Feed {
             )],
             ServerEvent::Other
             | ServerEvent::ServerConnected
+            | ServerEvent::StepEnded { .. }
             | ServerEvent::SessionCreated { .. } => Vec::new(),
         }
     }
