@@ -31,6 +31,11 @@ tests/         полигон: проверки по одной в tests/checks/
 tools/         скрипты процесса (не продукт): проверки документов и кода
 ```
 
+Жизненный цикл: рабочие копии параллельных волн — `../GnomeCode.wt/`
+(слоты `slot<k>`), материалы кругов исполнителей — `rounds/`, архив —
+`archive/`; создаёт и чистит координатор `/studio/start`, вручную не трогать.
+Студийные прогоны — `tools/run_check.py --root <папка> --mode <режим>`.
+
 ## Запуск и проверка
 
 ```bash
@@ -89,6 +94,7 @@ About: Desktop AI coding client: multi-model chat over the OpenCode core, projec
 | `docs/engine-notes.md` | что нового в версии стека, которой нет в памяти модели | перед кодом с незнакомым API, если файл есть |
 | `docs/orders/` | виды заказов | любой заказ: `/studio/order`, `/studio/need`, `/studio/add` |
 | `docs/orders/ledger.md` | журнал происхождения файлов: исполнитель, права, атрибуция, ИИ-контент | `/studio/order` пишет, `/studio/add` дополняет, `/studio/release` собирает титры |
+| `docs/releases/` | заметки к версиям словами пользователя; черновик раскрытия ИИ-контента | `/studio/release` |
 | `docs/prompts/` | готовые заказы по партиям | `/studio/order`, `/studio/need` |
 | `docs/specs/` | спецификации экранов от `designer` | пункты `[ui]` |
 | `docs/BATCH.md` | текущая партия чата разработки | `/studio/start`, `/studio/done` |
