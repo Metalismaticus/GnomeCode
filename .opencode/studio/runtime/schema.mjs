@@ -1,8 +1,8 @@
 export const workflowSchema = {
   type: 'object',
   properties: {
-    action: { type: 'string', enum: ['status', 'bind', 'get', 'create', 'adopt', 'begin', 'amend_scope', 'submit', 'review', 'verify', 'checkpoint', 'accept', 'reject', 'block', 'resume', 'invalidate', 'relocate', 'recover'] },
-    id: { type: 'string' }, mode: { type: 'string', enum: ['concept', 'development'] },
+    action: { type: 'string', enum: ['status', 'bind', 'get', 'create', 'adopt', 'begin', 'amend_scope', 'submit', 'review', 'verify', 'checkpoint', 'accept', 'reject', 'block', 'resume', 'invalidate', 'relocate', 'recover', 'tidy', 'close_batch'] },
+    id: { type: 'string' }, mode: { type: 'string', enum: ['concept', 'development'] }, batch: { type: 'string' },
     card: { type: 'object', additionalProperties: true },
     report: { type: 'object', additionalProperties: true },
     worktree: { type: 'string' }, files: { type: 'array', items: { type: 'string' } },

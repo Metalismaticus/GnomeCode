@@ -31,6 +31,9 @@ the decision; **it does not execute git revert**. Verify the actual rollback,
 then preserve the reason in ROADMAP/BUGS and the passport journal. If the
 revert conflicts, stop and retain the rejected task plus conflict record.
 Do not mark the batch closed until rollback, final checks and documents finish.
+Then call `studio_workflow {action:"close_batch", batch:<партия>}`: the machine
+removes `rounds/` except `p<N>-стоп/` and the closed tasks already sit in the
+state archive — report what it removed.
 
 Intermediate visual stand/base/choice tasks are checkpoints, not separate
 owner acceptances. The final embedding task represents the owner's result;

@@ -1,13 +1,16 @@
 /** studio: OpenCode V2 adapter; workflow, policy, telemetry and Python hooks are separate modules. */
+import type { Plugin } from "@opencode/plugin"
 import path from "node:path"
 import { Engine } from "../studio/runtime/engine.mjs"
-import { isStudioRole } from "../studio/runtime/contracts.mjs"
+import { isStudioRole, baseRole } from "../studio/runtime/contracts.mjs"
 import { workflowSchema } from "../studio/runtime/schema.mjs"
 import { editAllowed, shellAllowed } from "../studio/runtime/policy.mjs"
 import { runPython } from "../studio/runtime/python.mjs"
 import { flushUsage } from "../studio/runtime/telemetry.mjs"
-import { checkModel } from "../studio/runtime/models.mjs"
 
+// Type-only import of @opencode/plugin: erased at runtime, so the deployed
+// plugin stays dependency-free; the `satisfies Plugin` below type-checks the
+// hook wiring when the devDependency is installed.
 export default {
   id: "studio",
   async setup(ctx) {
@@ -63,6 +66,8 @@ export default {
       if (event.tool !== "bash" && event.tool !== "shell") return
       const input = event.input ?? {}
       if (typeof input.command !== "string" || !input.command) return
+      // The commit guard covers git only; anything else skips the Python hop.
+      if (!/\bgit(\.exe)?\b/i.test(input.command)) return
       const { code, stderr } = await runPython(path.join(data, "hooks", "guard_git.py"), {
         tool_name: "Bash", tool_input: { command: input.command }, cwd: input.workdir ?? input.cwd ?? root,
       })
@@ -90,14 +95,23 @@ export default {
       } catch {} // informational context must not make the session unusable
     })
 
-    // Re-inject a small stage summary on every model request, also after compaction.
+    // Re-inject role-aware durable state on every model request, also after compaction:
+    // a worker sees only its task line, the coordinator's development chat a compact
+    // active list; concept chats and other agents pay nothing.
     await ctx.session.hook("context", (event) => {
       knownAgents.set(event.sessionID, event.agent)
       if (!isStudioRole(event.agent)) return
-      checkModel(root, event.agent, event.model)
-      const summary = engine.summary()
-      const relevant = summary.tasks.filter((task) => !["accepted", "rejected"].includes(task.status)).slice(-16)
-      event.system.push({ type: "text", text: "studio durable state (not acceptance): " + JSON.stringify(relevant) + "\nLoad only the current stage skill/chapters. Use studio_workflow get for your task; never infer DONE from a green check." })
+      try {
+        const state = engine.store.read()
+        if (baseRole(event.agent) === "studio") {
+          if (state.sessions[event.sessionID]?.mode !== "development") return
+          const tasks = engine.compactSummary(state)
+          event.system.push({ type: "text", text: "studio durable state (not acceptance) [id, status, round]: " + JSON.stringify(tasks) + "\nLoad only the current stage skill/chapters. Use studio_workflow status/get; never infer DONE from a green check." })
+        } else {
+          const task = engine.workerSummary(event.sessionID, state)
+          if (task) event.system.push({ type: "text", text: `studio task ${task.id}: ${task.status}, round ${task.round} (not acceptance). Fix only stored review notes; never infer DONE from a green check; studio_workflow get for the card.` })
+        }
+      } catch {} // state injection must never break a model request
     })
 
     // A successful question result is user input, not a model-created quote.
@@ -127,4 +141,4 @@ export default {
     })()
     return () => controller.abort()
   },
-}
+} satisfies Plugin

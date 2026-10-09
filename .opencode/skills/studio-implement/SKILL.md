@@ -23,6 +23,8 @@ blocker with the path/reason before editing; the coordinator calls amend_scope.
 
 Round 2–3: fix only the stored reviewer notes or owner's rework, do not restart.
 The runtime supplies the exact round, so never reset the counter in the card.
+During rounds run the item's own scoped checks; the full run is engine
+`verify`'s job and happens once after approval — do not duplicate it.
 Do not commit, change documents/passports, raise baselines or accept the item.
 The source chapters' original report labels still serve BATCH and the owner.
 Then call `submit` with the structured report from task-card.md:

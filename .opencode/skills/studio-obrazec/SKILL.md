@@ -1,6 +1,6 @@
 ---
 name: studio-obrazec
-description: Analyze a named game/image reference or a global visual concept via the original studio protocol.
+description: Break down a named game/image reference into a topic passport for docs/refs (original chapter 3 of /studio/idea).
 ---
 
 Read `.opencode/studio/protocols/commands/idea/03.md` when this branch

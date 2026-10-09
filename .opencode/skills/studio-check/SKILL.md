@@ -7,6 +7,12 @@ description: Follow the original studio check process with stage-local context. 
 
 Bind this primary chat as `development` using studio_workflow.
 
+Checks run through the single entry `python -X utf8 tools/run_check.py
+--root <путь> --mode <quick|item|affected|full|long>` (it owns the one build
+dir per root/slot and the environment; the list lives in
+`tools/check_plan.json`). Exit code 3 means low disk: stop and report the
+printed reason, never loop rebuilds.
+
 Read the introductory chapter, then each chapter **when that stage is reached**.
 Do not load all chapters at once; cross-references use this table.
 

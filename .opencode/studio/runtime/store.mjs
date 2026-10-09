@@ -43,4 +43,16 @@ export class Store {
       fs.unlinkSync(lock)
     }
   }
+  /** Full closed task -> state/archive/<batch>.json; the live state keeps a tombstone. */
+  archiveTask(batch, task) {
+    const directory = path.join(this.directory, 'archive')
+    fs.mkdirSync(directory, { recursive: true })
+    const file = path.join(directory, `${String(batch ?? 'unknown').replace(/[^\w.\-]/g, '_')}.json`)
+    let data = {}
+    try { data = JSON.parse(fs.readFileSync(file, 'utf8')) } catch {}
+    data[task.card.id] = task
+    const temporary = file + '.tmp'
+    fs.writeFileSync(temporary, JSON.stringify(data))
+    fs.renameSync(temporary, file)
+  }
 }

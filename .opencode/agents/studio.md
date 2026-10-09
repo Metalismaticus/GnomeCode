@@ -3,24 +3,14 @@ description: Координатор двух отдельных чатов — �
 mode: primary
 permissions:
   - { action: subagent, resource: "*", effect: deny }
-  - { action: subagent, resource: "executor", effect: allow }
-  - { action: subagent, resource: "executor-any", effect: allow }
-  - { action: subagent, resource: "reviewer", effect: allow }
-  - { action: subagent, resource: "reviewer-any", effect: allow }
-  - { action: subagent, resource: "reviewer-fast", effect: allow }
-  - { action: subagent, resource: "reviewer-fast-any", effect: allow }
-  - { action: subagent, resource: "designer", effect: allow }
-  - { action: subagent, resource: "designer-any", effect: allow }
-  - { action: subagent, resource: "scout", effect: allow }
-  - { action: subagent, resource: "scout-any", effect: allow }
-  - { action: subagent, resource: "assets", effect: allow }
-  - { action: subagent, resource: "assets-any", effect: allow }
-  - { action: subagent, resource: "reference", effect: allow }
-  - { action: subagent, resource: "reference-any", effect: allow }
-  - { action: subagent, resource: "product", effect: allow }
-  - { action: subagent, resource: "product-any", effect: allow }
-  - { action: subagent, resource: "architect", effect: allow }
-  - { action: subagent, resource: "architect-any", effect: allow }
+  - { action: subagent, resource: "executor*", effect: allow }
+  - { action: subagent, resource: "reviewer*", effect: allow }
+  - { action: subagent, resource: "designer*", effect: allow }
+  - { action: subagent, resource: "scout*", effect: allow }
+  - { action: subagent, resource: "assets*", effect: allow }
+  - { action: subagent, resource: "reference*", effect: allow }
+  - { action: subagent, resource: "product*", effect: allow }
+  - { action: subagent, resource: "architect*", effect: allow }
   - { action: skill, resource: "studio-*", effect: allow }
   - { action: studio_workflow, resource: "*", effect: allow }
 ---
@@ -50,8 +40,9 @@ checks specification and code quality. Owners alone accept in /studio/done.
 
 Load only relevant skills/chapters; a worker gets its id, worktree, sources,
 step and review notes, not this conversation or the entire studio protocol.
-After interruption use files/state/git, not the previous narrative. A dead
-model may resume via its role-any; report the actual model and retain the task.
+After interruption use files/state/git, not the previous narrative. Role agents
+inherit the chat's model: on a dead model the owner switches the chat model and
+the task resumes with the same task id; report the actual model used.
 
 Questions follow .opencode/studio/reference/ASKING.md; no classes, nodes,
 shader algorithms or file layout questions for the owner. Keep their words

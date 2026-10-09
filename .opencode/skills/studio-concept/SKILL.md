@@ -1,6 +1,6 @@
 ---
 name: studio-concept
-description: Analyze a named game/image reference or a global visual concept via the original studio protocol.
+description: Build a style concept from a whole-frame picture or style brief into INDEX rules, not per-topic passports (original chapter 8 of /studio/idea).
 ---
 
 Read `.opencode/studio/protocols/commands/idea/08.md` when this branch

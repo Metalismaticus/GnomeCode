@@ -43,8 +43,23 @@ export function projectSnapshot(root) {
   return createHash('sha256').update(JSON.stringify([tree, dirty])).digest('hex')
 }
 export function sameProject(left, right) {
-  const common = (root) => fs.realpathSync(path.resolve(root, git(root, 'rev-parse', '--git-common-dir')))
+  // realpathSync.native returns the canonical Windows long form: TEMP may give
+  // 8.3 names (METALI~1) while git prints absolute long paths - plain
+  // realpathSync keeps both forms and the same folder fails the comparison.
+  const canonical = (p) => fs.realpathSync.native(p)
+  const common = (root) => canonical(path.resolve(root, git(root, 'rev-parse', '--git-common-dir')))
   return common(left) === common(right)
+}
+export function worktreeInfo(root) {
+  const entries = []
+  for (const block of git(root, 'worktree', 'list', '--porcelain').split('\n\n')) {
+    const lines = block.split('\n').filter(Boolean)
+    const pathLine = lines.find((line) => line.startsWith('worktree '))
+    if (!pathLine) continue
+    const branchLine = lines.find((line) => line.startsWith('branch '))
+    entries.push({ path: pathLine.slice('worktree '.length), branch: branchLine ? branchLine.slice('branch refs/heads/'.length) : null })
+  }
+  return entries
 }
 export function assertScope(task) {
   for (const file of workingFiles(task.worktree)) {

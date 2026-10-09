@@ -38,6 +38,8 @@ No dirty pre-existing file may be included. Sources in Markdown remain authorita
 for meaning; the machine owns stage/round/roles/check evidence.
 `checks:[]` requires `verification_limit`, visible in the final report.
 Do not copy fake example paths or the placeholder command into a real card.
+A card that cannot finish inside its step ceiling is too big, not too slow:
+split the remainder into step cards instead of extending limits.
 For setup scaffolding use batch "setup" and the existing SETUP-PLAN as source.
 Visual/feel stand, base and choice cards use `owner_result:false`; the final
 embedding uses `owner_result:true`. Dependencies on intermediate checkpoints

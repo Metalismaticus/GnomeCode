@@ -14,8 +14,8 @@ export async function runChecks(worktree, checks, signal) {
         resolve({ name: check.name, command: check.command, exit_code, timed_out: timedOut, stdout, stderr, error: error ?? null })
       }
       const timer = setTimeout(() => { timedOut = true; child.kill(); finish(null, 'timeout') }, check.timeout_ms)
-      child.stdout.on('data', (data) => { stdout = (stdout + data.toString()).slice(-16_000) })
-      child.stderr.on('data', (data) => { stderr = (stderr + data.toString()).slice(-16_000) })
+      child.stdout.on('data', (data) => { stdout = (stdout + data.toString()).slice(-2_000) })
+      child.stderr.on('data', (data) => { stderr = (stderr + data.toString()).slice(-2_000) })
       child.on('error', (error) => finish(null, error.message))
       child.on('close', (code) => finish(code, null))
     }))

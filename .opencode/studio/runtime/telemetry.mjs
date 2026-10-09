@@ -6,6 +6,18 @@ const usagePath = (ctx) => path.join(path.dirname(ctx.location.directory), path.
 function isoTime(v) { return new Date(typeof v === "number" && Number.isFinite(v) ? (v > 1e12 ? v : v * 1000) : Date.now()).toISOString() }
 
 /** Дозаписать в studio-usage.jsonl новые ответы моделей этой сессии. */
+
+const ROTATE_BYTES = 5 * 1024 * 1024
+
+/** Больной журнал переименовывается в .1 (два поколения), текущий начинается заново. */
+export function rotateIfNeeded(file, limit = ROTATE_BYTES) {
+  try {
+    if (fs.statSync(file).size <= limit) return false
+    fs.renameSync(file, `${file}.1`)
+    return true
+  } catch { return false }
+}
+
 async function flushUsageInner(ctx, sid) {
   try {
     const info = await ctx.session.get({ sessionID: sid })
@@ -49,6 +61,7 @@ async function flushUsageInner(ctx, sid) {
     await ctx.storage.set("usage-seen", seenMap)
     const file = usagePath(ctx)
     fs.mkdirSync(path.dirname(file), { recursive: true })
+    rotateIfNeeded(file)
     fs.appendFileSync(file, fresh.map((r) => JSON.stringify(r)).join("\n") + "\n", "utf8")
   } catch {
     // телеметрия не должна ломать работу — тишина

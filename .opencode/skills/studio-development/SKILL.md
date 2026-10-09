@@ -27,27 +27,25 @@ before creating a UI card; include it as a source/reference. It remains a
 design record, while implementation files form the independent item checkpoint.
 
 If parallelism is enabled, load `studio-wave`; otherwise do not load it.
+Parallel items take slots from the project's bounded pool:
+`python -X utf8 tools/slot_pool.py acquire --item p<N>` — reused slots, build
+caches survive items; pass the returned path as the card worktree and call
+`release` after the checkpoint. A slot_pool/run_check exit code 3 («мало
+места») stops the batch with the printed reason — no retry loops; free
+caches with `tools/slot_pool.py clean-cache --free` or ask the owner.
+After writing the batch into `docs/BATCH.md`, run
+`python -X utf8 tools/batch_check.py` and fix its findings until green:
+a batch inside the sample comment, «Пусто.» beside a live batch, waves not
+covering an in-work item — all machine-checked, red blocks the run.
 For `[вид]` or `[ощущение]`, load `studio-vid` before taking the batch.
 Read `.opencode/studio/workflows/task-card.md` when creating the first card.
 
 ## Make a small, grounded task card
 
-The owner describes the desired player experience. Never ask the owner to
-choose a Godot node, class, shader algorithm or file layout.
-
-For a straightforward fix, derive the card from the recorded queue and
-ask `scout` to confirm affected files. For a new system, uncertain root cause,
-cross-module change or save format, ask `architect` to translate the request
-and existing code into the card. No architect meeting for a button offset.
-Ask `product` only when the gameplay intent needs elaboration.
-Neither the product nor the architect may invent owner preferences.
-
-`create` requires owner words verbatim, player result, acceptance criteria,
-invariants, exclusions, source paths, references, checks and concrete files.
-Use one id per batch/item/visual step (`b20261007-p2-base`, for example).
-The task and its worktree must belong to this project. A pre-existing dirty
-scope file blocks the task; do not absorb the concept chat's work.
-The card is stored by `studio_workflow`; do not manually edit workflow.json.
+Read `references/card.md` (beside this skill) when creating or reworking a
+card: the owner's experience in their words, no technical questions to the
+owner, scout/architect/product involvement by case, the full `create`
+contract and the one-id-per-step rule.
 
 ## Implement → review → checkpoint
 
@@ -66,13 +64,17 @@ The card is stored by `studio_workflow`; do not manually edit workflow.json.
    verbatim, fixing only those; new reviewer for the next round. Third failed
    round is `failed`, not a fourth attempt. Method changes and budgets follow
    the original visual/error chapters. `block` records a blocker; resolve it
-   before `resume`. Model failure: repeat once, then the same role `-any`
-   with the same task id; report the actual fallback model, never silently.
+   before `resume`. Model failure: report it; the owner switches the chat
+   model (roles inherit it), then retry with the same task id.
 6. On `approved`, compare disk, the reported file list and the original
    chapter `.opencode/studio/protocols/commands/start/04.md`, steps 7–8.
    Commit **only** the named task files, with the player's change first.
    `BATCH.md` is a separate batch commit. Call `checkpoint` with its full SHA.
    The runtime checks item ownership, content digest and committed scope.
+
+A `[баг]` fix closes its circle only when the same batch lands the permanent
+check that fails on this defect class (a file the check registry finds by
+itself); the reviewer requests exactly that when it is missing.
 
 The original chapter's old **one-line agent prompt** is superseded by a task
 id and source paths. It must not bypass create/begin/submit/review/checkpoint.
@@ -101,7 +103,10 @@ not proof of the look or gameplay feel.
 
 Task verified ≠ task accepted. Report «Как увидеть», «Решено за вас», screenshots,
 limits and remaining questions; tell the owner to inspect and use `/studio/done`.
-Owner rework: original chapter `08.md`; create a new task card for the rework,
-with `supersedes:<prior-id>` and the observed `owner_quote`, referencing the
-prior task and the owner's words rather than overwriting it or resetting failed rounds.
+Owner rework and superseding cards: `references/card.md`, «Owner rework»
+(original chapter `08.md`).
 Error, budget, rollback or shared gap: read `07.md` before recovery.
+A step or budget ceiling is a signal to split, not to wait: the parked
+`rounds/p<N>-стоп/` work is preserved; split the remainder into two smaller
+cards and continue; mark `ждёт` only when the split needs the owner. Never
+extend a budget or relaunch the same card overnight.
