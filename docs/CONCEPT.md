@@ -147,6 +147,8 @@ workspace; реестр находит папку сам (спека Фазы 2,
 | Источники ответа | `src/sources.ts` + `src/components/SourcesBlock` | сборка из строк ленты; файлы вопроса полем `files`, tool-вызовы полем `file` (пункт 9) |
 | Приветственная сборка | `src/components/EmptyChat` + `src/markdown.ts` | счётчики, сценарии, модели ≤8; Markdown-lite в ленте (пункт 11) |
 | Окно без рамки | `src-tauri/capabilities/default.json` + `src/components/WindowCluster` | drag-регионы, кнопки окна; права окна Tauri — в capabilities (пункт 13) |
+| Провайдеры и endpoints | `src-tauri/src/providers_store.rs` (providers.json в папке данных) + `src-tauri/src/providers.rs` | ключи в хранилище Windows (endpoint:<id>); endpoints и включённость — providers.json; конфиг движку при старте — `OPENCODE_CONFIG_CONTENT`; тихий рестарт при смене (2026-10-09) |
+| Статистика | `src-tauri/src/stats.rs` (stats.jsonl в папке данных) + `src/components/StatsPage` | запись расхода по ответам модели; сводка `stats_summary` (периоды, по проектам/моделям); цены — только из кэша сравнения, пересчёт от токенов (2026-10-09) |
 | Окружение | `builds/` | собранные копии для владельца: exe + установщики (2026-10-05) |
 
 ## Копии, которые нельзя убрать
@@ -158,4 +160,5 @@ workspace; реестр находит папку сам (спека Фазы 2,
 | Строка отказа правилом «⚠ … denied» | `src-tauri/src/opencode/client.rs` × `src/fixtureApprovals.ts` | `tests/ui/plugin_config.mjs` |
 | Константа категорий прав (Read/Write/Network/Terminal) | `src-tauri/src/plugins/rules.rs` × `src/components/PluginConfig.tsx` | `tests/ui/plugin_config.mjs` |
 | Строки ошибок сохранения Tool Set | `src-tauri/src/plugins/commands.rs` × `src/fixtureToolsets.ts` | `tests/ui/plugins_toolsets.mjs` |
+| Слаг модели для цен (провайдер/модель → ключ кэша сравнения) | `src-tauri/src/compare.rs` (slug) × цены каталога | cargo stats::tests (пересчёт от токенов) |
 | Формат «Файлы: …» строки вопроса | `src-tauri/src/project/prompt.rs` × `src/fixture.ts` | `tests/ui/sources_used.mjs` |
