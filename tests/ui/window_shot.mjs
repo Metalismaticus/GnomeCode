@@ -8,19 +8,38 @@
 import { mkdir } from "node:fs/promises";
 import { chromium } from "@playwright/test";
 
-import { done, startInterface, INSTALL } from "../lib/ui_lib.mjs";
+import { attachAllFixtureFiles, done, startInterface, INSTALL } from "../lib/ui_lib.mjs";
 
 const OUT_DIR = "shots";
+// Титул чата прошлого запуска (§8 «Самое длинное название чата»: вопрос 100+
+// знаков): окно хранит первый вопрос обрезанным до 60 знаков с «…» (chatTitleOf,
+// src/appstate.ts) — короткое «Новый чат» на 1024×640 усекать нечего (§14.8).
+const LAST_LAUNCH_TITLE = "Разбери папку src-tauri и предложи, как разделить мост и сло…";
 // Ракурсы из спецификации экрана, «Где снимать»: два канонических плюс состояния и тема,
 // которые иначе снять нечем — все они одной командой и одним файлом проверки.
 const SHOTS = [
-  { name: "main-window-1440x900", size: [1440, 900], query: "", wait: "header", texts: ["Новый чат", "Контекст проекта"] },
+  { name: "main-window-1440x900", size: [1440, 900], query: "", wait: "header", texts: ["Новый чат"] },
   { name: "main-window-1440x900-light", size: [1440, 900], query: "?тема=светлая", wait: "theme", texts: ["Новый чат"] },
   { name: "main-window-1440x900-empty", size: [1440, 900], query: "?состояние=пусто", wait: "empty", texts: ["Добро пожаловать в GnomeCode", "Открыть проект"] },
-  { name: "main-window-1440x900-error", size: [1440, 900], query: "?состояние=ошибка", text: "Сервер OpenCode недоступен", texts: ["Не отвечает"] },
+  // Статус «Не отвечает» живёт в правой панели — она скрыта по умолчанию
+  // («тихий хром», §6), кадр ошибки открывает её адресом, как прежде.
+  { name: "main-window-1440x900-error", size: [1440, 900], query: "?состояние=ошибка&правая=открыта", text: "Сервер OpenCode недоступен", texts: ["Не отвечает"] },
   { name: "main-window-1440x900-long", size: [1440, 900], query: "?состояние=много", wait: "rows:100", texts: ["Открыть проект из Documents"] },
-  { name: "main-window-1024x640", size: [1024, 640], query: "", wait: "header", texts: ["Новый чат"] },
-  { name: "main-window-1024x640-panel", size: [1024, 640], query: "?правая=открыта", wait: "panel", texts: ["Контекст проекта"] },
+  // «Минимум» по §13 спеки: 1024×640 на состоянии «разбор». §14.8 судит кадр
+  // «название усечено с «…»» — титул прошлого запуска сидируется зеркалом
+  // состояния страницы (src/fixtureState.ts) до загрузки, усечение меряется.
+  { name: "main-window-1024x640", size: [1024, 640], query: "?состояние=разбор", wait: "step", lastLaunchTitle: LAST_LAUNCH_TITLE, cutTitle: true, texts: [LAST_LAUNCH_TITLE, "Sources used"] },
+  // Кадры «тихого хрома» (docs/specs/2026-10-09-2-тихий-хром.md, §13): панель скрыта
+  // по умолчанию на любой ширине; меню «⋯» и панель снимаются адресом.
+  { name: "chat-more-1440x900", size: [1440, 900], query: "?состояние=разбор&меню=открыто", wait: "menu", texts: ["Контекст проекта", "Плагины этого чата", "Настройки"] },
+  { name: "main-window-1440x900-panel", size: [1440, 900], query: "?состояние=разбор&правая=открыта", wait: "panel", texts: ["Контекст проекта"] },
+  { name: "main-window-1024x640-panel", size: [1024, 640], query: "?состояние=разбор&правая=открыта", wait: "panel", texts: ["Контекст проекта"] },
+  // Чипы приложенных файлов одной линией (§7): панель проекта открывается адресом,
+  // файлы прикладываются кликами по дереву, панель закрывается — композер виден
+  // целиком. На 1440 и 1024 чипы в колонку помещаются; переполнение и запрет
+  // переноса числами стережёт window_look (пробная ширина 800).
+  { name: "main-window-1440x900-chips", size: [1440, 900], query: "?состояние=проект&правая=открыта", wait: "panel", chips: true, texts: ["README.md", "tokens.css"] },
+  { name: "main-window-1024x640-chips", size: [1024, 640], query: "?состояние=проект&правая=открыта", wait: "panel", chips: true, texts: ["README.md", "tokens.css"] },
   // Кадры пункта 11 (docs/specs/2026-10-06-11-glavnoe.md, «Где снимать»): приветствие
   // и разбор в обеих темах плюс минимум.
   { name: "glavnoe-1440x900-pusto", size: [1440, 900], query: "?состояние=пусто", wait: "empty", texts: ["Добро пожаловать в GnomeCode", "ЧАТЫ", "Открыть проект"] },
@@ -31,6 +50,19 @@ const SHOTS = [
 ];
 
 const WAITED = { header: 90_000, theme: 15000, empty: 15000, panel: 15000 };
+
+/** Кадр снимается прокрашенной страницей: правила компонента применяются к
+ *  элементу позже, чем появляется шапка, — часть окна снималась неокрашенной
+ *  (пилюля темы «почти чёрная» и слепой «+» на 1024×640, «хрупкость снимков»
+ *  в docs/BATCH.md; живой цвет при этом стабилен). Кнопка «+» есть во всех
+ *  ракурсах этого сценария; 32 px ей даёт .btn--square из Button.css —
+ *  применённость правила и есть признак прокраски. */
+const painted = (page) =>
+  page.waitForFunction(
+    () => document.querySelector('[data-testid="composer-add"]')?.getBoundingClientRect().width === 32,
+    undefined,
+    { timeout: WAITED.empty },
+  );
 
 /** Чего ждём на странице перед снимком: иначе светлая тема снимется тёмной,
  *  а пустое состояние — лентой. Ошибка здесь называет ракурс и признак.
@@ -78,6 +110,10 @@ const settled = async (page, shot) => {
     });
     return;
   }
+  if (shot.wait === "menu") {
+    await page.waitForSelector('[data-testid="header-menu"]', { timeout: WAITED.panel });
+    return;
+  }
   if (shot.wait?.startsWith("rows:")) {
     const wanted = Number(shot.wait.slice("rows:".length));
     await page.waitForFunction(
@@ -106,26 +142,64 @@ try {
   try {
     for (const shot of SHOTS) {
       const [width, height] = shot.size;
-      const page = await browser.newPage({ viewport: { width, height } });
+      // Свой контекст на ракурс: снимки одного окна не приносят хранилище страницы
+      // друг другу; титул прошлого запуска сидируется до загрузки страницы.
+      const context = await browser.newContext({ viewport: { width, height } });
+      if (shot.lastLaunchTitle) {
+        await context.addInitScript(
+          (title) => localStorage.setItem("gnomecode-fixture-state", JSON.stringify({ chatTitle: title })),
+          shot.lastLaunchTitle,
+        );
+      }
+      const page = await context.newPage();
       await page.goto(`${url}${shot.query}`, { waitUntil: "domcontentloaded", timeout: 90_000 });
       try {
         await settled(page, shot);
+        await painted(page);
       } catch {
         const seen = await page.innerText('[data-testid="feed"]').catch(() => "");
+        await context.close();
         done(
           1,
           `ракурс ${shot.name} снят, но страница не отдала признак (${shot.wait || shot.text || "строка ленты"}): ${seen.replace(/\s+/g, " ").slice(0, 120)}`,
         );
       }
+      if (shot.chips) {
+        await attachAllFixtureFiles(page);
+        // Панель закрывается тем же жестом, что у владельца: кадр показывает
+        // композер с чипами целиком, без оверлея справа.
+        await page.keyboard.press("Escape");
+        await page.waitForFunction(() => document.querySelector(".context") === null, undefined, {
+          timeout: WAITED.panel,
+        });
+      }
       const body = await page.innerText("body");
       const missing = shot.texts.filter((text) => !body.includes(text));
       if (missing.length) {
+        await context.close();
         done(1, `нет текста на экране в ракурсе ${shot.name}: ${missing.map((t) => `«${t}»`).join(", ")}`);
       }
+      if (shot.cutTitle) {
+        // §14.8: «название усечено с «…»» — строка шире своего места и режется
+        // многоточием; короткое название усечением не докажет кадр.
+        const cut = await page.$eval(
+          '[data-testid="chat-title"]',
+          (el) => el.scrollWidth > el.clientWidth && getComputedStyle(el).textOverflow === "ellipsis",
+        );
+        if (!cut) {
+          await context.close();
+          done(1, `название чата в ракурсе ${shot.name} не усечено — «…» не показан`);
+        }
+      }
       const file = `${OUT_DIR}/${shot.name}.png`;
+      // Первый снимок заставляет Chromium докрасить страницу (прокраска доходит
+      // до элементов неравномерно: пилюля темы «почти чёрная», слепой «+» —
+      // «хрупкость снимков» в docs/BATCH.md; живой цвет при этом стабилен),
+      // второй фиксирует докрашенный кадр.
+      await page.screenshot();
       await page.screenshot({ path: file });
       console.log(`снимок ${file}: ${width}×${height}${shot.query}`);
-      await page.close();
+      await context.close();
     }
   } finally {
     await browser.close();

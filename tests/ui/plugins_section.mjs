@@ -8,7 +8,7 @@
 // (src/fixturePlugins.ts, состояние `?состояние=плагины-раздел`).
 import { chromium } from "@playwright/test";
 
-import { done, startInterface, INSTALL } from "../lib/ui_lib.mjs";
+import { closeMore, done, openMore, startInterface, INSTALL } from "../lib/ui_lib.mjs";
 
 const WIDE = { width: 1440, height: 900 };
 const SIDEBAR = '[data-testid="sidebar-plugins"]';
@@ -168,12 +168,14 @@ try {
     await page.click(CONNECT);
     await page.waitForSelector(PICKER, { timeout: 5000 });
     await page.click(`${PICKER} [data-testid="plugin-row"][data-plugin="git"]`);
+    await openMore(page);
     try {
       await page.waitForSelector('[data-testid="plugin-button"][data-plugin="git"]', { timeout: 5000 });
     } catch {
-      done(1, "после подключения кнопка команды «diff» плагина «git» не появилась в шапке чата");
+      done(1, "после подключения пункт команды «diff» плагина «git» не появился в меню «⋯»");
     }
-    // Раздел открыт из этого же окна: кнопки в шапке перечитаются при возврате.
+    await closeMore(page);
+    // Раздел открыт из этого же окна: пункты в меню «⋯» перечитаются при возврате.
     await page.click(SIDEBAR);
     try {
       await page.waitForSelector(card("git"), { timeout: 5000 });
@@ -202,12 +204,15 @@ try {
     } catch {
       done(1, "возврат в чат из раздела не удался: шапки нет на экране");
     }
+    // Пункты команд живут в открытом меню «⋯» — отсутствие читается в нём же.
+    await openMore(page);
     await page.waitForFunction(
       () => document.querySelectorAll('[data-testid="plugin-button"]').length === 0,
       undefined,
       { timeout: 5000 },
-    ).catch(() => done(1, "после Disable кнопки команды «diff» плагина «git» остались в шапке чата"));
-    // Enable из вкладки Disabled и возврат в чат: кнопка возвращается.
+    ).catch(() => done(1, "после Disable пункты команды «diff» плагина «git» остались в меню «⋯»"));
+    await closeMore(page);
+    // Enable из вкладки Disabled и возврат в чат: пункт возвращается.
     await page.click(SIDEBAR);
     await page.click(TAB("disabled"));
     try {
@@ -217,15 +222,17 @@ try {
     }
     await page.click(`${card("git")} [data-testid="plugin-enable"]`);
     await page.click(CHAT);
+    await openMore(page);
     try {
       await page.waitForSelector('[data-testid="plugin-button"][data-plugin="git"]', { timeout: 5000 });
     } catch {
-      done(1, "после Enable кнопка команды «diff» не вернулась в шапку чата");
+      done(1, "после Enable пункт команды «diff» не вернулся в меню «⋯»");
     }
+    await closeMore(page);
 
     done(
       0,
-      "сайдбар ведёт в раздел «Плагины» со вкладками Installed/Available/Updates/Disabled: карточки показывают имя, автора, версию, описание, права, команды и статус, у карточек из реестра есть Enable/Disable/Uninstall (у плагина движка Uninstall нет), Updates честно пуста без обновлений (пустота законна), Disabled пуст до первого Disable, Available открывает каталог, «Отмена» подтверждения ничего не удаляет, «Удалить» убирает карточку из Installed, Disable убирает кнопки команд из шапки чатов, Enable возвращает",
+      "сайдбар ведёт в раздел «Плагины» со вкладками Installed/Available/Updates/Disabled: карточки показывают имя, автора, версию, описание, права, команды и статус, у карточек из реестра есть Enable/Disable/Uninstall (у плагина движка Uninstall нет), Updates честно пуста без обновлений (пустота законна), Disabled пуст до первого Disable, Available открывает каталог, «Отмена» подтверждения ничего не удаляет, «Удалить» убирает карточку из Installed, Disable убирает пункты команд из меню «⋯», Enable возвращает",
     );
   } finally {
     await browser.close();

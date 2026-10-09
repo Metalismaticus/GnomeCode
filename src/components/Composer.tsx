@@ -21,9 +21,15 @@ export type ComposerProps = {
   sending: boolean;
   onDraft: (text: string) => void;
   onSend: () => void;
-  /** Файлы контекста вопроса: чипы над полем ввода, уходят вместе с текстом. */
+  /** Файлы контекста вопроса: чипы одной линией над полем, уходят вместе с текстом. */
   files: ProjectFile[];
   onDetach: (path: string) => void;
+  /** Модель чата: тихая пилюля в строке поля — второй вход в сравнение. */
+  model: string;
+  /** Панель сравнения открыта: пилюля держит нажатие, как бейдж шапки. */
+  compareOpen: boolean;
+  /** Клик по пилюле модели: та же панель сравнения, что у бейджа шапки. */
+  onToggleCompare: () => void;
   /** Плагины чата: меню «+» показывает, что подключено, и ведёт к списку. */
   plugins: PluginsState;
   /** Tool Sets: окно сохранённых групп открывает пункт «Tool Set» меню «+». */
@@ -48,10 +54,27 @@ export type ComposerProps = {
   onSaveToolset: (name: string) => void;
 };
 
-/** Композер: «+» с меню и списком плагинов, поле ввода, «↑». Кнопка отправки
- *  выключена на пустом поле, и причина видна в её подсказке (docs/DESIGN.md,
- *  раздел 6). Подсказки про шорткат под полем нет: он назван в placeholder'е
- *  (docs/specs/2026-10-08-1-чат.md, §6). */
+/** Тихая пилюля модели: тот же вход в сравнение, что бейдж шапки, но без акцента —
+ *  акцентным пятном строки остаётся кнопка отправки (спека «тихого хрома», §7). */
+function ModelPill({ model, open, onToggle }: { model: string; open: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      className="composer__model"
+      data-testid="composer-model"
+      title="Сравнить модели и выбрать для этого чата"
+      aria-pressed={open}
+      onClick={onToggle}
+    >
+      {model}
+    </button>
+  );
+}
+
+/** Композер-строка («тихий хром», §7): «+», поле, модель мелко, место отправки —
+ *  один ряд. «↑» на пустом поле не видно вовсе, но место её зарезервировано —
+ *  строка не прыгает; с текстом — появляется, при отправке — «…». Подсказки про
+ *  шорткат под полем нет: он назван в placeholder'е. */
 export function Composer({
   draft,
   sending,
@@ -59,6 +82,9 @@ export function Composer({
   onSend,
   files,
   onDetach,
+  model,
+  compareOpen,
+  onToggleCompare,
   plugins,
   toolsets,
   catalog,
@@ -75,6 +101,7 @@ export function Composer({
   onSaveToolset,
   onInstallCatalog,
 }: ComposerProps) {
+  const hasText = Boolean(draft.trim());
   return (
     <div className="composer">
       <div className="composer__column">
@@ -105,14 +132,15 @@ export function Composer({
               }
             }}
           />
+          <ModelPill model={model} open={compareOpen} onToggle={onToggleCompare} />
           <Button
             square
             variant="ghost"
-            className={`composer__send${draft.trim() ? " composer__send--ready" : ""}`}
+            className={`composer__send${hasText || sending ? "" : " composer__send--hidden"}`}
             data-testid="send"
             onClick={onSend}
-            disabled={!draft.trim() || sending}
-            title={sending ? "Отправляется" : draft.trim() ? "Отправить" : EMPTY}
+            disabled={!hasText || sending}
+            title={sending ? "Отправляется" : hasText ? "Отправить" : EMPTY}
           >
             {sending ? "…" : "↑"}
           </Button>

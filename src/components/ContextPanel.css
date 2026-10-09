@@ -1,20 +1,28 @@
-/* Правая панель: 280 px, во всю высоту окна, разделы разделены 1 px рамками, не тенями
-   (docs/DESIGN.md, разделы 1, 5, 7). */
+/* Правая панель — временный слой «Контекст проекта» («тихий хром», §6): скрыта по
+   умолчанию на любой ширине, открыта — оверлей 280 px от шапки до низа окна. Тень
+   разрешена — панель всплывающая (docs/DESIGN.md, раздел 7); разговор не отодвигается.
+   Цвет — только токены, тёмная и светлая темы равноправны. */
 
 .context {
+  position: absolute;
+  top: 48px;
+  right: 0;
+  bottom: 0;
   width: var(--context-w);
   min-width: var(--context-w);
   background: var(--bg-panel);
   border-left: 1px solid var(--border);
+  box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  position: relative;
+  z-index: 2;
 }
 
 .context__header {
   display: flex;
   align-items: center;
+  gap: var(--space-2);
   min-height: 48px;
   padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--border);
@@ -22,8 +30,7 @@
   font-size: 13px;
 }
 
-/* Титул забирает свободную ширину: кластер кнопок окна прижимается к правому
-   краю окна, прижатый конец шапки (WindowCluster.tsx). */
+/* Титул забирает свободную ширину: крестик закрытия прижат к правому краю панели. */
 .context__header-title {
   flex: 1;
   min-width: 0;
@@ -44,29 +51,11 @@
 
 .context__folder:hover .context-row__label {
   color: var(--text);
-}
-
-.context__section-title {
+}.context__section-title {
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-faint);
   margin-bottom: var(--space-2);
-}
-
-/* При ширине < 1200 px панель складывается в кнопку `☰` и открывается оверлеем
-   поверх чата: без тени, рамка слева (docs/DESIGN.md, раздел 7 — тени только у меню).
-   Оверлей начинается под шапкой (48 px — та же высота, что у `.chat-header`): иначе он
-   накрыл бы `☰` и переключатель темы, и панель нельзя было бы закрыть кнопкой. */
-@media (max-width: 1199px) {
-  .context {
-    position: absolute;
-    top: 48px;
-    right: 0;
-    bottom: 0;
-    width: var(--context-w);
-    min-width: var(--context-w);
-    z-index: 2;
-  }
 }

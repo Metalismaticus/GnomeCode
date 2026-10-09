@@ -19,8 +19,10 @@ export type FeedState = "feed" | "empty" | "error" | "many" | "project" | "plugi
 export type ViewParams = {
   theme: Theme;
   feed: FeedState;
-  /** Правая панель открыта оверлеем — ракурс 1024×640 с панелью. */
+  /** Правая панель открыта оверлеем — кадр панели на любой ширине. */
   right: boolean;
+  /** Меню «⋯» открыто — кадр меню без клика, как `правая=открыта` (спека §13). */
+  menu: boolean;
   /** Обрыв потока по требованию сценария ленты (`?обрыв=1`). */
   breaks: boolean;
 };
@@ -61,6 +63,7 @@ export function viewParams(search: string): ViewParams {
     theme: THEMES[query.get("тема") ?? ""] ?? "dark",
     feed: FEEDS[query.get("состояние") ?? ""] ?? "feed",
     right: query.get("правая") === "открыта",
+    menu: query.get("меню") === "открыто",
     breaks: query.has("обрыв"),
   };
 }

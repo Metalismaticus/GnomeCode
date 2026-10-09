@@ -1,8 +1,9 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 
 import type { Plugin, PluginCommand } from "../bridge";
 import type { PluginsState } from "../features/plugins/usePlugins";
 import type { ProjectState } from "../features/project/useProject";
+import { Button } from "./Button";
 import { ContextRow, type ContextRowData } from "./ContextRow";
 import { FileTree } from "./FileTree";
 
@@ -16,7 +17,7 @@ export type ContextPanelData = {
   engineDown?: boolean;
   project: ProjectState;
   /** Плагины чата: строки подключённых с кнопками команд — тот же ход одобрения,
-   *  что у кнопок шапки (спека «Состав основы», «Живая правая панель»). */
+   *  что у команд меню «⋯» (спека «тихого хрома», §5–6). */
   plugins: PluginsState;
   /** Право чата на файлы: тумблер переключает, вопрос уходит с файлами или без. */
   fsAllow: boolean;
@@ -29,10 +30,8 @@ export type ContextPanelData = {
    *  замечание владельца 2026-10-07 — ушло вместе с монтированием в панели;
    *  «Browse plugins…» идёт из пикера, здесь его больше нет). */
   onConnectPlugins: () => void;
-  /** Кластер кнопок окна (тема + свернуть/развернуть/закрыть): шапка панели — его
-   *  дом при ширине от 1200 px, правый край окна (WindowCluster.tsx); при узком
-   *  окне панель складывается и кластер живёт в шапке чата. */
-  cluster?: ReactNode;
+  /** Крестик шапки: панель — временный слой, закрывается им, Esc и кликом мимо. */
+  onClose: () => void;
 };
 
 /** Раздел «Безопасность этого чата»: право чата на файлы — память окна
@@ -105,9 +104,9 @@ function toolRows(
       onClick: () => onRunCommand(plugin, command),
     })),
   }));
-}/** Правая колонка: заголовок, дерево файлов, разделы «Проект» / «Инструменты» /
- *  «Безопасность этого чата». При ширине окна < 1200 px панель открывается оверлеем
- *  поверх чата — тот же элемент, другое место (docs/DESIGN.md, раздел 5). */
+}/** Правая панель — оверлей «Контекст проекта» («тихий хром», §6): скрыта по умолчанию,
+ *  открывается из меню «⋯» или кликом по источнику-файлу; заголовок, дерево файлов,
+ *  разделы «Проект» / «Инструменты» / «Безопасность этого чата». */
 export function ContextPanel({
   sections,
   engineDown = false,
@@ -117,7 +116,7 @@ export function ContextPanel({
   plugins,
   onRunCommand,
   onConnectPlugins,
-  cluster,
+  onClose,
 }: ContextPanelData) {
   // Вкладки принадлежат панели, а не дереву: переключение не убирает дерево из экрана.
   const [tab, setTab] = useState("Файлы");
@@ -134,7 +133,17 @@ export function ContextPanel({
     <aside className="context" data-testid="context-panel">
       <div className="context__header" data-tauri-drag-region>
         <span className="context__header-title">Контекст проекта</span>
-        {cluster}
+        <Button
+          square
+          variant="ghost"
+          className="context__close"
+          data-testid="panel-close"
+          title="Закрыть"
+          aria-label="Закрыть"
+          onClick={onClose}
+        >
+          ✕
+        </Button>
       </div>
       <FileTree project={project} tab={tab} onTab={setTab} />
       <div className="context__section">

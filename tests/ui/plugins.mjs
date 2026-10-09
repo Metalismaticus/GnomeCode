@@ -1,4 +1,4 @@
-// Плагины из чата: «+» → Connect plugin → кнопка в шапке. Сценарием игрока —
+// Плагины из чата: «+» → Connect plugin → пункт команды в меню «⋯». Сценарием игрока —
 // кликами по настоящим кнопкам интерфейса и вводом с клавиатуры, утверждения —
 // по именам и группам на экране, а не вызовами функций.
 //
@@ -8,7 +8,7 @@
 // интерфейс получает фикстуру (src/fixturePlugins.ts, состояние `?состояние=плагины`).
 import { chromium } from "@playwright/test";
 
-import { connectPlugin, done, startInterface, INSTALL } from "../lib/ui_lib.mjs";
+import { connectPlugin, closeMore, done, openMore, startInterface, INSTALL } from "../lib/ui_lib.mjs";
 
 const WIDE = { width: 1440, height: 900 };
 /** Плагин с одной командой: одна команда — одна кнопка (docs/ROADMAP.md, «Крайние случаи»). */
@@ -39,7 +39,8 @@ const pluginGroups = (page) =>
 const described = (list) =>
   list.map((group) => `${group.title}: ${group.plugins.join(", ")}`).join("; ") || "ни одного раздела";
 
-/** Подписи кнопок в шапке по плагину: одна кнопка на команду. */
+/** Подписи пунктов команд в меню «⋯» по плагину: один пункт на команду
+ *  (меню читается открытым — после openMore). */
 const buttons = (page) =>
   page.$$eval('[data-testid="plugin-button"]', (els) =>
     els.map((el) => ({ plugin: el.getAttribute("data-plugin"), label: el.textContent.trim() })),
@@ -107,31 +108,36 @@ try {
       done(1, `поиск «${SOLO}» оставил в списке «${left}» — ищет не по тому полю`);
     }
 
-    // г) Клик по строке: в шапке появляются кнопки, список закрывается -----------------
+    // г) Клик по строке: пункты команд появляются в меню «⋯», список закрывается -------
     await page.click(`${PICKER} ${ROW}[data-plugin="${SOLO}"]`);
+    await openMore(page);
     try {
       await page.waitForSelector(`[data-testid="plugin-button"][data-plugin="${SOLO}"]`, { timeout: 5000 });
     } catch {
-      done(1, `в шапке нет кнопки плагина после подключения «${SOLO}» — кнопок в шапке: ${JSON.stringify(await buttons(page))}`);
+      done(1, `в меню «⋯» нет пункта плагина после подключения «${SOLO}» — пункты в меню: ${JSON.stringify(await buttons(page))}`);
     }
     if (await page.isVisible(PICKER)) {
       done(1, "список плагинов не закрылся после подключения — он должен закрыться");
     }
     const solo = await buttons(page);
     if (solo.length !== 1) {
-      done(1, `у плагина «${SOLO}» одна команда, а кнопок в шапке ${solo.length} — одна команда — одна кнопка`);
+      done(1, `у плагина «${SOLO}» одна команда, а пунктов в меню ${solo.length} — одна команда — один пункт`);
     }
-    if (solo[0].label !== SOLO_COMMAND) {
-      done(1, `на кнопке плагина «${SOLO}» написано «${solo[0].label}», а команда «${SOLO_COMMAND}»`);
+    // Подпись пункта — «{плагин}: {команда}» (спека «тихого хрома», §5).
+    if (!solo[0].label.endsWith(`: ${SOLO_COMMAND}`)) {
+      done(1, `пункт плагина «${SOLO}» подписан «${solo[0].label}», а команда «${SOLO_COMMAND}»`);
     }
+    await closeMore(page);
 
-    // д) Кнопка остаётся после перерисовки — «всё без перезапуска» --------------------
-    // Переключатель темы — в шапке правой панели (WindowCluster.tsx).
-    await page.click('[data-testid="context-panel"] [data-testid="theme-switch"]');
+    // д) Пункт остаётся после перерисовки — «всё без перезапуска» ---------------------
+    // Переключатель темы — в шапке чата (кластер один, «тихий хром» §4).
+    await page.click('[data-testid="chat-header"] [data-testid="theme-switch"]');
     await page.waitForFunction(() => document.documentElement.dataset.theme === "light", undefined, { timeout: 5000 });
+    await openMore(page);
     if ((await buttons(page)).length !== solo.length) {
-      done(1, "после перерисовки окна кнопки плагинов в шапке пропали — подключение держится только до перерисовки");
+      done(1, "после перерисовки окна пункты команд в меню «⋯» пропали — подключение держится только до перерисовки");
     }
+    await closeMore(page);
 
     // е) Подключённый плагин попадает в «Недавние», избранное — вперёд ---------------
     await page.click('[data-testid="composer-add"]');
@@ -197,9 +203,10 @@ try {
       done(1, `в строке плагина «${BROKEN}» нет причины, почему он не запустился: «${reason}»`);
     }
 
-    // з) Плагин с двумя командами — по кнопке на команду -----------------------------
+    // з) Плагин с двумя командами — по пункту на команду ------------------------------
     await page.fill('[data-testid="plugin-search"]', PAIR);
     await page.click(`${PICKER} ${ROW}[data-plugin="${PAIR}"]`);
+    await openMore(page);
     try {
       await page.waitForFunction(
         (id) => document.querySelectorAll(`[data-testid="plugin-button"][data-plugin="${id}"]`).length === 2,
@@ -208,7 +215,7 @@ try {
       );
     } catch {
       const got = await buttons(page);
-      done(1, `у плагина «${PAIR}» две команды, а кнопок в шапке ${got.filter((one) => one.plugin === PAIR).length} — по кнопке на команду`);
+      done(1, `у плагина «${PAIR}» две команды, а пунктов в меню ${got.filter((one) => one.plugin === PAIR).length} — по пункту на команду`);
     }
 
     await page.close();
@@ -229,10 +236,11 @@ try {
     }
     await empty.close();
 
-    // к) Клик по кнопке — команда уходит в ленту строкой вызова инструмента -----------
+    // к) Клик по пункту меню — команда уходит в ленту строкой вызова инструмента -------
     const page2 = await browser.newPage({ viewport: WIDE });
     await page2.goto(`${url}?состояние=плагины`, { waitUntil: "networkidle" });
     await connectPlugin(page2, SOLO);
+    await openMore(page2);
     await page2.click(`[data-testid="plugin-button"][data-plugin="${SOLO}"]`);
     try {
       await page2.waitForFunction(
@@ -256,6 +264,7 @@ try {
     const asked = await browser.newPage({ viewport: WIDE });
     await asked.goto(`${url}?состояние=одобрение`, { waitUntil: "networkidle" });
     await connectPlugin(asked, SOLO);
+    await openMore(asked);
     await asked.click(`[data-testid="plugin-button"][data-plugin="${SOLO}"]`);
     try {
       await asked.waitForSelector('[data-testid="plugin-approval"]', { timeout: 5000 });
@@ -294,6 +303,7 @@ try {
     }
 
     // н) Отказ не запоминает правило: следующий клик спрашивает снова -------------
+    await openMore(asked);
     await asked.click(`[data-testid="plugin-button"][data-plugin="${SOLO}"]`);
     try {
       await asked.waitForSelector('[data-testid="plugin-approval"]', { timeout: 5000 });
@@ -317,6 +327,7 @@ try {
     }
 
     // п) Правило чата помнится: тот же вызов больше не спрашивает ------------------
+    await openMore(asked);
     await asked.click(`[data-testid="plugin-button"][data-plugin="${SOLO}"]`);
     try {
       await asked.waitForSelector('[data-testid="plugin-approval"]', { timeout: 5000 });
@@ -340,7 +351,7 @@ try {
 
     done(
       0,
-      `меню «+» с разделами Files/Context/Capabilities, Connect plugin открывает список с поиском, плагин подключается кнопкой в шапке и держится после перерисовки, одна команда — одна кнопка, недавние и избранное по разделам, пин и снятие пина переживут перезапуск, пустой список объяснён словами, клик по кнопке даёт строку вызова инструмента в ленте, окно одобрения спрашивает [Разрешить/Разрешить для этого чата/Отказать], отказ — строка requires approval без вызова, «для этого чата» исполняет и больше не спрашивает`,
+      `меню «+» с разделами Files/Context/Capabilities, Connect plugin открывает список с поиском, плагин подключается пунктом в меню «⋯» и держится после перерисовки, одна команда — один пункт, недавние и избранное по разделам, пин и снятие пина переживут перезапуск, пустой список объяснён словами, клик по пункту даёт строку вызова инструмента в ленте, окно одобрения спрашивает [Разрешить/Разрешить для этого чата/Отказать], отказ — строка requires approval без вызова, «для этого чата» исполняет и больше не спрашивает`,
     );
   } finally {
     await browser.close();

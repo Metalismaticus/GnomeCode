@@ -7,8 +7,10 @@ export const MODEL_BADGE = '[data-testid="model-badge"]';
 
 /** Поверхности-оверлеи чата: классы окон держат их компоненты (AddMenu,
  *  PluginPicker, ToolSetPicker, CatalogPicker, PluginSummary, PluginApproval,
- *  ChatPluginsPanel, ComparePanel), метки — кнопки и области шапки и
- *  композера, которыми оверлей открыт и которые его закрывать не должны. */
+ *  ChatPluginsPanel, ComparePanel, HeaderMenu), метки — кнопки и области шапки
+ *  и композера, которыми оверлей открыт и которые его закрывать не должны:
+ *  «⋯» переключает меню и панель «Контекст проекта» не закрывает (спека
+ *  «тихого хрома», §6), бейдж модели — вход сравнения. */
 const SURFACES = [
   ".add-menu",
   ".plugin-picker",
@@ -18,9 +20,10 @@ const SURFACES = [
   ".plugin-approval",
   ".chat-plugins",
   ".compare-panel",
+  ".header-menu",
   '[data-testid="composer-add"]',
   MODEL_BADGE,
-  '[data-testid="header-plugins-area"]',
+  '[data-testid="header-more"]',
 ] as const;
 
 /** Цель клика вне всех поверхностей-оверлеев — жест «снаружи»: оверлей

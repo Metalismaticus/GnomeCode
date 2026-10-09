@@ -29,12 +29,13 @@ export function ChatView({
   title,
   onTogglePanel,
   panelOpen,
-  narrow,
   cluster,
   project,
   onFirstQuestion,
   fsAllow,
   onOpenPluginsPage,
+  onOpenSettings,
+  engineDown,
   model,
   onChooseModel,
   plugins,
@@ -46,10 +47,11 @@ export function ChatView({
 }: ChatViewProps) {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
-  // Сравнение на снимках открывается сразу: `?состояние=сравнение*`, строка
-  // `сравнение-раскрыто` несёт строку с уже развёрнутыми подробностями.
+  // Сравнение и меню «⋯» на снимках открываются сразу: `?состояние=сравнение*`,
+  // `?меню=открыто`; строка `сравнение-раскрыто` несёт строку с развёрнутыми
+  // подробностями. Кадры снимаются адресом, без кликов (спека «тихого хрома», §13).
   const [overlay, setOverlay] = useState<Overlay>(
-    params.feed.startsWith("сравнение") ? "compare" : "none",
+    params.menu ? "more" : params.feed.startsWith("сравнение") ? "compare" : "none",
   );
   /** Карточка, чью сводку прав открыли: решение ещё не принято. */
   const [pending, setPending] = useState<CatalogEntry | undefined>(undefined);
@@ -179,14 +181,22 @@ export function ChatView({
     (document.querySelector(MODEL_BADGE) as HTMLElement | null)?.focus();
   }, []);
 
+  /** Меню «⋯» открыли кнопкой — Esc возвращает фокус ей (спека «тихого хрома», §5). */
+  const focusMoreButton = useCallback(() => {
+    (document.querySelector('[data-testid="header-more"]') as HTMLElement | null)?.focus();
+  }, []);
+
   /** Esc закрывает то же, что и dismissAll, и панель сравнения возвращает фокус
-   *  бейджу — тем же жестом, что и ✕; остальным оверлеям возврата нет. */
+   *  бейджу, меню «⋯» — кнопке; остальным оверлеям возврата нет. */
   const dismissOnEscape = useCallback(() => {
     if (overlay === "compare") {
       focusModelBadge();
     }
+    if (overlay === "more") {
+      focusMoreButton();
+    }
     dismissAll();
-  }, [overlay, dismissAll, focusModelBadge]);
+  }, [overlay, dismissAll, focusModelBadge, focusMoreButton]);
   useOverlayDismiss(
     overlay !== "none" || pending !== undefined || panelPickerOpen || heldSummary !== undefined,
     dismissAll,
@@ -228,13 +238,17 @@ export function ChatView({
     <main className="chat" data-testid="chat">
       <ChatHeader
         title={title}
-        onTogglePanel={onTogglePanel}
-        panelOpen={panelOpen}
-        cluster={narrow ? cluster : null}
+        cluster={cluster}
         model={model}
         plugins={plugins.connected}
+        engineDown={engineDown}
+        panelOpen={panelOpen}
+        onTogglePanel={onTogglePanel}
+        moreOpen={overlay === "more"}
+        onToggleMore={() => setOverlay(overlay === "more" ? "none" : "more")}
         onRunCommand={(plugin, command) => void approval.run(plugin, command)}
         onOpenPlugins={() => setOverlay(overlay === "chat-plugins" ? "none" : "chat-plugins")}
+        onOpenSettings={onOpenSettings}
         onToggleCompare={() => setOverlay(overlay === "compare" ? "none" : "compare")}
         compareOpen={overlay === "compare"}
       />
@@ -302,6 +316,9 @@ export function ChatView({
         onSend={() => void ask(draft)}
         files={project.files}
         onDetach={project.detach}
+        model={model}
+        compareOpen={overlay === "compare"}
+        onToggleCompare={() => setOverlay(overlay === "compare" ? "none" : "compare")}
         plugins={{ ...plugins, connect: connectFromList }}
         toolsets={toolsets}
         addOpen={overlay === "menu"}

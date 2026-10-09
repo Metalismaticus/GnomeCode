@@ -4,7 +4,6 @@ import { bridge } from "./bridge";
 import {
   useChatModels,
   useFeedReset,
-  useNarrow,
   usePanelOverlay,
   useSavedState,
 } from "./app/hooks";
@@ -47,7 +46,6 @@ export default function App() {
   const [panelPicker, setPanelPicker] = useState(false);
   const openPanelPicker = useCallback(() => setPanelPicker(true), []);
   const closePanelPicker = useCallback(() => setPanelPicker(false), []);
-  const narrow = useNarrow();
   /** Прямой доступ раздела для снимков и сценария: `?состояние=плагины-раздел`
    *  и `?состояние=плагины-обновления` (вкладка Updates), `?состояние=настройки*`
    *  (страница настроек — вкладки «настройки-модели» и другие). Состояния
@@ -118,7 +116,7 @@ export default function App() {
   }, []);
 
   // Оверлей правой панели закрывается сам — см. usePanelOverlay.
-  usePanelOverlay(narrow, panelOpen, setPanelOpen);
+  usePanelOverlay(panelOpen, setPanelOpen);
 
   const chats = chatsList(data, chat.title, chat.time);
   /** Проекты с линией стоимости: деньги известной части — у строки активного
@@ -138,9 +136,9 @@ export default function App() {
 
   return (
     <div className="app">
-      {/* Кластер кнопок окна (тема + свернуть/развернуть/закрыть) — правый край
-          окна: при ширине от 1200 px его шапка — шапка правой панели, при узком
-          окне — шапка чата; один узел, два дома (WindowCluster.tsx). */}
+      {/* Кластер кнопок окна (тема + свернуть/развернуть/закрыть) — единственный,
+          живёт в шапке чата на любой ширине («тихий хром», §4); у правой панели
+          и страниц своего кластера нет (WindowCluster.tsx). */}
       <Sidebar
         projects={projects}
         chats={chats}
@@ -169,13 +167,14 @@ export default function App() {
       ) : (
         <ChatView
           title={chat.title || "Новый чат"}
-          narrow={narrow}
           cluster={<WindowCluster theme={theme} onToggleTheme={toggleTheme} />}
           onTogglePanel={() => setPanelOpen(!panelOpen)}
           panelOpen={panelOpen}
           project={project}
           onFirstQuestion={chat.remember}
           onOpenPluginsPage={() => setPage("plugins")}
+          onOpenSettings={() => setPage("settings")}
+          engineDown={data.engineDown}
           fsAllow={fsAllow}
           model={chat.model}
           onChooseModel={chat.choose}
@@ -187,7 +186,10 @@ export default function App() {
           onClosePanelPicker={closePanelPicker}
         />
       )}
-      {narrow && !panelOpen ? null : (
+      {/* Правая панель скрыта по умолчанию на любой ширине («тихий хром», §6):
+          открывается из меню «⋯» или кликом по источнику-файлу, живёт оверлеем
+          и закрывается ✕/Esc/кликом мимо. `?правая=открыта` работает как раньше. */}
+      {panelOpen ? (
         <ContextPanel
           sections={data.sections}
           engineDown={data.engineDown}
@@ -197,9 +199,9 @@ export default function App() {
           plugins={plugins}
           onRunCommand={approval.run}
           onConnectPlugins={openPanelPicker}
-          cluster={narrow ? null : <WindowCluster theme={theme} onToggleTheme={toggleTheme} />}
+          onClose={() => setPanelOpen(false)}
         />
-      )}
+      ) : null}
     </div>
   );
 }

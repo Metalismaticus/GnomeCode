@@ -137,35 +137,95 @@ export const panelFolder = (page) =>
     (el) => el.textContent.trim(),
   );
 
+/** Меню «⋯» шапки: команды плагинов, панель и настройки переехали сюда с шапки
+ *  («тихий хром», §5). Открыто — не делает ничего (повторный клик закрыл бы меню),
+ *  закрыто — открывает кликом по «⋯» и ждёт панель меню. */
+export const openMore = async (page) => {
+  const open = await page.$('[data-testid="header-menu"]');
+  if (!open) {
+    await page.click('[data-testid="header-more"]');
+  }
+  await page.waitForSelector('[data-testid="header-menu"]', { timeout: 5000 });
+};
+
+/** Закрыть меню «⋯» клавишей — тот же жест владельца, что и в продукте (Esc). */
+export const closeMore = (page) => page.keyboard.press("Escape");
+
+/** Панель «Контекст проекта» из меню «⋯»: пункт «Контекст проекта» открывает её
+ *  оверлеем на любой ширине («тихий хром», §6). Меню закрывается само. */
+export const openContextPanel = async (page) => {
+  await openMore(page);
+  await page.click('[data-testid="menu-context"]');
+  await page.waitForSelector('[data-testid="context-panel"]', { timeout: 5000 });
+};
+
+/** Приложить к вопросу все файлы фикстурного дерева: папки раскрываются стрелками,
+ *  файлы — кликами по строкам, как у владельца; на каждый файл ждёт свой чип.
+ *  Набор — приложимые файлы дерева фикстуры (src/fixtureTree.ts); папки
+ *  «features/project» в нём нет — фикстура отдаёт её пустой (путь узла расходится
+ *  с ключом дерева), приложить из неё нечего. */
+export const attachAllFixtureFiles = async (page) => {
+  for (const dir of ["components", "features", "styles"]) {
+    await page.click(`[data-testid="tree-toggle"][data-name="${dir}"]`);
+  }
+  const files = ["README.md", "package.json", "ContextPanel.tsx", "FileTree.tsx", "bridge.ts", "tokens.css"];
+  for (const name of files) {
+    await page.click(`[data-testid="tree-row"][data-name="${name}"]`);
+  }
+  try {
+    await page.waitForFunction(
+      (wanted) => document.querySelectorAll('[data-testid="context-chip"]').length === wanted,
+      files.length,
+      { timeout: 5000 },
+    );
+  } catch {
+    done(1, "клики по файлам дерева не собрали чипы контекста: на строке чипов не по чипу на файл");
+  }
+  return files.length;
+};
+
 /** Подключить плагин к чату кликами: меню «+» → Connect plugin → строка списка.
- *  Кнопка команды плагина в шапке — подтверждение подключения. */
+ *  Подтверждение подключения — пункт команды в меню «⋯» (testid прежних кнопок
+ *  шапки переехал на пункты меню, «тихий хром» §5); меню закрывается Esc —
+ *  дальше сценарий видит экран владельца без открытого меню. */
 export const connectPlugin = async (page, id) => {
   await page.click('[data-testid="composer-add"]');
   await page.click('[data-testid="add-connect-plugin"]');
   await page.waitForSelector('[data-testid="plugin-picker"]', { timeout: 5000 });
   await page.click(`[data-testid="plugin-picker"] [data-testid="plugin-row"][data-plugin="${id}"]`);
+  await openMore(page);
   await page.waitForSelector(`[data-testid="plugin-button"][data-plugin="${id}"]`, { timeout: 5000 });
+  await closeMore(page);
 };
 
-/** Кнопки команд в шапке по командам: подключение видно последним. */
-export const headerCommands = async (page) =>
-  page.$$eval('[data-testid="plugin-button"]', (els) => els.map((el) => el.getAttribute("data-command")));
+/** Команды подключённых плагинов: меню «⋯» открывается на время чтения и
+ *  закрывается — пункты команд живут только в открытом меню. */
+export const headerCommands = async (page) => {
+  await openMore(page);
+  const commands = await page.$$eval('[data-testid="plugin-button"]', (els) =>
+    els.map((el) => el.getAttribute("data-command")),
+  );
+  await closeMore(page);
+  return commands;
+};
 
-/** Кнопка команды в шапке по имени команды: прыжок, возврат, снятие — по ней. */
+/** Кнопка команды в меню «⋯» по имени команды: прыжок, возврат, снятие — по ней.
+ *  Кликать по селектору стоит после openMore — вне открытого меню пунктов нет. */
 export const commandButton = (command) => `[data-testid="plugin-button"][data-command="${command}"]`;
 
 /** Карточка раздела «Плагины» на вкладке Installed: установка на месте. */
 export const installedCard = (page, id) =>
   page.waitForSelector(`[data-testid="plugin-card"][data-plugin="${id}"]`, { timeout: 5000 });
 
-/** Панель «Plugins in this chat»: клик по области бейджей в шапке. Доля отказа
+/** Панель «Plugins in this chat»: пункт «Плагины этого чата» меню «⋯». Доля отказа
  *  текстом: панель или нет [data-testid=chat-plugins-panel] — у обоих сценариев. */
 export const openChatPlugins = async (page) => {
-  await page.click('[data-testid="header-plugins-area"]', { position: { x: 2, y: 2 } });
+  await openMore(page);
+  await page.click('[data-testid="menu-plugins"]');
   try {
     await page.waitForSelector('[data-testid="chat-plugins-panel"]', { timeout: 5000 });
   } catch {
-    done(1, "клик по области бейджей в шапке не открыл панель «Plugins in this chat»: нет [data-testid=chat-plugins-panel]");
+    done(1, "пункт «Плагины этого чата» меню «⋯» не открыл панель: нет [data-testid=chat-plugins-panel]");
   }
 };
 

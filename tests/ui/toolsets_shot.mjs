@@ -1,6 +1,6 @@
 // Снимки окна Tool Sets (docs/BATCH.md, пункт 7) одной командой: строка сета
 // «Chat Basics» (git, docs) с мини-полосой Chat/Project и формой «Save as Tool
-// Set» внизу, затем подключённый сет — кнопки обеих плагинов в шапке чата;
+// Set» внизу, затем подключённый сет — пункты обеих команд в меню «⋯»;
 // обе темы главного окна 1440×900. Отдельная команда (не в SHOTS
 // window_shot.mjs): кадр открывается действиями владельца, а не параметром страницы.
 //
@@ -8,7 +8,7 @@
 // Итог: код возврата и последняя строка вывода — как у любой проверки.
 // Ограничение: снимается страница интерфейса, а не окно Tauri — WebView2
 // Playwright не водит (docs/TESTING.md, «Ловушки стека»).
-import { connectPlugin, done, startInterface, startShot, INSTALL, headerCommands } from "../lib/ui_lib.mjs";
+import { closeMore, connectPlugin, done, openMore, startInterface, startShot, INSTALL } from "../lib/ui_lib.mjs";
 
 const OUT_DIR = "shots";
 const WIDE = { width: 1440, height: 900 };
@@ -75,19 +75,23 @@ try {
       await page.screenshot({ path: pickerFile });
       console.log(`снимок ${pickerFile}: ${WIDE.width}×${WIDE.height}${shot.light ? " светлая" : " тёмная"}`);
 
-      // Подключить сет кликом по строке: кнопки обеих плагинов в шапке чата.
+      // Подключить сет кликом по строке: пункты обеих команд — в меню «⋯».
       await page.click(ROW(SET_NAME));
+      await openMore(page);
       await page.waitForSelector('[data-testid="plugin-button"][data-command="git:diff"]', { timeout: 5000 });
       await page.waitForSelector('[data-testid="plugin-button"][data-command="docs:search"]', { timeout: 5000 });
-      const shown = await headerCommands(page);
+      const shown = await page.$$eval('[data-testid="plugin-button"]', (els) =>
+        els.map((el) => el.getAttribute("data-command")),
+      );
       for (const command of ["git:diff", "docs:search"]) {
         if (!shown.includes(command)) {
-          done(1, `после подключения сета нет кнопки «${command}» в шапке: ${JSON.stringify(shown)}`);
+          done(1, `после подключения сета нет пункта «${command}» в меню «⋯»: ${JSON.stringify(shown)}`);
         }
       }
       const headerFile = `${OUT_DIR}/${shot.name.replace("-picker-", "-header-")}.png`;
       await page.screenshot({ path: headerFile });
       console.log(`снимок ${headerFile}: ${WIDE.width}×${WIDE.height}${shot.light ? " светлая" : " тёмная"}`);
+      await closeMore(page);
       await context.close();
     }
   } finally {

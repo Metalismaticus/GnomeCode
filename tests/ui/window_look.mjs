@@ -9,7 +9,7 @@
 // интерфейс получает фикстуру (src/fixture.ts, параметры адреса — src/viewparams.ts).
 import { chromium } from "@playwright/test";
 
-import { done, startInterface, INSTALL } from "../lib/ui_lib.mjs";
+import { attachAllFixtureFiles, closeMore, done, openContextPanel, openMore, startInterface, INSTALL } from "../lib/ui_lib.mjs";
 
 const WIDE = { width: 1440, height: 900 };
 const NARROW = { width: 1024, height: 640 };
@@ -30,11 +30,14 @@ const widthOf = (page, selector) =>
     return el ? el.getBoundingClientRect().width : null;
   }, selector);
 
-/** Элементы с акцент-градиентом на экране: «акцентных пятен ровно два» — измеримое утверждение. */
+/** Элементы с акцент-градиентом на экране: «акцентных пятен ровно два» — измеримое утверждение.
+ *  Скрытые элементы («↑» на пустом поле невидима, место её зарезервировано) пятном не счёт —
+ *  владелец их не видит («тихий хром», §7). */
 const gradientSpots = (page) =>
   page.evaluate(() =>
     Array.from(document.querySelectorAll("*"))
       .filter((el) => getComputedStyle(el).backgroundImage.includes("gradient"))
+      .filter((el) => getComputedStyle(el).visibility !== "hidden")
       .map((el) => el.getAttribute("data-testid") || el.className || el.tagName),
   );
 
@@ -67,7 +70,7 @@ const channelGap = (one, other) =>
 const SWITCH_IDS = ["context-toggle-fs", "context-toggle-net"];
 
 /** Что лежит сверху в центре элемента: сам элемент, его класс или перекрывший его слой.
- *  Оверлей правой панели перехватывает клик раньше шапки — этим меряется доступность `☰`
+ *  Оверлей правой панели перехватывает клик раньше шапки — этим меряется доступность «⋯»
  *  и переключателя темы при открытой панели. */
 const topmostAt = (page, selector) =>
   page.evaluate((sel) => {
@@ -138,6 +141,23 @@ const tabUntil = async (page, testid, steps = 20) => {
   return false;
 };
 
+/** Строка чипов контекста над полем ввода: сколько чипов, ширины строки и её
+ *  переполнение, стиль прокрутки и верхние кромки чипов — одна линия означает
+ *  одинаковые кромки (перенос дал бы вторую линию с другим верхом). */
+const chipLine = (page) =>
+  page.evaluate(() => {
+    const row = document.querySelector(".chips");
+    if (!row) return null;
+    const chips = [...document.querySelectorAll('[data-testid="context-chip"]')];
+    return {
+      count: chips.length,
+      clientWidth: row.clientWidth,
+      scrollWidth: row.scrollWidth,
+      overflowX: getComputedStyle(row).overflowX,
+      tops: chips.map((chip) => Math.round(chip.getBoundingClientRect().top)),
+    };
+  });
+
 const { url, stop, ok, port } = await startInterface();
 try {
   if (!ok) {
@@ -145,25 +165,25 @@ try {
   }
   const browser = await chromium.launch();
   try {
-    // --- 1440×900: три колонки, ширины из DESIGN.md §5 ---------------------------------
+    // --- 1440×900: сайдбар и центр, панель скрыта по умолчанию («тихий хром», §6) ------
     const wide = await browser.newPage({ viewport: WIDE });
     // domcontentloaded, а не networkidle, и запас (ловушка TESTING): networkidle на
     // медленном старте vite не дожидался страницы; ширины читает evaluate — auto-wait
     // его не ждёт, поэтому колонки дожидаемся явно.
     await wide.goto(`${url}?состояние=много`, { waitUntil: "domcontentloaded", timeout: 90_000 });
-    await waitReady(wide, ".context");
+    await waitReady(wide, '[data-testid="chat-header"]');
     const wideSidebar = await widthOf(wide, ".sidebar");
     if (wideSidebar !== SIDEBAR_W) {
       done(1, `сайдбар при 1440×900 — ${wideSidebar} px, а не ${SIDEBAR_W} px`);
     }
-    const wideContext = await widthOf(wide, ".context");
-    if (wideContext !== CONTEXT_W) {
-      done(1, `правая панель при 1440×900 — ${wideContext} px, а не ${CONTEXT_W} px`);
+    const defaultPanel = await widthOf(wide, ".context");
+    if (defaultPanel !== null) {
+      done(1, `правая панель видна при 1440×900 без запроса (${defaultPanel} px) — по умолчанию она скрыта на любой ширине`);
     }
 
-    // --- Акцентные пятна — по составу образца: CTA, активный чат, кнопка отправки,
-    // бейдж модели (docs/specs/2026-10-06-11-glavnoe.md, «По чему судить снимок», п. 6) --
-    const SPOTS = ["btn-primary", "chat-active", "send", "model-badge"];
+    // --- Акцентные пятна — по составу образца: CTA, активный чат, бейдж модели --------
+    // («↑» на пустом поле не видна — местом зарезервирована, пятном не счёт, §7) --------
+    const SPOTS = ["btn-primary", "chat-active", "model-badge"];
     const spots = await gradientSpots(wide);
     if (spots.length !== SPOTS.length) {
       done(1, `в кадре 1440×900 акцентных пятен ${spots.length}, а не ${SPOTS.length} (${spots.join(", ")})`);
@@ -173,6 +193,9 @@ try {
         done(1, `в кадре 1440×900 нет «${part}» среди акцентных пятен (${spots.join(", ")})`);
       }
     }
+
+    // Панель открывается из меню «⋯» — оверлеем на любой ширине («тихий хром», §6).
+    await openContextPanel(wide);
 
     // --- Тёмная тема: ручка тумблера не белая, различима с дорожкой и панелью -------
     // Замечание владельца 2026-10-06, живая копия 21:46: «ползунок белый на темной
@@ -196,8 +219,10 @@ try {
 
     // --- Темы совпадают по раскладке и различаются по цвету ----------------------------
     const before = await measure(wide);
-    // Кластер кнопок окна живёт в шапке правой панели (WindowCluster.tsx).
-    await wide.click('[data-testid="context-panel"] [data-testid="theme-switch"]');
+    // Кластер кнопок окна живёт в шапке чата — единственный дом («тихий хром», §4).
+    // Клик по шапке панель закрывает (клик снаружи, §6) — после переключения панель
+    // открывается из меню «⋯» снова: обе меры сняты с открытой панелью.
+    await wide.click('[data-testid="chat-header"] [data-testid="theme-switch"]');
     try {
       await wide.waitForFunction(() => document.documentElement.dataset.theme === "light", undefined, {
         timeout: 5000,
@@ -205,6 +230,7 @@ try {
     } catch {
       done(1, "тема переключилась по кнопке, но <html> не получил data-theme=\"light\"");
     }
+    await openContextPanel(wide);
     const after = await measure(wide);
     if (after.bodyBackground === before.bodyBackground) {
       done(1, `тема переключилась, а фон страницы не изменился: ${after.bodyBackground}`);
@@ -269,7 +295,7 @@ try {
     await keys.close();
     await wide.close();
 
-    // --- 1024×640: сайдбар сужается, правая панель складывается в кнопку ☰ ------------
+    // --- 1024×640: сайдбар сужается, панель скрыта и открывается из меню «⋯» -----------
     const narrow = await browser.newPage({ viewport: NARROW });
     await narrow.goto(url, { waitUntil: "domcontentloaded", timeout: 90_000 });
     await waitReady(narrow, ".sidebar");
@@ -281,17 +307,17 @@ try {
     if (narrowContext !== null) {
       done(1, `правой панели в кадре 1024×640 нет - она на месте (${narrowContext} px)`);
     }
-    const toggleVisible = await narrow.isVisible('[data-testid="panel-toggle"]');
-    if (!toggleVisible) {
-      done(1, "в шапке при 1024×640 нет кнопки ☰ — правая панель нечем открыть");
+    if (await narrow.isVisible('[data-testid="panel-toggle"]')) {
+      done(1, "кнопка ☰ в шапке на месте — её больше нет, панель открывается из меню «⋯» («тихий хром», §4)");
     }
-    await narrow.click('[data-testid="panel-toggle"]');
+    await openMore(narrow);
+    await narrow.click('[data-testid="menu-context"]');
     try {
       await narrow.waitForFunction(() => document.querySelector(".context") !== null, undefined, {
         timeout: 5000,
       });
     } catch {
-      done(1, "клик по ☰ не открыл правую панель");
+      done(1, "пункт «Контекст проекта» меню «⋯» не открыл правую панель");
     }
     const overlay = await measure(narrow);
     if (overlay.context.width !== CONTEXT_W) {
@@ -309,7 +335,8 @@ try {
     } catch {
       done(1, "Esc не закрыл правую панель");
     }
-    await narrow.click('[data-testid="panel-toggle"]');
+    await openMore(narrow);
+    await narrow.click('[data-testid="menu-context"]');
     await narrow.waitForFunction(() => document.querySelector(".context") !== null, undefined, {
       timeout: 5000,
     });
@@ -321,17 +348,32 @@ try {
     } catch {
       done(1, "клик снаружи не закрыл правую панель");
     }
-
-    // --- `☰` и переключатель темы доступны при открытой панели, `☰` её и закрывает ----
-    // Что окажется сверху в центре элемента: накрывший оверлей перехватит клик, а критерий 8
-    // требует, чтобы шапка оставалась доступной под открытой панелью (спека, строки 127, 237).
-    await narrow.click('[data-testid="panel-toggle"]');
+    // Крестик шапки панели — третий жест закрытия («тихий хром», §6).
+    await openMore(narrow);
+    await narrow.click('[data-testid="menu-context"]');
     await narrow.waitForFunction(() => document.querySelector(".context") !== null, undefined, {
       timeout: 5000,
     });
-    const overToggle = await topmostAt(narrow, '[data-testid="panel-toggle"]');
-    if (!String(overToggle).includes("panel-toggle")) {
-      done(1, `при открытой правой панели поверх кнопки ☰ лежит ${overToggle} — оверлей накрыл шапку, закрыть панель кнопкой нельзя`);
+    await narrow.click('[data-testid="panel-close"]');
+    try {
+      await narrow.waitForFunction(() => document.querySelector(".context") === null, undefined, {
+        timeout: 5000,
+      });
+    } catch {
+      done(1, "крестик шапки не закрыл правую панель");
+    }
+
+    // --- «⋯» и переключатель темы доступны при открытой панели, пункт меню её закрывает -
+    // Что окажется сверху в центре элемента: накрывший оверлей перехватит клик — шапка
+    // должна оставаться доступной под открытой панелью (спека «тихого хрома», §6).
+    await openMore(narrow);
+    await narrow.click('[data-testid="menu-context"]');
+    await narrow.waitForFunction(() => document.querySelector(".context") !== null, undefined, {
+      timeout: 5000,
+    });
+    const overMore = await topmostAt(narrow, '[data-testid="header-more"]');
+    if (!String(overMore).includes("header-more")) {
+      done(1, `при открытой правой панели поверх кнопки «⋯» лежит ${overMore} — оверлей накрыл шапку, меню открыть нельзя`);
     }
     const overTheme = await topmostAt(
       narrow,
@@ -340,17 +382,28 @@ try {
     if (!String(overTheme).includes("theme-switch")) {
       done(1, `при открытой правой панели поверх переключателя темы лежит ${overTheme} — оверлей накрыл шапку, тему не переключить`);
     }
-    await narrow.click('[data-testid="panel-toggle"]');
+    // Клик по «⋯» панель не закрывает; закрытая ею же пункт «Контекст проекта» («⋯» →
+    // «Контекст проекта» — открытую панель закрывает, спека §5).
+    await openMore(narrow);
+    try {
+      await narrow.waitForFunction(() => document.querySelector(".context") !== null, undefined, {
+        timeout: 5000,
+      });
+    } catch {
+      done(1, "клик по «⋯» при открытой панели закрыл её — жест открытия меню панель не меняет");
+    }
+    await narrow.click('[data-testid="menu-context"]');
     try {
       await narrow.waitForFunction(() => document.querySelector(".context") === null, undefined, {
         timeout: 5000,
       });
     } catch {
-      done(1, "клик по ☰ при открытой панели не закрыл её");
+      done(1, "пункт «Контекст проекта» при открытой панели не закрыл её");
     }
 
     // --- Переключатель темы в шапке при открытой панели: клик доходит и переключает ---
-    await narrow.click('[data-testid="panel-toggle"]');
+    await openMore(narrow);
+    await narrow.click('[data-testid="menu-context"]');
     await narrow.waitForFunction(() => document.querySelector(".context") !== null, undefined, {
       timeout: 5000,
     });
@@ -372,6 +425,8 @@ try {
     // не выше шапки чата, не за её пределами и не под панелью.
     const docks = await browser.newPage({ viewport: WIDE });
     await docks.goto(`${url}?состояние=проект`, { waitUntil: "domcontentloaded", timeout: 90_000 });
+    await waitReady(docks, '[data-testid="chat-header"]');
+    await openContextPanel(docks);
     await waitReady(docks, '[data-testid="context-connect"]');
     await docks.click('[data-testid="context-connect"]');
     try {
@@ -417,6 +472,44 @@ try {
     await docks.keyboard.press("Escape");
     await docks.close();
 
+    // --- Чипы контекста: одна линия без переноса («тихий хром», §7) ---------------------
+    // Все приложимые файлы фикстуры уходят в контекст вопроса; чипы встают на одну
+    // линию — верхние кромки равны. На канонических ширинах (1440, 1024) шесть чипов
+    // в колонку чтения помещаются, поэтому переполнение меряется на пробной ширине
+    // 800: строка шире колонки — и всё равно одна линия, излишек уходит в
+    // горизонтальную прокрутку (overflow-x: auto), а не в перенос.
+    const chipsPage = await browser.newPage({ viewport: WIDE });
+    await chipsPage.goto(`${url}?состояние=проект`, { waitUntil: "domcontentloaded", timeout: 90_000 });
+    await waitReady(chipsPage, '[data-testid="chat-header"]');
+    await openContextPanel(chipsPage);
+    const attached = await attachAllFixtureFiles(chipsPage);
+    const wideChips = await chipLine(chipsPage);
+    if (!wideChips || wideChips.count !== attached) {
+      done(1, `чипов контекста ${wideChips ? wideChips.count : 0}, а приложено файлов ${attached} — не по чипу на файл`);
+    }
+    if (new Set(wideChips.tops).size !== 1) {
+      done(1, `чипы контекста легли в ${new Set(wideChips.tops).size} линии при ${attached} файлах — перенос включился, а чипы идут одной линией («тихий хром», §7)`);
+    }
+    await chipsPage.setViewportSize({ width: 800, height: 640 });
+    await chipsPage.waitForTimeout(300);
+    const squeezed = await chipLine(chipsPage);
+    if (!squeezed || new Set(squeezed.tops).size !== 1) {
+      done(1, `при переполнении чипы легли в ${squeezed ? new Set(squeezed.tops).size : 0} линии — перенос вместо горизонтальной прокрутки («тихий хром», §7)`);
+    }
+    if (squeezed.scrollWidth <= squeezed.clientWidth) {
+      done(1, `при ширине 800 чипы не переполнили колонку (${squeezed.scrollWidth} ≤ ${squeezed.clientWidth}) — переполнение нечем мерить`);
+    }
+    if (squeezed.overflowX !== "auto") {
+      done(1, `у строки чипов overflow-x: ${squeezed.overflowX} — излишек не уходит в горизонтальную прокрутку`);
+    }
+    await chipsPage.setViewportSize({ width: NARROW.width, height: NARROW.height });
+    await chipsPage.waitForTimeout(300);
+    const narrowChips = await chipLine(chipsPage);
+    if (!narrowChips || new Set(narrowChips.tops).size !== 1) {
+      done(1, `на 1024×640 чипы контекста не идут одной линией при ${attached} файлах («тихий хром», §7)`);
+    }
+    await chipsPage.close();
+
     // --- Пустое состояние: сборка вверху ленты, заголовок 22 px (спека §3) -------------
     const empty = await browser.newPage({ viewport: WIDE });
     await empty.goto(`${url}?состояние=пусто`, { waitUntil: "domcontentloaded", timeout: 90_000 });
@@ -456,7 +549,7 @@ try {
 
     done(
       0,
-      `раскладка ${SIDEBAR_W}/${SIDEBAR_NARROW_W}/${CONTEXT_W} px, оверлей по ☰ с Esc, кликом снаружи и кнопкой, шапка с кнопкой панели и переключателем темы доступна под оверлеем, приветственная сборка вверху ленты с заголовком ${EMPTY_TITLE_PX} px, акцентных пятен ${SPOTS.length}, тумблеры обеих тем читаются (ручка не белая и различима с дорожкой и панелью), темы совпали по раскладке и разошлись по цвету, фокус ${FOCUS_RING_PX}`,
+      `раскладка ${SIDEBAR_W}/${SIDEBAR_NARROW_W}/${CONTEXT_W} px, панель скрыта по умолчанию и открывается из меню «⋯» оверлеем (Esc, клик снаружи, крестик и повторный пункт её закрывают), «⋯» и переключатель темы доступны под оверлеем, чипы контекста при всех файлах фикстуры идут одной линией и в переполнении уходят в горизонтальную прокрутку без переноса, приветственная сборка вверху ленты с заголовком ${EMPTY_TITLE_PX} px, акцентных пятен ${SPOTS.length} (невидимая «↑» не счёт), тумблеры обеих тем читаются (ручка не белая и различима с дорожкой и панелью), темы совпали по раскладке и разошлись по цвету, фокус ${FOCUS_RING_PX}`,
     );
   } finally {
     await browser.close();

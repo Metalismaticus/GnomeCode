@@ -13,7 +13,7 @@
 // «Global» — возвращают (в окне это перезапуск с пустым реестром чата).
 import { chromium } from "@playwright/test";
 
-import { connectPlugin, done, startInterface, INSTALL } from "../lib/ui_lib.mjs";
+import { closeMore, connectPlugin, done, headerCommands, openChatPlugins, openMore, startInterface, INSTALL } from "../lib/ui_lib.mjs";
 
 const WIDE = { width: 1440, height: 900 };
 /** Плагин с двумя командами: кнопка «diff» — та, что проверяем на возврат. */
@@ -32,10 +32,6 @@ const BUTTON = (command) => `[data-testid="plugin-button"][data-command="${comma
 
 /** Имена строк списка плагинов: видно, что плагин остался установленным. */
 const rows = (page) => page.$$eval(`${PICKER} ${ROW}`, (els) => els.map((el) => el.getAttribute("data-plugin")));
-
-/** Кнопки команд в шапке по командам: возврат после перезагрузки виден по ним. */
-const commands = (page) =>
-  page.$$eval('[data-testid="plugin-button"]', (els) => els.map((el) => el.getAttribute("data-command")));
 
 /** Открыть список плагинов и дождаться строк: полоса скоупов живёт в нём. */
 const openPicker = async (page) => {
@@ -59,13 +55,15 @@ try {
     await page.goto(`${url}?состояние=плагины`, { waitUntil: "domcontentloaded", timeout: 90_000 });
     await page.waitForSelector('[data-testid="chat-header"]', { timeout: 90_000 });
 
-    // а) Подключение git: кнопка diff в шапке --------------------------------------
+    // а) Подключение git: пункт diff в меню «⋯» ------------------------------------
     await connectPlugin(page, PAIR);
+    await openMore(page);
     try {
       await page.waitForSelector(BUTTON(PAIR_COMMAND), { timeout: 5000 });
     } catch {
-      done(1, `после подключения «${PAIR}» в шапке нет кнопки diff — кнопки шапки: ${JSON.stringify(await commands(page))}`);
+      done(1, `после подключения «${PAIR}» в меню «⋯» нет пункта diff — пункты меню: ${JSON.stringify(await headerCommands(page))}`);
     }
+    await closeMore(page);
 
     // б) Полоса скоупов у строки: «Chat» предвыбран, «Project» переживает reload ---
     await openPicker(page);
@@ -87,21 +85,23 @@ try {
     }
     await page.click(`${scopesBar} [data-testid="scope-project"]`);
     await page.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
+    await openMore(page);
     try {
       await page.waitForSelector(BUTTON(PAIR_COMMAND), { timeout: 90_000 });
     } catch {
-      done(1, "после перезагрузки кнопки «diff» нет — проектный скоуп не запомнился: кнопки шапки " + JSON.stringify(await commands(page).catch(() => [])));
+      done(1, "после перезагрузки пункта «diff» нет — проектный скоуп не запомнился: пункты меню " + JSON.stringify(await headerCommands(page).catch(() => [])));
     }
+    await closeMore(page);
 
-    // в) «Chat» после перезагрузки кнопок не возвращает, плагин остаётся установленным
+    // в) «Chat» после перезагрузки пунктов не возвращает, плагин остаётся установленным
     await connectPlugin(page, SOLO);
     await page.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
     await page.waitForSelector('[data-testid="chat-header"]', { timeout: 90_000 });
-    if ((await commands(page)).includes(SOLO_COMMAND)) {
-      done(1, "после перезагрузки кнопка docs на месте — скоуп «Chat» вернул кнопки нового чата, а должен только текущий");
+    if ((await headerCommands(page)).includes(SOLO_COMMAND)) {
+      done(1, "после перезагрузки пункт docs на месте — скоуп «Chat» вернул команды нового чата, а должен только текущий");
     }
-    if (!(await commands(page)).includes(PAIR_COMMAND)) {
-      done(1, "после перезагрузки пропала и кнопка «diff» — проектный скоуп git потерялся вместе с чат-ским docs");
+    if (!(await headerCommands(page)).includes(PAIR_COMMAND)) {
+      done(1, "после перезагрузки пропал и пункт «diff» — проектный скоуп git потерялся вместе с чат-ским docs");
     }
     const section = await browser.newPage({ viewport: WIDE });
     await section.goto(`${url}?состояние=плагины-раздел`, { waitUntil: "domcontentloaded", timeout: 90_000 });
@@ -112,14 +112,12 @@ try {
     }
     await section.close();
 
-    // г) Панель шапки: снять git с чата — кнопки уходят, установка остаётся ---------
-    await page.click('[data-testid="header-plugins-area"]', { position: { x: 2, y: 2 } });
-    try {
-      await page.waitForSelector('[data-testid="chat-plugins-panel"]', { timeout: 5000 });
-    } catch {
-      done(1, "клик по области бейджей в шапке не открыл панель «Plugins in this chat»: нет [data-testid=chat-plugins-panel]");
-    }
+    // г) Панель «Plugins in this chat» из меню «⋯»: снять git с чата — пункты уходят,
+    //    установка остаётся ---------------------------------------------------------
+    await openChatPlugins(page);
     await page.click('[data-testid="plugin-chat-remove"][data-plugin="git"]');
+    // Пункты команд живут в открытом меню «⋯» — снятие читается в нём же.
+    await openMore(page);
     try {
       await page.waitForFunction(
         (needle) => !Array.from(document.querySelectorAll('[data-testid="plugin-button"]')).some((el) => el.getAttribute("data-command") === needle),
@@ -127,8 +125,9 @@ try {
         { timeout: 5000 },
       );
     } catch {
-      done(1, "после снятия с чата кнопка «diff» осталась — снятие кнопок не убрало");
+      done(1, "после снятия с чата пункт «diff» остался — снятие пунктов не убрало");
     }
+    await closeMore(page);
     const removal = await browser.newPage({ viewport: WIDE });
     await removal.goto(`${url}?состояние=плагины-раздел`, { waitUntil: "domcontentloaded", timeout: 90_000 });
     try {
@@ -138,13 +137,15 @@ try {
     }
     await removal.close();
 
-    // д) Снятие держится в рамках чата: перезагрузка (новый чат) возвращает кнопки --
+    // д) Снятие держится в рамках чата: перезагрузка (новый чат) возвращает пункты --
     await page.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
+    await openMore(page);
     try {
       await page.waitForSelector(BUTTON(PAIR_COMMAND), { timeout: 90_000 });
     } catch {
-      done(1, "после перезагрузки кнопки «diff» нет — проектный скоуп не пережил снятие с чата, а должен вернуться в новом чате");
+      done(1, "после перезагрузки пункта «diff» нет — проектный скоуп не пережил снятие с чата, а должен вернуться в новом чате");
     }
+    await closeMore(page);
 
     // е) Сводка прав: «Keep enabled for this project» ставит и включает для проекта -
     await openPicker(page);
@@ -167,27 +168,32 @@ try {
       }
     }
     await page.click('[data-testid="summary-enable-project"]');
+    await openMore(page);
     try {
       await page.waitForSelector(BUTTON(CATALOG_COMMAND), { timeout: 5000 });
     } catch {
-      done(1, `после «Keep enabled for this project» в шапке нет кнопки issues — кнопки шапки: ${JSON.stringify(await commands(page))}`);
+      done(1, `после «Keep enabled for this project» в меню «⋯» нет пункта issues — пункты меню: ${JSON.stringify(await headerCommands(page))}`);
     }
+    await closeMore(page);
     await page.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
+    await openMore(page);
     try {
       await page.waitForSelector(BUTTON(CATALOG_COMMAND), { timeout: 90_000 });
     } catch {
-      done(1, "после перезагрузки кнопки issues нет — скоуп проекта из сводки прав не запомнился");
+      done(1, "после перезагрузки пункта issues нет — скоуп проекта из сводки прав не запомнился");
     }
+    await closeMore(page);
 
     // ж) «Once»: следующий вопрос снимает плагин с чата -----------------------------
     await connectPlugin(page, SOLO);
     await openPicker(page);
     await page.click(`${PICKER} ${ROW}[data-plugin="${SOLO}"] [data-testid="scope-once"]`);
-    if (!(await commands(page)).includes(SOLO_COMMAND)) {
-      done(1, "после выбора «Once» кнопка docs пропала до вопроса — Once должен жить до конца текущего запроса");
+    if (!(await headerCommands(page)).includes(SOLO_COMMAND)) {
+      done(1, "после выбора «Once» пункт docs пропал до вопроса — Once должен жить до конца текущего запроса");
     }
     await page.fill('[data-testid="composer"]', "покажи, что Once снимает плагин");
     await page.click('[data-testid="send"]');
+    await openMore(page);
     try {
       await page.waitForFunction(
         (needle) => !Array.from(document.querySelectorAll('[data-testid="plugin-button"]')).some((el) => el.getAttribute("data-command") === needle),
@@ -195,16 +201,17 @@ try {
         { timeout: 15000 },
       );
     } catch {
-      done(1, "после вопроса кнопка docs осталась — скоуп «Once» не снял плагин с чата");
+      done(1, "после вопроса пункт docs остался — скоуп «Once» не снял плагин с чата");
     }
-    if (!(await commands(page)).includes(PAIR_COMMAND)) {
-      done(1, "после вопроса пропала и кнопка «diff» — Once снял не только свой плагин");
+    await closeMore(page);
+    if (!(await headerCommands(page)).includes(PAIR_COMMAND)) {
+      done(1, "после вопроса пропал и пункт «diff» — Once снял не только свой плагин");
     }
 
     await page.close();
     done(
       0,
-      "подключение даёт кнопки в шапке, у строки полоса скоупов с предвыбранным «Chat», «Project» переживает перезагрузку (новый чат), «Chat» — нет, снятие с чата убирает кнопки без деинсталляции и держится до перезагрузки, сводка прав ставит плагин кнопкой «Keep enabled for this project» с запоминанием, «Once» снимает плагин после вопроса",
+      "подключение даёт пункты в меню «⋯», у строки полоса скоупов с предвыбранным «Chat», «Project» переживает перезагрузку (новый чат), «Chat» — нет, снятие с чата убирает пункты без деинсталляции и держится до перезагрузки, сводка прав ставит плагин кнопкой «Keep enabled for this project» с запоминанием, «Once» снимает плагин после вопроса",
     );
   } finally {
     await browser.close();

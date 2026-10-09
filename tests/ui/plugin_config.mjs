@@ -6,7 +6,7 @@
 // Страница интерфейса, а не окно Tauri: фикстура зеркалит plugin_run (src/fixtureApprovals.ts),
 // правила — память страницы, без перезагрузок страницы: смена правила в Configure должна
 // менять следующий вызов в этом же окне (критерий готовности).
-import { done, startInterface, INSTALL, openStatePage } from "../lib/ui_lib.mjs";
+import { closeMore, done, openMore, startInterface, INSTALL, openStatePage } from "../lib/ui_lib.mjs";
 
 const CARD = '[data-testid="plugin-card"]';
 const CHAT = '[data-testid="chat-active"]';
@@ -30,12 +30,14 @@ const toolRows = (page) =>
 const pressed = async (page, category, value) =>
   (await page.$eval(`[data-testid="config-rule-${category}-${value}"]`, (el) => el.getAttribute("aria-pressed"))) === "true";
 
-/** Подключить плагин к чату кликами: «+» → Connect plugin → строка списка. */
+/** Подключить плагин к чату кликами: «+» → Connect plugin → строка списка;
+ *  подтверждение — пункт команды в меню «⋯», меню остаётся открытым для run. */
 const connect = async (page, id) => {
   await page.click(ADD);
   await page.waitForSelector(CONNECT, { timeout: 5000 });
   await page.click(CONNECT);
   await page.click(`${PICKER} ${ROW}[data-plugin="${id}"]`);
+  await openMore(page);
   await page.waitForSelector(`[data-testid="plugin-button"][data-plugin="${id}"]`, { timeout: 5000 });
 };
 
@@ -53,8 +55,10 @@ const toChat = async (page) => {
   await page.waitForSelector('[data-testid="chat-header"]', { timeout: 5000 });
 };
 
-/** Клик по кнопке команды в шапке: по подписи команды. */
+/** Клик по пункту команды в меню «⋯»: по подписи команды; меню открывается,
+ *  клик по пункту закрывает его сам (спека «тихого хрома», §5). */
 const run = async (page, label) => {
+  await openMore(page);
   await page.click(`[data-testid="plugin-button"]:has-text("${label}")`);
 };
 

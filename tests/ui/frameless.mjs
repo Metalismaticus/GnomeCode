@@ -1,7 +1,7 @@
 // Окно без рамки — своя шапка (docs/ROADMAP.md, «Окно без рамки: своя шапка»):
 // свернуть/развернуть/закрыть — один набор на экране, кластер «тема + кнопки»
-// в правом краю окна: шапка правой панели при ширине от 1200 px, шапка чата
-// при узкой; страницы «Плагины» и «Настройки» своих копий не рисуют. Верхние
+// в правом краю окна: единственный дом — шапка чата на любой ширине («тихий
+// хром», §4); страницы «Плагины» и «Настройки» своих копий не рисуют. Верхние
 // полосы размечены зоной перетаскивания (data-tauri-drag-region), клики по
 // кнопкам уходят мосту окна.
 //
@@ -41,26 +41,26 @@ try {
   const { browser, page } = await openStatePage(iface, "");
   try {
 
-    // а) Кнопки окна стоят в правом краю окна: при ширине от 1200 px их дом —
-    //    шапка правой панели (замечание владельца: «кнопки свернуть, тема и
-    //    т.д. должны быть справа», WindowCluster.tsx) ------------------------------
-    const PANEL = '[data-testid="context-panel"]';
-    const CLUSTER = `${PANEL} [data-testid="window-cluster"]`;
+    // а) Кнопки окна стоят в правом краю окна: их единственный дом — шапка чата
+    //    на любой ширине («тихий хром», §4; замечание владельца: «кнопки свернуть,
+    //    тема и т.д. должны быть справа») ------------------------------------------
+    const HEADER = '[data-testid="chat-header"]';
+    const CLUSTER = `${HEADER} [data-testid="window-cluster"]`;
     for (const [testid, name] of [[MIN, "свернуть"], [MAX, "развернуть"], [CLOSE, "закрыть"]]) {
       let there = false;
       try {
-        there = Boolean(await page.waitForSelector(`${PANEL} ${testid}`, { timeout: 5000 }));
+        there = Boolean(await page.waitForSelector(`${HEADER} ${testid}`, { timeout: 5000 }));
       } catch {
         // ниже общая строка провала
       }
       if (!there) {
-        done(1, `в правом краю окна (шапка правой панели) нет кнопки окна «${name}»: не появился [data-testid] из ${BUTTONS}`);
+        done(1, `в правом краю окна (шапка чата) нет кнопки окна «${name}»: не появился [data-testid] из ${BUTTONS}`);
       }
     }
     try {
       await page.waitForSelector(`${CLUSTER} [data-testid="theme-switch"]`, { timeout: 5000 });
     } catch {
-      done(1, "переключателя темы нет в правом краю окна рядом с кнопками окна: кластер разрознен");
+      done(1, "переключателя темы нет в шапке чата рядом с кнопками окна: кластер разрознен");
     }
     // Кластер один: «доп пустой блок» с дублем кнопок не возвращается.
     const clusters = await page.$$eval('[data-testid="window-cluster"]', (els) => els.length);
@@ -68,26 +68,30 @@ try {
       done(1, `кластер кнопок окна на экране ${clusters} раз, а не один — у кнопок окна два дома сразу`);
     }
     for (const [testid, name] of [[MIN, "свернуть"], [MAX, "развернуть"], [CLOSE, "закрыть"]]) {
-      await hitOwn(page, `${PANEL} ${testid}`, `кнопка окна «${name}» в шапке правой панели`);
+      await hitOwn(page, `${HEADER} ${testid}`, `кнопка окна «${name}» в шапке чата`);
     }
 
     // б) Клик по каждой кнопке уходит мосту: фикстура записывает вызовы -----------
-    await page.click(`${PANEL} ${MIN}`);
-    await page.click(`${PANEL} ${MAX}`);
-    await page.click(`${PANEL} ${CLOSE}`);
+    await page.click(`${HEADER} ${MIN}`);
+    await page.click(`${HEADER} ${MAX}`);
+    await page.click(`${HEADER} ${CLOSE}`);
     const calls = await page.evaluate(() => window.__windowCalls ?? []);
     if (JSON.stringify(calls) !== JSON.stringify(["minimize", "maximize", "close"])) {
       done(1, `клики по кнопкам окна не дошли мосту: window.__windowCalls = ${JSON.stringify(calls)}`);
     }
-    if (!(await page.$(`${PANEL} ${MIN}`)) || !(await page.$(`${PANEL} ${MAX}`))) {
+    if (!(await page.$(`${HEADER} ${MIN}`)) || !(await page.$(`${HEADER} ${MAX}`))) {
       done(1, "после кликов кнопки окна пропали — окно закрылось на странице вместо записи вызова");
     }
 
-    // в) Верхние полосы — зоны перетаскивания: полоса чата и шапка правой панели --
+    // в) Верхние полосы — зоны перетаскивания: шапка чата и шапка правой панели ---
     if (!(await page.$eval('[data-testid="chat-header"]', (el) => el.hasAttribute("data-tauri-drag-region")))) {
       done(1, DRAG("chat-header"));
     }
-    if (!(await page.$eval(`${PANEL} .context__header`, (el) => el.hasAttribute("data-tauri-drag-region")))) {
+    // Шапка панели существует, пока панель открыта: открываем из меню «⋯» («тихий хром», §6).
+    await page.click('[data-testid="header-more"]');
+    await page.click('[data-testid="menu-context"]');
+    await page.waitForSelector('[data-testid="context-panel"]', { timeout: 5000 });
+    if (!(await page.$eval('[data-testid="context-panel"] .context__header', (el) => el.hasAttribute("data-tauri-drag-region")))) {
       done(1, DRAG("context__header"));
     }
     // Кнопки не наследуют зону перетаскивания: клик по ним — действие, не перенос окна.
@@ -124,8 +128,8 @@ try {
     }
     await narrow.close();
 
-    // д) Страница «Плагины»: своих кнопок окна нет — единственный набор остаётся
-    //    в шапке правой панели и уходит мосту; полоса страницы — перетаскивание --
+    // д) Страница «Плагины»: своих кнопок окна нет; единственный дом кластера —
+    //    шапка чата, на страницах он не монтируется; полоса страницы — перетаскивание -
     await page.goto(`${iface.url}?состояние=плагины-раздел`, { waitUntil: "domcontentloaded", timeout: 90_000 });
     await page.waitForSelector('[data-testid="plugins-page"]', { timeout: 90_000 });
     const pluginsOwn = await page.$$eval(
@@ -136,18 +140,8 @@ try {
       done(1, `на странице «Плагины» своя копия кнопок окна (${pluginsOwn} набор поверх кластера шапки) — у экрана два набора`);
     }
     const pluginsSets = await page.$$eval('[data-testid="window-buttons"]', (els) => els.length);
-    if (pluginsSets !== 1) {
-      done(1, `на «Плагинах» наборов кнопок окна ${pluginsSets}, а не один: единственный дом кнопок — шапка правой панели`);
-    }
-    try {
-      await page.waitForSelector(`${PANEL} ${CLOSE}`, { timeout: 5000 });
-    } catch {
-      done(1, `на «Плагинах» в шапке правой панели нет кнопки окна: не появился [data-testid] из ${BUTTONS}`);
-    }
-    await page.click(`${PANEL} ${CLOSE}`);
-    const pluginsClose = await page.evaluate(() => window.__windowCalls ?? []);
-    if (!pluginsClose.includes("close")) {
-      done(1, `кнопка закрытия на «Плагинах» не ушла мосту: window.__windowCalls = ${JSON.stringify(pluginsClose)}`);
+    if (pluginsSets !== 0) {
+      done(1, `на «Плагинах» наборов кнопок окна ${pluginsSets}, а не ноль: единственный дом кластера — шапка чата, у страниц своего нет`);
     }
     if (!(await page.$eval('[data-testid="plugins-page"] .plugins-page__head', (el) => el.hasAttribute("data-tauri-drag-region")))) {
       done(1, DRAG("plugins-page__head"));
@@ -156,8 +150,8 @@ try {
       await hitOwn(page, `[data-testid="plugin-tab-${tab}"]`, `вкладка «${tab}» страницы «Плагины»`);
     }
 
-    // е) Страница «Настройки»: своих кнопок окна нет — тот же единственный набор
-    //    в шапке правой панели; полоса страницы — перетаскивание ---------------
+    // е) Страница «Настройки»: своих кнопок окна нет — тот же единственный дом
+    //    (шапка чата) на страницах не монтируется; полоса страницы — перетаскивание -
     await page.goto(`${iface.url}?состояние=настройки`, { waitUntil: "domcontentloaded", timeout: 90_000 });
     await page.waitForSelector('[data-testid="settings-page"]', { timeout: 90_000 });
     const settingsOwn = await page.$$eval(
@@ -168,18 +162,8 @@ try {
       done(1, `на странице «Настройки» своя копия кнопок окна (${settingsOwn} набор поверх кластера шапки) — у экрана два набора`);
     }
     const settingsSets = await page.$$eval('[data-testid="window-buttons"]', (els) => els.length);
-    if (settingsSets !== 1) {
-      done(1, `на «Настройках» наборов кнопок окна ${settingsSets}, а не один: единственный дом кнопок — шапка правой панели`);
-    }
-    try {
-      await page.waitForSelector(`${PANEL} ${CLOSE}`, { timeout: 5000 });
-    } catch {
-      done(1, `на «Настройках» в шапке правой панели нет кнопки окна: не появился [data-testid] из ${BUTTONS}`);
-    }
-    await page.click(`${PANEL} ${CLOSE}`);
-    const settingsClose = await page.evaluate(() => window.__windowCalls ?? []);
-    if (!settingsClose.includes("close")) {
-      done(1, `кнопка закрытия на «Настройках» не ушла мосту: window.__windowCalls = ${JSON.stringify(settingsClose)}`);
+    if (settingsSets !== 0) {
+      done(1, `на «Настройках» наборов кнопок окна ${settingsSets}, а не ноль: единственный дом кластера — шапка чата, у страниц своего нет`);
     }
     if (!(await page.$eval('[data-testid="settings-page"] .settings-page__head', (el) => el.hasAttribute("data-tauri-drag-region")))) {
       done(1, DRAG("settings-page__head"));
@@ -229,7 +213,7 @@ try {
 
     await done(
       0,
-      `окно без рамки: свернуть/развернуть/закрыть и тема — один набор в правом краю окна (шапка правой панели при ширине от 1200 px, шапка чата при узком) и уходят мосту (${calls.length} вызова); у страниц «Плагины» и «Настройки» своих копий нет, при узком окне кнопок окна на них нет вовсе; верхние полосы чата, правой панели, «Плагинов» и «Настроек» размечены data-tauri-drag-region — перетаскивание за шапку; кластер кнопок один, вкладки страниц и кнопки шапок не накрыты`,
+      `окно без рамки: свернуть/развернуть/закрыть и тема — один кластер в шапке чата на любой ширине и уходят мосту (${calls.length} вызова); у страниц «Плагины» и «Настройки» своих копий нет, там кластера нет вовсе — единственный дом кнопок, шапка чата, на страницах не монтируется; верхние полосы чата, правой панели, «Плагинов» и «Настроек» размечены data-tauri-drag-region — перетаскивание за шапку; кластер кнопок один, вкладки страниц и кнопки шапок не накрыты`,
     );
   } finally {
     await browser.close();

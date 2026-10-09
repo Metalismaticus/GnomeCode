@@ -6,15 +6,17 @@
 // Итог: код возврат и последняя строка вывода — как у любой проверки.
 // Ограничение: снимается страница интерфейса, а не окно Tauri — WebView2
 // Playwright не водит (docs/TESTING.md, «Ловушки стека»).
-import { done, openShotPage, startInterface, startShot, INSTALL } from "../lib/ui_lib.mjs";
+import { done, openContextPanel, openShotPage, startInterface, startShot, INSTALL } from "../lib/ui_lib.mjs";
 
 const OUT_DIR = "shots";
 const FILE = "bridge.ts";
 const DIR = "components";
 const BLOCK = '[data-testid="sources-used"]';
 
-/** Вопрос с файлом, как его делает владелец: раскрыть папку, клик по файлу, отправить. */
+/** Вопрос с файлом, как его делает владелец: панель «Контекст проекта» из меню «⋯»,
+ *  раскрыть папку, клик по файлу, отправить. */
 const askWithFile = async (page) => {
+  await openContextPanel(page);
   await page.click(`[data-testid="tree-toggle"][data-name="${DIR}"]`);
   await page.click(`[data-testid="tree-row"][data-name="${FILE}"]`);
   await page.fill('[data-testid="composer"]', "Что делает этот мост?");

@@ -15,6 +15,7 @@ import {
   INSTALL,
   activeChat,
   done,
+  openContextPanel,
   openProjectPage,
   panelFolder,
   startInterface,
@@ -29,8 +30,9 @@ const DONE = "Ответ модели получен";
 const FIXTURE_CHAT = "Разбор главного окна";
 const LIGHT = "light";
 
-/** Переключатель темы: кластер кнопок окна в шапке правой панели (WindowCluster.tsx). */
-const themeSwitch = '[data-testid="context-panel"] [data-testid="theme-switch"]';
+/** Переключатель темы: кластер кнопок окна в шапке чата — единственный дом
+ *  («тихий хром», §4). */
+const themeSwitch = '[data-testid="chat-header"] [data-testid="theme-switch"]';
 
 const iface = await startInterface();
 try {
@@ -101,7 +103,9 @@ try {
       done(1, `после перезапуска тема сброшена (data-theme=${theme})`);
     }
 
-    // в) Папка проекта на месте в разделе «Проект» ----------------------------------
+    // в) Папка проекта на месте в разделе «Проект»: панель скрыта по умолчанию —
+    //    открывается из меню «⋯» («тихий хром», §6), папка читается в ней.
+    await openContextPanel(page);
     const folder = await panelFolder(page);
     if (!folder || folder === "—") {
       done(1, `в разделе «Проект» после перезапуска нет папки: «${folder || "строки нет"}»`);

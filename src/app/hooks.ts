@@ -8,23 +8,7 @@ import {
   DEFAULT_MODEL,
   type WindowState,
 } from "../appstate";
-
-/** Ширина, ниже которой правая панель складывается в кнопку `☰` (docs/DESIGN.md, раздел 5). */
-const NARROW = "(max-width: 1199px)";
-
-/** Узкое ли окно: этим же условием панель уезжает в оверлей, а кнопка `☰` появляется. */
-export function useNarrow(): boolean {
-  const [narrow, setNarrow] = useState(
-    () => typeof window !== "undefined" && window.matchMedia(NARROW).matches,
-  );
-  useEffect(() => {
-    const query = window.matchMedia(NARROW);
-    const change = () => setNarrow(query.matches);
-    query.addEventListener("change", change);
-    return () => query.removeEventListener("change", change);
-  }, []);
-  return narrow;
-}
+import { MODEL_BADGE } from "../components/chat/overlay";
 
 /** Состояние прошлого запуска — один запрос при старте. StrictMode зовёт эффект
  *  дважды: подписка первого размывается, второй ответ перезапишет те же поля и
@@ -43,25 +27,31 @@ export function useSavedState(apply: (saved: WindowState) => void): void {
   }, [apply]);
 }
 
-/** Оверлей правой панели закрывается по Esc и клику снаружи; клик по самой `☰`
- *  остаётся за кнопкой — иначе открытие тут же закрылось бы. */
-export function usePanelOverlay(narrow: boolean, panelOpen: boolean, close: (open: boolean) => void): void {
+/** Оверлей правой панели закрыт по умолчанию на любой ширине («тихий хром», §6):
+ *  открытый закрывается по Esc и клику снаружи. Свои клики панель переживает, как и
+ *  жесты, которые панель открыли или которыми пользуются поверх неё: «⋯», его меню
+ *  (Esc там закрывает меню и возвращает фокус кнопке — спека §5/§12), бейдж модели и
+ *  источники ленты (файл раскрывает панель, плагин ведёт в раздел). */
+export function usePanelOverlay(panelOpen: boolean, close: (open: boolean) => void): void {
   useEffect(() => {
-    if (!narrow || !panelOpen) {
+    if (!panelOpen) {
       return;
     }
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+      // Меню «⋯» открыто — Esc его жест: сперва закрывается меню, панель — следующим.
+      if (event.key === "Escape" && !document.querySelector(".header-menu")) {
         close(false);
       }
     };
     const onClick = (event: MouseEvent) => {
       const target = event.target as Element | null;
-      // Источник-файл сам раскрывает панель: тот же клик не должен её закрыть.
       if (
         target?.closest(".context") ||
-        target?.closest('[data-testid="panel-toggle"]') ||
-        target?.closest('[data-testid="source-file"]')
+        target?.closest('[data-testid="header-more"]') ||
+        target?.closest(".header-menu") ||
+        target?.closest(MODEL_BADGE) ||
+        target?.closest('[data-testid="source-file"]') ||
+        target?.closest('[data-testid="source-plugin"]')
       ) {
         return;
       }
@@ -73,7 +63,7 @@ export function usePanelOverlay(narrow: boolean, panelOpen: boolean, close: (ope
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("click", onClick);
     };
-  }, [narrow, panelOpen, close]);
+  }, [panelOpen, close]);
 }
 
 /** Событие `reset` ленты (новый чат): титул и время чата сбрасываются вместе с

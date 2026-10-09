@@ -9,7 +9,7 @@
 // интерфейс получает фикстуру (src/fixture.ts, параметры адреса — src/viewparams.ts).
 import { chromium } from "@playwright/test";
 
-import { done, startInterface, INSTALL } from "../lib/ui_lib.mjs";
+import { done, openContextPanel, startInterface, INSTALL } from "../lib/ui_lib.mjs";
 
 const WIDE = { width: 1440, height: 900 };
 const H1_PX = 22;
@@ -273,10 +273,12 @@ try {
     const live = await browser.newPage({ viewport: WIDE });
     await live.goto(`${iface.url}?состояние=проект`, { waitUntil: "domcontentloaded", timeout: 90_000 });
     try {
-      await live.waitForSelector('[data-testid="context-panel"]', { timeout: 15000 });
+      await live.waitForSelector('[data-testid="chat-header"]', { timeout: 15000 });
     } catch {
-      done(1, "правой панели нет на 1440×900");
+      done(1, "шапки чата нет на 1440×900 — меню «⋯» нечем открыть");
     }
+    // Панель скрыта по умолчанию («тихий хром», §6) — живость проверяется открытой.
+    await openContextPanel(live);
     const panelText = await live.$eval('[data-testid="context-panel"]', (el) => el.textContent.replace(/\s+/g, " "));
     if (panelText.includes("позже")) {
       done(1, `в правой панели остались строки-заглушки «позже» — панель показывает реальное`);
@@ -361,6 +363,8 @@ try {
     // папки (у фикстуры он отвечает своим проектом) — тумблер включается честным действием.
     const fromEmpty = await browser.newPage({ viewport: WIDE });
     await fromEmpty.goto(`${iface.url}?состояние=пусто`, { waitUntil: "domcontentloaded", timeout: 90_000 });
+    await fromEmpty.waitForSelector('[data-testid="chat-header"]', { timeout: 90000 });
+    await openContextPanel(fromEmpty);
     await fromEmpty.waitForSelector('[data-testid="context-panel"]', { timeout: 90000 });
     await fromEmpty.click('[data-testid="context-toggle-fs"]');
     try {
@@ -381,9 +385,12 @@ try {
     await fromEmpty.close();
 
     // Команды подключённого плагина в панели и ход одобрения: клик по кнопке панели.
+    // Клик по «+» закрывает панель (клик снаружи, «тихий хром» §6) — после подключения
+    // панель открывается из меню «⋯» снова, команды читаются в ней.
     await live.click('[data-testid="composer-add"]');
     await live.click('[data-testid="add-connect-plugin"]');
     await live.click('[data-testid="plugin-picker"] [data-testid="plugin-row"][data-plugin="git"]');
+    await openContextPanel(live);
     try {
       await live.waitForSelector('[data-testid="context-command"][data-command="git:diff"]', { timeout: 5000 });
     } catch {

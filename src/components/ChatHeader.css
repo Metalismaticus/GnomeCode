@@ -1,6 +1,7 @@
 /* Шапка чата: не ниже 48 px, чтобы строки шапки и правой панели совпали по горизонтали.
    Фон — фон окна, а не панель: полоса над разговором не светлее содержимого, окно
-   читается одним листом (docs/specs/2026-10-08-1-чат.md, §5). */
+   читается одним листом (docs/specs/2026-10-08-1-чат.md, §5). position: relative —
+   якорь меню «⋯» (HeaderMenu.css). */
 
 .chat-header {
   display: flex;
@@ -10,6 +11,7 @@
   padding: var(--space-3) var(--space-5);
   border-bottom: 1px solid var(--border);
   background: var(--bg);
+  position: relative;
 }
 
 .chat-header__title {
@@ -22,10 +24,10 @@
   text-overflow: ellipsis;
 }
 
-/* Бейдж модели — кнопка входа панели «Сравнение моделей» (пункт 10): те же
-   состояния, что у остальных кнопок шапки — наведение, нажатие, нажатость.
-   Полупрозрачный фон акцента + градиентная рамка — приём образца, состояние
-   выбранного (docs/specs/2026-10-06-11-glavnoe.md, «Состояния»). */
+/* Бейдж модели — кнопка входа панели «Сравнение моделей»: те же состояния, что у
+   остальных кнопок шапки — наведение, нажатие, нажатость. Полупрозрачный фон
+   акцента + градиентная рамка — приём образца, состояние выбранного. Единственное
+   акцентное пятно шапки («тихий хром», §4). */
 .chat-header__badge {
   display: inline-flex;
   align-items: center;
@@ -54,59 +56,12 @@
   outline-offset: 2px;
 }
 
-/* Кнопки подключённых плагинов: ряд с бейджем модели, в ряд; кнопки не сжимаются
-   и не режутся краем — замер помещаемости (ChatHeader.tsx) сворачивает не
-   поместившиеся в бейдж «+N», а `overflow: hidden` страхует один кадр до замера.
-   Сам ряд не сжимается (flex-shrink: 0): его место считает замер от шапки,
-   заголовок чата уступает место ряду. */
-.chat-header__plugins {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-width: 0;
-  max-width: 50%;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.chat-header__plugins .plugin-button {
-  flex: none;
-}
-
-/* Бейдж «+N»: тот же приглушённый вид, что у кнопок плагинов; клик открывает
-   панель «Плагины этого чата», с клавиатуры — Tab до него и Enter. */
+/* «⋯»: призрачная 32×32, знак приглушённый; наведение и открытость — фон и текст
+   ярче (состояния — спека «тихого хрома», §10). */
 .chat-header__more {
-  flex: none;
-  padding: 2px var(--space-2);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--bg-panel-2);
-  color: var(--text);
-  font-size: 11px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.chat-header__more:hover {
-  background: var(--bg-hover);
-}
-
-.chat-header__more:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-/* Проба замера: вне потока и невидима, но измерима — ряд заранее знает ширину
-   бейджа и не занижает, сколько кнопок помещается. */
-.chat-header__more--idle {
-  position: absolute;
-  visibility: hidden;
-}
-
-/* Кнопка правой панели: призрачная, 32×32. При ширине ≥ 1200 px не рисуется вовсе —
-   панель и так на месте, и причина видна в подсказке самой панели. */
-.chat-header__panel {
-  display: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 32px;
   height: 32px;
   min-width: 32px;
@@ -118,20 +73,13 @@
   line-height: 1;
 }
 
-.chat-header__panel:hover {
+.chat-header__more:hover,
+.chat-header__more[aria-expanded="true"] {
   background: var(--bg-hover);
   color: var(--text);
 }
 
-.chat-header__panel[aria-pressed="true"] {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-@media (max-width: 1199px) {
-  .chat-header__panel {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
+.chat-header__more:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }

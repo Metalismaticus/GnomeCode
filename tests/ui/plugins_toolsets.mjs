@@ -12,7 +12,7 @@
 // интерфейс получает фикстуру (src/fixtureToolsets.ts, состояние `?состояние=плагины`).
 import { chromium } from "@playwright/test";
 
-import { commandButton, connectPlugin, done, headerCommands, installedCard, openChatPlugins, openState, startInterface, INSTALL } from "../lib/ui_lib.mjs";
+import { closeMore, commandButton, connectPlugin, done, headerCommands, installedCard, openChatPlugins, openMore, openState, startInterface, INSTALL } from "../lib/ui_lib.mjs";
 
 const WIDE = { width: 1440, height: 900 };
 /** Сет из двух плагинов: одна кнопка в шапке — и ни одна из них не потерялась. */
@@ -40,8 +40,10 @@ const closeToolsets = async (page) => {
   await page.waitForSelector(PICKER, { state: "detached", timeout: 5000 });
 };
 
-/** Снятие плагина с чата: его кнопка ушла из шапки. */
+/** Снятие плагина с чата: его пункт ушел из открытого меню «⋯» — пункты живут
+ *  только в открытом меню, отсутствие читается в нём же. */
 const removedFromChat = async (page, command) => {
+  await openMore(page);
   try {
     await page.waitForFunction(
       (needle) => !Array.from(document.querySelectorAll('[data-testid="plugin-button"]')).some((el) => el.getAttribute("data-command") === needle),
@@ -49,8 +51,9 @@ const removedFromChat = async (page, command) => {
       { timeout: 5000 },
     );
   } catch {
-    done(1, `после снятия с чата кнопка «${command}» осталась — снятие кнопок не убрало`);
+    done(1, `после снятия с чата пункт «${command}» остался — снятие пунктов не убрало`);
   }
+  await closeMore(page);
 };
 
 /** Строки сета нет в окне: удаление сработало (или отменилось корректно). */
@@ -124,25 +127,29 @@ try {
     }
     await closeToolsets(page);
 
-    // г) Клик по строке сета подключает группу: кнопки обоих плагинов в шапке -------
+    // г) Клик по строке сета подключает группу: пункты обеих команд в меню «⋯» -----
+    await openMore(page);
     try {
       await page.waitForSelector(commandButton(PAIR_COMMAND), { timeout: 3000 });
-      done(1, "после перезагрузки кнопки git на месте — сохранение сета не из чат-ского подключения сломало порядок проверки");
+      done(1, "после перезагрузки пункты git на месте — сохранение сета не из чат-ского подключения сломало порядок проверки");
     } catch {
-      // Новый чат без кнопок — видно, что подключает именно клик по сету.
+      // Новый чат без пунктов — видно, что подключает именно клик по сету.
     }
+    await closeMore(page);
     await openToolsets(page);
     await page.click(ROW(SET_NAME));
-    // Кнопки приходят с ответом подключения: в окне plugin_toolset_connect делает
-    // ходы к движку по HTTP — читать шапку можно, когда кнопка доехала.
+    // Пункты приходят с ответом подключения: в окне plugin_toolset_connect делает
+    // ходы к движку по HTTP — читать меню можно, когда пункт доехал.
+    await openMore(page);
     try {
       await page.waitForSelector(commandButton(PAIR_COMMAND), { timeout: 5000 });
     } catch {
-      done(1, `клик по сету не дал кнопку «${PAIR_COMMAND}» в шапке за 5 с — список из ответа подключения не применён`);
+      done(1, `клик по сету не дал пункт «${PAIR_COMMAND}» в меню «⋯» за 5 с — список из ответа подключения не применён`);
     }
+    await closeMore(page);
     const shown = await headerCommands(page);
     if (!shown.includes(PAIR_COMMAND) || !shown.includes(SOLO_COMMAND)) {
-      done(1, `клик по сету не дал кнопок в шапке: ${JSON.stringify(shown)} — ожиданы ${PAIR_COMMAND} и ${SOLO_COMMAND}`);
+      done(1, `клик по сету не дал пунктов в меню «⋯»: ${JSON.stringify(shown)} — ожиданы ${PAIR_COMMAND} и ${SOLO_COMMAND}`);
     }
     await closeToolsets(page);
 
@@ -193,11 +200,13 @@ try {
 
     // ж) Перезагрузка: проектный дефолт возвращает git в каждом новом чате ----------
     await page.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
+    await openMore(page);
     try {
       await page.waitForSelector(commandButton(PAIR_COMMAND), { timeout: 90_000 });
     } catch {
-      done(1, "после перезагрузки кнопки «diff» нет — дефолт проекта из Tool Set не вернул плагин в новый чат");
+      done(1, "после перезагрузки пункта «diff» нет — дефолт проекта из Tool Set не вернул плагин в новый чат");
     }
+    await closeMore(page);
 
     // з) Крестик строки сета: подтверждение «Удалить»/«Отмена» по образцу
     //    Uninstall; удалённый сет уходит насовсем, подключённые плагины
@@ -226,11 +235,13 @@ try {
     await closeToolsets(page);
     await page.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
     await page.waitForSelector('[data-testid="chat-header"]', { timeout: 90_000 });
+    await openMore(page);
     try {
       await page.waitForSelector(commandButton(PAIR_COMMAND), { timeout: 90_000 });
     } catch {
-      done(1, "после удаления сета кнопки «diff» нет — удаление сета стёрло скоупы подключённых плагинов");
+      done(1, "после удаления сета пункта «diff» нет — удаление сета стёрло скоупы подключённых плагинов");
     }
+    await closeMore(page);
     await openToolsets(page);
     await rowGone(page, SET_NAME);
     // Чат без подключённых плагинов — сет не из чего создать: причина дословно.
@@ -248,7 +259,7 @@ try {
     await page.close();
     done(
       0,
-      "меню «+» открывает Tool Set, «Save as Tool Set» сохраняет подключённое и переживает перезагрузку, клик по строке подключает группу, «Project» делает сет дефолтом проекта, снятие плагина с чата не деинсталлирует, дефолт возвращает плагин в каждом новом чате, крестик удаляет сет после подтверждения «Удалить»/«Отмена», подключённые плагины и скоупы не трогает",
+      "меню «+» открывает Tool Set, «Save as Tool Set» сохраняет подключённое и переживает перезагрузку, клик по строке подключает группу, «Project» делает сет дефолтом проекта, снятие плагина с чата не деинсталлирует, дефолт возвращает плагин в каждом новом чате, крестик удаляет сет после подтверждения «Удалить»/«Отмена», подключённые плагины и скоупы не трогает (пункты команд — в меню «⋯»)",
     );
   } finally {
     await browser.close();

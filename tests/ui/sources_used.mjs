@@ -7,7 +7,7 @@
 // Итог: код возврата и последняя строка вывода — как у любой проверки (tests/lib/runner_lib.py).
 // Страница интерфейса, а не окно Tauri: ленту вне окна даёт фикстура (src/fixture.ts) —
 // те же строки, что собирает мост из событий движка.
-import { done, connectPlugin, commandButton, openStatePage, startInterface, INSTALL } from "../lib/ui_lib.mjs";
+import { closeMore, commandButton, connectPlugin, done, openContextPanel, openMore, openStatePage, startInterface, INSTALL } from "../lib/ui_lib.mjs";
 
 const FILE = "bridge.ts";
 const DIR = "components";
@@ -24,6 +24,9 @@ const iface = await startInterface();
 try {
   const { browser, page } = await openStatePage(iface, "проект");
   try {
+    // Дерево файлов живёт в правой панели: она скрыта по умолчанию («тихий хром»,
+    // §6) — открываем из меню «⋯», как владелец.
+    await openContextPanel(page);
 
     // а) Вопрос с файлом: чип → отправка → под ответом блок «Sources used» ----------
     await page.click(`[data-testid="tree-toggle"][data-name="${DIR}"]`);
@@ -61,6 +64,7 @@ try {
 
     // в) Плагин как источник: команда исполнена → блок называет и плагин -------------
     await connectPlugin(page, "git");
+    await openMore(page);
     await page.click(commandButton("git:diff"));
     try {
       await page.waitForSelector('[data-testid="approval-allow"]', { timeout: 5000 });
