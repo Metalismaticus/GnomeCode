@@ -29,6 +29,12 @@ Desktop AI coding client for Windows: multi-model chat over the OpenCode core, t
 - The Plugins page: cards with enable/disable/uninstall, call activity and counters.
 - Model comparison from opencode.ai: prices per million tokens, benchmarks,
   "Choose" switches the chat's model or the default one.
+- Providers: the engine's full provider list in Settings plus custom
+  OpenAI-compatible endpoints (base URL, key in the Windows credential store);
+  endpoint models appear in the chat's model switch; providers toggle on/off.
+- Statistics: a Statistics section with money, token and time spend over
+  7/30/all days, split by projects and models; the active project shows
+  "this project cost X".
 - Settings: theme and language, default model, provider keys (Windows
   Credential Manager), default permissions, the data folder.
 - Chat, theme, project folder and settings survive an app restart; the engine
