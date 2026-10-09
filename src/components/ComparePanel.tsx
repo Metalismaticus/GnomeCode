@@ -35,6 +35,7 @@ const LOADING = "Читаю каталог моделей…";
 const ERROR_TITLE = "Сайт opencode.ai недоступен";
 const ERROR_HINT = "Данные ещё не загружались — нажмите «Обновить» позже";
 const NO_BENCHMARKS = "Бенчмарков нет";
+const ENGINE_SECTION = "Модели движка";
 
 /** Панель поверх области чата: шапка с датой и «Обновить», поиск, таблица. */
 export function ComparePanel({ compare, currentModel, mode, initialExpanded, onChoose, onClose }: ComparePanelProps) {
@@ -48,6 +49,10 @@ export function ComparePanel({ compare, currentModel, mode, initialExpanded, onC
   }, []);
 
   const title = mode === "default" ? TITLE_DEFAULT : TITLE;
+  // Модели движка (свои endpoint'ы, локальные серверы) идут после каталога
+  // под своим заголовком: цены у них «—», поиск находит их вместе с каталогом.
+  const catalog = compare.models.filter((model) => !model.engine);
+  const engine = compare.models.filter((model) => model.engine);
   const body = (() => {
     if (compare.error) {
       return (
@@ -63,17 +68,33 @@ export function ComparePanel({ compare, currentModel, mode, initialExpanded, onC
     if (!compare.models.length) {
       return <div className="compare-panel__message">{EMPTY_SEARCH}</div>;
     }
-    return compare.models.map((model) => (
-      <Row
-        key={model.id}
-        model={model}
-        current={model.name === currentModel}
-        mode={mode}
-        expanded={expanded === model.id}
-        onToggle={() => setExpanded((open) => (open === model.id ? null : model.id))}
-        onChoose={() => onChoose(model)}
-      />
-    ));
+    return (
+      <>
+        <RowList
+          models={catalog}
+          currentModel={currentModel}
+          mode={mode}
+          expanded={expanded}
+          setExpanded={setExpanded}
+          onChoose={onChoose}
+        />
+        {engine.length ? (
+          <>
+            <div className="compare-panel__section" data-testid="compare-engine-section">
+              {ENGINE_SECTION}
+            </div>
+            <RowList
+              models={engine}
+              currentModel={currentModel}
+              mode={mode}
+              expanded={expanded}
+              setExpanded={setExpanded}
+              onChoose={onChoose}
+            />
+          </>
+        ) : null}
+      </>
+    );
   })();
 
   return (
@@ -91,6 +112,40 @@ export function ComparePanel({ compare, currentModel, mode, initialExpanded, onC
       <Columns />
       <div className="compare-panel__list">{body}</div>
     </div>
+  );
+}
+
+/** Строки одной части таблицы: каталог или секция движка — одно раскрытие на
+ *  панель, «Выбрать» общим выбором. */
+function RowList({
+  models,
+  currentModel,
+  mode,
+  expanded,
+  setExpanded,
+  onChoose,
+}: {
+  models: CompareModel[];
+  currentModel: string;
+  mode: "chat" | "default";
+  expanded: string | null;
+  setExpanded: (update: (open: string | null) => string | null) => void;
+  onChoose: (model: CompareModel) => void;
+}) {
+  return (
+    <>
+      {models.map((model) => (
+        <Row
+          key={model.id}
+          model={model}
+          current={model.name === currentModel}
+          mode={mode}
+          expanded={expanded === model.id}
+          onToggle={() => setExpanded((open) => (open === model.id ? null : model.id))}
+          onChoose={() => onChoose(model)}
+        />
+      ))}
+    </>
   );
 }
 

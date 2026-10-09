@@ -10,8 +10,10 @@
 //
 // Состояния адреса (src/viewparams.ts): `сравнение-загрузка` — запрос висит;
 // `сравнение-ошибка` — сайт не отвечает, кэша нет; `сравнение-кэш` — таблица
-// со снимка, у которого прошлая дата и помечена недоступность сайта.
+// со снимка, у которого прошлая дата и помечена недоступность сайта;
+// `сравнение-медленно` — ответ едет как живой invoke (MEASURED_INVOKE_MS).
 import type { CompareModel, CompareSnapshot } from "./compare";
+import { endpointModels } from "./fixtureSettings";
 import { params } from "./viewparams";
 
 const BENCH = (name: string, score: number, metric: string) => ({ name, score, metric });
@@ -144,14 +146,59 @@ const LONG: CompareModel = {
 
 const MODELS: CompareModel[] = [GLM, CLAUDE, NORTH, DEEPSEEK, QWEN, LONG];
 
+/** Модели включённых endpoint'ов — секция «Модели движка» переключателя:
+ *  та же форма, что у моделей движка в снимке (compare.rs::with_engine_models):
+ *  цена «—», «Выбрать» живая, лаба — имя endpoint'а. */
+function engineModels(): CompareModel[] {
+  return endpointModels().flatMap((one) =>
+    one.models.map((model) => ({
+      id: `${one.id}/${model}`,
+      lab: one.lab,
+      name: model,
+      description: "Модель движка вне каталога opencode.ai",
+      context: 8192,
+      input: null,
+      output: null,
+      cacheRead: null,
+      releaseDate: null,
+      reasoning: false,
+      toolCall: true,
+      openWeights: false,
+      imageOutput: false,
+      benchmarks: [],
+      available: true,
+      engine: true,
+    })),
+  );
+}
+
 /** Дата кэш-состояния: «Обновлено 6 окт, 07:38» из таблицы спецификации. */
 const CACHED_AT = new Date(2026, 9, 6, 7, 38).getTime();
 
-/** Каталог по состоянию страницы: свежий, из кэша, загрузка или ошибка сети. */
+/** Задержка ответа `сравнение-медленно`: настоящий invoke моста занимает
+ *  десятки миллисекунд, и на задержке виден цикл перечитывания — мгновенный
+ *  ответ фикстуры батчится до коммита и цикл прячет (зонд проверяющего,
+ *  круг 1: 154 переворота «Обновить» за 5 с на 60 мс). */
+const MEASURED_INVOKE_MS = 60;
+
+/** Свежий каталог фикстуры: модели каталога плюс секция движка. */
+function fresh(): CompareSnapshot {
+  const models = [...MODELS, ...engineModels()];
+  return {
+    fetchedAt: new Date(2026, 9, 6, 11, 24).getTime(),
+    models: models.map((one) => ({ ...one, benchmarks: [...one.benchmarks] })),
+    stale: false,
+  };
+}
+
+/** Каталог по состоянию страницы: свежий, из кэша, загрузка, ошибка сети, медленный. */
 export function list(): Promise<CompareSnapshot> {
   if (params.feed === "сравнение-загрузка") {
     // Сеть отвечает дольше сценария: строка ожидания держится, «Обновить» выключена.
     return new Promise<CompareSnapshot>(() => {});
+  }
+  if (params.feed === "сравнение-медленно") {
+    return new Promise((resolve) => setTimeout(() => resolve(fresh()), MEASURED_INVOKE_MS));
   }
   if (params.feed === "сравнение-ошибка") {
     return Promise.reject(new Error("opencode.ai не отвечает"));
@@ -159,13 +206,9 @@ export function list(): Promise<CompareSnapshot> {
   if (params.feed === "сравнение-кэш") {
     return Promise.resolve({
       fetchedAt: CACHED_AT,
-      models: MODELS.map((one) => ({ ...one, benchmarks: [...one.benchmarks] })),
+      models: [...MODELS, ...engineModels()].map((one) => ({ ...one, benchmarks: [...one.benchmarks] })),
       stale: true,
     });
   }
-  return Promise.resolve({
-    fetchedAt: new Date(2026, 9, 6, 11, 24).getTime(),
-    models: MODELS.map((one) => ({ ...one, benchmarks: [...one.benchmarks] })),
-    stale: false,
-  });
+  return Promise.resolve(fresh());
 }

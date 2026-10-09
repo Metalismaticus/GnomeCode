@@ -7,13 +7,14 @@ pub mod opencode;
 pub mod plugins;
 pub mod project;
 pub mod providers;
+pub mod providers_store;
 pub mod state;
 
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use opencode::{Chat, Sink, WindowSink};
-use plugins::commands::{catalog_list, data_folder, key_remove, key_save, key_status, plugin_connect, plugin_decide, plugin_disconnect, plugin_install, plugin_list, plugin_run, plugin_set_enabled, plugin_set_rule, plugin_toolset_connect, plugin_toolset_delete, plugin_toolset_save, plugin_toolsets, plugin_uninstall, plugin_updates_note, provider_list, settings_defaults, settings_set_default};
+use plugins::commands::{catalog_list, data_folder, endpoint_add, endpoint_remove, key_remove, key_save, key_status, plugin_connect, plugin_decide, plugin_disconnect, plugin_install, plugin_list, plugin_run, plugin_set_enabled, plugin_set_rule, plugin_toolset_connect, plugin_toolset_delete, plugin_toolset_save, plugin_toolsets, plugin_uninstall, plugin_updates_note, provider_list, provider_set_enabled, settings_defaults, settings_set_default};
 use plugins::commands::data_dir;
 use plugins::permissions::Grants;
 use plugins::registry::Registry;
@@ -107,6 +108,7 @@ fn project_read_tree(path: String) -> Result<Vec<project::Node>, String> {
 /// Прикреплённые файлы читает мост: движку уходит их содержимое, а в ленте видно имена.
 #[tauri::command]
 fn chat_send(
+    app: AppHandle,
     chat: State<'_, Chat>,
     project: State<'_, Project>,
     registry: State<'_, Registry>,
@@ -121,6 +123,14 @@ fn chat_send(
     // как раньше, модели движка.
     let saved = store.load();
     let model = saved.chat_model.or(saved.default_model);
+    // У провайдера модели нет ключа — в ленте строка «нет ключа — задайте в
+    // настройках», запрос движку не уходит (критерий провайдеров, 2026-10-09):
+    // лента знает отказ через ответ команды (useFeed показывает его строкой).
+    if let Some(choice) = &model {
+        if let Some(reason) = plugins::commands::provider_key_missing(&app, &chat, &choice.id) {
+            return Err(reason);
+        }
+    }
     chat.send(&sent.shown, &sent.prompt, &sent.files, model)?;
     // Скоуп «Once» (docs/SPEC/plugins.md, сцена E): соединение служит текущему
     // запросу — следующий вопрос снимает плагин с чата, установка не трогается.
@@ -159,7 +169,8 @@ async fn compare_list(app: AppHandle, chat: State<'_, Chat>) -> Result<compare::
         // Кэша нет (первый запуск): каталог с сайта, он же в кэш этого запуска.
         compare::load(compare::CATALOG_URL, compare::PRICES_URL, &path)?
     };
-    compare::availability(chat.endpoint(), &mut snapshot);
+    let disabled = providers_store::at(&providers_store::file(data_dir(&app))).disabled;
+    compare::availability(chat.endpoint(), &mut snapshot, &disabled);
     Ok(snapshot)
 }
 
@@ -169,7 +180,8 @@ async fn compare_list(app: AppHandle, chat: State<'_, Chat>) -> Result<compare::
 async fn compare_refresh(app: AppHandle, chat: State<'_, Chat>) -> Result<compare::Snapshot, String> {
     let path = compare::file(data_dir(&app));
     let mut snapshot = compare::load(compare::CATALOG_URL, compare::PRICES_URL, &path)?;
-    compare::availability(chat.endpoint(), &mut snapshot);
+    let disabled = providers_store::at(&providers_store::file(data_dir(&app))).disabled;
+    compare::availability(chat.endpoint(), &mut snapshot, &disabled);
     Ok(snapshot)
 }
 
@@ -203,10 +215,13 @@ pub fn run() {
             plugin_updates_note,
             project_pick_folder,
             project_read_tree,
+            endpoint_add,
+            endpoint_remove,
             key_save,
             key_remove,
             key_status,
             provider_list,
+            provider_set_enabled,
             data_folder,
             settings_defaults,
             settings_set_default,
@@ -220,14 +235,21 @@ pub fn run() {
             crate::opencode::log_startup("setup начат");
             // Данные окна: что переживает перезапуск приложения. Папку данных даёт
             // переменная окружения (проверки и копии), иначе — папка данных Tauri.
+            let data_folder = std::env::var(state::DATA_DIR_VAR)
+                .ok()
+                .map(PathBuf::from)
+                .unwrap_or_else(|| {
+                    app.path()
+                        .app_data_dir()
+                        .unwrap_or_else(|_| std::env::temp_dir())
+                });
             let store = Arc::new(Store::at(Store::location(
-                std::env::var(state::DATA_DIR_VAR)
-                    .ok()
-                    .map(PathBuf::from),
-                app.path()
-                    .app_data_dir()
-                    .unwrap_or_else(|_| std::env::temp_dir()),
+                Some(data_folder.clone()),
+                data_folder.clone(),
             )));
+            // Конфиг провайдеров (providers.json) движок читает из этой папки на
+            // каждом подъёме: endpoint'ы и включённость — свежими после рестарта.
+            crate::opencode::engine::set_config_folder(data_folder);
             let saved = store.load();
             app.manage(Arc::clone(&store));
             let project = Project::default();

@@ -164,6 +164,16 @@
   color: var(--text-faint);
 }
 
+/* Секция «Модели движка»: модели ядра вне каталога (свои endpoint'ы,
+   локальные серверы) перед своими строками — заголовок как у столбцов. */
+.compare-panel__section {
+  padding: var(--space-3) var(--space-2) var(--space-1);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
 /* Строка модели: имя с лабой, числа, оценка и «Выбрать». */
 .compare-line__row {
   position: relative;

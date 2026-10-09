@@ -25,14 +25,19 @@ export type SettingsState = {
   retry: () => void;
   /** Сменить умолчание одной категории прав. */
   setDefault: (category: string, value: string) => void;
+  /** Включить или выключить провайдера/endpoint: модели выключенного уходят
+   *  из переключателя чата. */
+  setEnabled: (id: string, enabled: boolean) => Promise<void>;
+  /** Добавить свой endpoint: имя + база URL (+ ключ); список обновляется сам. */
+  addEndpoint: (name: string, baseUrl: string, key: string) => Promise<void>;
+  /** Удалить свой endpoint. */
+  removeEndpoint: (id: string) => Promise<void>;
 };
 
-export function useSettings(): SettingsState {
+/** Список провайдеров и его повтор: loading/error/data — узор useCatalog. */
+function useProviderRows() {
   const [providers, setProviders] = useState<ProviderRow[] | null>(null);
   const [error, setError] = useState("");
-  const [keys, setKeys] = useState<Record<string, boolean>>({});
-  const [defaults, setDefaults] = useState<RuleEntry[]>([]);
-  const [folder, setFolder] = useState("");
 
   const load = useCallback(() => {
     setError("");
@@ -49,8 +54,13 @@ export function useSettings(): SettingsState {
     load();
   }, [load]);
 
-  /** Умолчания прав — от секции rules.json; права и тема от движка не зависят
-   *  (спека «Движок недоступен») — отдельный запрос не мешает ошибке списка. */
+  return { providers, setProviders, error, setError, load };
+}
+
+/** Умолчания прав — от секции rules.json; права и тема от движка не зависят
+ *  (спека «Движок недоступен») — отдельный запрос не мешает ошибке списка. */
+function useDefaultsList(setError: (reason: string) => void) {
+  const [defaults, setDefaults] = useState<RuleEntry[]>([]);
   useEffect(() => {
     let alive = true;
     bridge()
@@ -66,9 +76,13 @@ export function useSettings(): SettingsState {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [setError]);
+  return { defaults, setDefaults };
+}
 
-  /** Путь папки данных — показ, не действие; читаётся один раз при входе. */
+/** Путь папки данных — показ, не действие; читаётся один раз при входе. */
+function useDataFolder() {
+  const [folder, setFolder] = useState("");
   useEffect(() => {
     let alive = true;
     bridge()
@@ -85,8 +99,12 @@ export function useSettings(): SettingsState {
       alive = false;
     };
   }, []);
+  return folder;
+}
 
-  /** Статусы ключей после свежего списка: по одному, секрет не читается. */
+/** Пометки «задан/не задан» после свежего списка: по одному, секрет не читается. */
+function useKeyMarks(providers: ProviderRow[] | null) {
+  const [keys, setKeys] = useState<Record<string, boolean>>({});
   useEffect(() => {
     if (!providers) {
       return;
@@ -98,41 +116,98 @@ export function useSettings(): SettingsState {
         // Заметки не читаются — строки покажут «ключ не задан»: безопаснее.
       });
   }, [providers]);
+  return { keys, setKeys };
+}
 
-  const saveKey = useCallback(async (provider: string, secret: string) => {
-    await bridge().saveKey(provider, secret);
-    setKeys((held) => ({ ...held, [provider]: true }));
-    const fresh = await bridge().providerList();
-    setProviders(fresh);
-    const row = fresh.find((one) => one.id === provider);
-    return {
-      id: provider,
-      name: row?.name ?? provider,
-      models: row?.models ?? 0,
-    };
-  }, []);
-
-  const removeKey = useCallback(async (provider: string) => {
-    await bridge().removeKey(provider);
-    setKeys((held) => ({ ...held, [provider]: false }));
-  }, []);
-
-  const setDefault = useCallback((category: string, value: string) => {
-    void bridge()
-      .setDefault(category, value)
-      .then(setDefaults)
+/** Действия над списком провайдеров: каждый мост вызывает и перечитывает
+ *  список — строки раздела обновляются одним путём. */
+function useProviderActions(
+  setProviders: (rows: ProviderRow[]) => void,
+  setError: (reason: string) => void,
+) {
+  const refreshList = useCallback(() => {
+    return bridge()
+      .providerList()
+      .then(setProviders)
       .catch((reason: unknown) => setError(String(reason)));
-  }, []);
+  }, [setProviders, setError]);
+
+  const setEnabled = useCallback(
+    async (id: string, enabled: boolean) => {
+      await bridge().providerSetEnabled(id, enabled);
+      await refreshList();
+    },
+    [refreshList],
+  );
+
+  const addEndpoint = useCallback(
+    async (name: string, baseUrl: string, key: string) => {
+      await bridge().endpointAdd(name, baseUrl, key);
+      await refreshList();
+    },
+    [refreshList],
+  );
+
+  const removeEndpoint = useCallback(
+    async (id: string) => {
+      await bridge().endpointRemove(id);
+      await refreshList();
+    },
+    [refreshList],
+  );
+
+  return { refreshList, setEnabled, addEndpoint, removeEndpoint };
+}
+
+export function useSettings(): SettingsState {
+  const list = useProviderRows();
+  const { defaults, setDefaults } = useDefaultsList(list.setError);
+  const folder = useDataFolder();
+  const { keys, setKeys } = useKeyMarks(list.providers);
+  const actions = useProviderActions(list.setProviders, list.setError);
+
+  const saveKey = useCallback(
+    async (provider: string, secret: string) => {
+      await bridge().saveKey(provider, secret);
+      setKeys((held) => ({ ...held, [provider]: true }));
+      const fresh = await bridge().providerList();
+      list.setProviders(fresh);
+      const row = fresh.find((one) => one.id === provider);
+      return row ?? { id: provider, name: provider, models: 0, endpoint: false, enabled: true };
+    },
+    [list.setProviders, setKeys],
+  );
+
+  const removeKey = useCallback(
+    async (provider: string) => {
+      await bridge().removeKey(provider);
+      setKeys((held) => ({ ...held, [provider]: false }));
+    },
+    [setKeys],
+  );
+
+  const setDefault = useCallback(
+    (category: string, value: string) => {
+      void bridge()
+        .setDefault(category, value)
+        .then(setDefaults)
+        .catch((reason: unknown) => list.setError(String(reason)));
+    },
+    [list.setError, setDefaults],
+  );
 
   return {
-    providers,
-    error,
+    providers: list.providers,
+    error: list.error,
     keys,
     defaults,
     folder,
     saveKey,
     removeKey,
-    retry: load,
+    retry: list.load,
     setDefault,
+    setEnabled: actions.setEnabled,
+    addEndpoint: actions.addEndpoint,
+    removeEndpoint: actions.removeEndpoint,
   };
 }

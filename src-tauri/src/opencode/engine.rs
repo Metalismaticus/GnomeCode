@@ -12,7 +12,6 @@ use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-
 use super::client::{Api, Endpoint};
 use super::job::Job;
 
@@ -28,6 +27,24 @@ const LOG_LINES: usize = 20;
 /// Пароль держим столько, сколько живёт сервер: он нужен только для localhost.
 const PASSWORD_HEX: usize = 32;
 
+/// Папка данных процесса для конфига провайдеров: setup окна (lib.rs) приносит
+/// её до подъёма ленты — поток `Chat::start` править нельзя (общий узел
+/// opencode/). До установки — конфига нет, движок поднимается как раньше.
+static CONFIG_FOLDER: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+
+/// Задать папку данных для конфига провайдеров: зовёт setup окна один раз.
+pub fn set_config_folder(folder: PathBuf) {
+    let _ = CONFIG_FOLDER.set(folder);
+}
+
+/// Конфиг провайдеров из providers.json: включённые endpoint'ы с ключами из
+/// хранилища ОС; папка не задана или endpoint'ов нет — None.
+fn provider_config() -> Option<String> {
+    let folder = CONFIG_FOLDER.get()?;
+    let held = crate::providers_store::at(&crate::providers_store::file(folder.clone()));
+    crate::providers_store::engine_config(crate::providers::SERVICE, &held)
+}
+
 /// Живой движок: дочерний процесс и всё, что о нём знает клиент.
 pub struct Engine {
     exe: PathBuf,
@@ -38,11 +55,23 @@ pub struct Engine {
     /// жёстким убийством) убивает движок-ребёнка — сироты не остаётся.
     job: Job,
     log: Arc<Mutex<VecDeque<String>>>,
+    /// Конфиг провайдеров на каждый подъём: включённость и endpoint'ы могли
+    /// смениться с прошлого запуска (providers.json перечитывается в замыкании).
+    config: Arc<dyn Fn() -> Option<String> + Send + Sync>,
 }
 
 impl Engine {
     /// Поднять движок: найти, занять свободный порт, задать пароль, дождаться `/api/config`.
+    /// Конфиг провайдеров берётся из папки данных процесса ([`set_config_folder`]) —
+    /// перечитывается на каждом подъёме, тихий рестарт несёт свежий.
     pub fn start() -> Result<Engine, String> {
+        Engine::start_with_config(Arc::new(provider_config))
+    }
+
+    /// Поднять движок со своим конфигом провайдеров: замыкание зовётся на каждом
+    /// подъёме (`spawn`), поэтому тихий рестарт после смены endpoint'ов несёт
+    /// свежий конфиг (движок v2.0.25 читает `OPENCODE_CONFIG_CONTENT`).
+    pub fn start_with_config(config: Arc<dyn Fn() -> Option<String> + Send + Sync>) -> Result<Engine, String> {
         let mut engine = Engine {
             exe: locate()?,
             port: free_port()?,
@@ -50,6 +79,7 @@ impl Engine {
             child: None,
             job: Job::new().map_err(|e| format!("не создал Job Object: {e}"))?,
             log: Arc::new(Mutex::new(VecDeque::new())),
+            config,
         };
         engine.spawn()?;
         engine.wait_ready()?;
@@ -109,6 +139,11 @@ impl Engine {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .stdin(Stdio::null());
+        // Конфиг провайдеров — переменной окружения, не файлом: ключ endpoint'а
+        // не должен появиться на диске (providers_store::engine_config).
+        if let Some(config) = (self.config)() {
+            command.env("OPENCODE_CONFIG_CONTENT", config);
+        }
         hide_console(&mut command);
         let mut child = command
             .spawn()

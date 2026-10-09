@@ -139,10 +139,17 @@ export type PluginRun =
 /** Ответ владельца в окне одобрения: один вызов, правило на чат или отказ. */
 export type ApprovalDecision = "allow" | "chat" | "deny";
 
-/** Провайдер движка (GET /api/provider, строка раздела «Модели»): имя на строке,
- *  идентификатор — он же имя записи ключа в Credential Manager; модели —
- *  сколько отдаёт список движка (число в статусе «Ключ принят — …»). */
-export type ProviderRow = { id: string; name: string; models: number };
+/** Провайдер раздела «Провайдеры и ключи» (provider_list): провайдер движка
+ *  (активированный ядром) или свой endpoint; моделей — сколько отдал
+ *  `/api/model` (у endpoint'а — сколько сохранили); включённость — из
+ *  providers.json. */
+export type ProviderRow = {
+  id: string;
+  name: string;
+  models: number;
+  endpoint: boolean;
+  enabled: boolean;
+};
 
 /** Строка умолчаний прав (секция «default» rules.json): категория и значение. */
 export type RuleEntry = { category: string; value: string };
@@ -213,8 +220,16 @@ export type Bridge = {
   stateGet(): Promise<WindowState>;
   /** Правка названных полей состояния: тема папку и чат не затирает. */
   statePatch(patch: WindowPatch): Promise<WindowState>;
-  /** Провайдеры движка: строки раздела «Модели» настроек; ошибка — движок не отвечает. */
+  /** Провайдеры окна настроек: движок плюс свои endpoint'ы; ошибка — движок не отвечает. */
   providerList(): Promise<ProviderRow[]>;
+  /** Включить или выключить провайдера/endpoint: модели выключенного уходят
+   *  из переключателя чата; отдаёт свежий список. */
+  providerSetEnabled(id: string, enabled: boolean): Promise<ProviderRow[]>;
+  /** Добавить свой endpoint: имя + база URL (+ ключ), модели спрашиваются с
+   *  самого endpoint'а, ключ — в хранилище ОС; тихий рестарт несёт его движку. */
+  endpointAdd(name: string, baseUrl: string, key: string): Promise<ProviderRow[]>;
+  /** Удалить свой endpoint: строка и его модели уходят. */
+  endpointRemove(id: string): Promise<ProviderRow[]>;
   /** Статусы ключей: «задан» у провайдера или нет; секрет наружу не идёт. */
   keyStatuses(providers: string[]): Promise<Record<string, boolean>>;
   /** Сохранить ключ и тихо перезапустить движок — читается только при старте. */

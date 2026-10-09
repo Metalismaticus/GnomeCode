@@ -12,7 +12,7 @@
 //! (узор `updatesNote` автообновления). Разбор — в типизированные записи
 //! (ADR-0001): наружу уходят [`Snapshot`] и [`Model`], не JSON источника.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -72,6 +72,11 @@ pub struct Model {
     /// ответил?) — считается доступной: не знать — не запрещать.
     #[serde(default = "yes")]
     pub available: bool,
+    /// Модель движка вне каталога: строка секции «Модели движка» переключателя,
+    /// цена «—». В кэш не пишется: поле ставится при сборке снимка, старые кэши
+    /// без поля читаются (serde default).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub engine: bool,
 }
 
 /// Снимок каталога: строки и дата загрузки (unix-миллисекунды) — «Обновлено …»
@@ -275,6 +280,7 @@ fn model(id: &str, entry: &serde_json::Value, costs: &HashMap<String, Cost>) -> 
             })
             .unwrap_or_default(),
         available: true,
+        engine: false,
     })
 }
 
@@ -308,42 +314,122 @@ fn slug(value: &str) -> String {
     out
 }
 
-/// Модели движка: что доступно у провайдера. `raw` — `data` ответа
-/// `GET /api/provider`: `{all: [{id, models: {…}}], connected: [id]}`
-/// (packages/opencode/src/provider/provider.ts, `ListResult`). Модель доступна,
-/// если у подключённого провайдера есть модель с тем же именем после «/».
-/// Движка нет или он не ответил — снимок не помечается: не знать — не запрещать.
-pub fn with_engine_providers(models: &mut [Model], raw: &serde_json::Value) {
-    let connected = raw.get("connected").and_then(|c| c.as_array());
-    let Some(connected) = connected else { return };
-    let mut served: HashMap<String, ()> = HashMap::new();
-    for provider in raw.get("all").and_then(|a| a.as_array()).into_iter().flatten() {
-        let Some(id) = provider.get("id").and_then(|i| i.as_str()) else { continue };
-        if !connected.iter().any(|one| one.as_str() == Some(id)) {
-            continue;
-        }
-        if let Some(models_map) = provider.get("models").and_then(|m| m.as_object()) {
-            for key in models_map.keys() {
-                served.insert(key.to_string(), ());
+/// Модели движка из `GET /api/model` (v2.0.25: `(providerID, modelID, name,
+/// context)` включённых моделей доступных провайдеров). Провайдер, выключенный
+/// в providers.json, из набора убирается — его модели не помечаются доступными
+/// и в секцию движка не попадают.
+fn engine_models(raw: &serde_json::Value, disabled: &[String]) -> Vec<(String, String, String, u64)> {
+    let Some(list) = raw.as_array() else { return Vec::new() };
+    list.iter()
+        .filter_map(|one| {
+            let provider = one.get("providerID").and_then(|p| p.as_str())?;
+            if disabled.iter().any(|id| id == provider) {
+                return None;
             }
-        }
-    }
-    if served.is_empty() {
+            let model = one
+                .get("modelID")
+                .and_then(|m| m.as_str())
+                .or_else(|| one.get("id").and_then(|m| m.as_str()))?;
+            let enabled = one.get("enabled").and_then(|e| e.as_bool()).unwrap_or(true);
+            if !enabled {
+                return None;
+            }
+            let name = one.get("name").and_then(|n| n.as_str()).unwrap_or_default().to_string();
+            let context = one
+                .get("limit")
+                .and_then(|l| l.get("context"))
+                .and_then(|c| c.as_u64())
+                .unwrap_or_default();
+            Some((provider.to_string(), model.to_string(), name, context))
+        })
+        .collect()
+}
+
+/// Имена провайдеров из `GET /api/provider` (v2.0.25 — список активированных):
+/// подпись лабы строк секции движка.
+fn provider_names(raw: &serde_json::Value) -> HashMap<String, String> {
+    let Some(list) = raw.as_array() else { return HashMap::new() };
+    list.iter()
+        .filter_map(|one| {
+            let id = one.get("id").and_then(|i| i.as_str())?;
+            let name = one.get("name").and_then(|n| n.as_str()).unwrap_or(id);
+            Some((id.to_string(), name.to_string()))
+        })
+        .collect()
+}
+
+/// Модели движка: что доступно у провайдера. `raw` — `data` ответа
+/// `GET /api/model` (список `{providerID, modelID, enabled…}`, v2.0.25;
+/// старая форма `{all, connected}` из /api/provider ядром больше не отдаётся).
+/// Модель каталога доступна, если у включённого провайдера есть модель с тем же
+/// именем после «/». Движка нет или он не ответил — снимок не помечается:
+/// не знать — не запрещать. Ответ есть — пометки пересчитываются целиком,
+/// даже когда выключенные провайдеры оставили список пустым: иначе
+/// выключение не прячет модели (пометка оставалась бы прежней).
+pub fn with_engine_providers(models: &mut [Model], raw_models: &serde_json::Value, disabled: &[String]) {
+    if !raw_models.is_array() {
         return;
     }
+    let served: HashSet<String> = engine_models(raw_models, disabled)
+        .into_iter()
+        .map(|(_, model, _, _)| model)
+        .collect();
     for one in models {
         let Some((_, mid)) = one.id.split_once('/') else { continue };
-        one.available = served.contains_key(mid);
+        one.available = served.contains(mid);
     }
 }
 
-/// Модели движка к снимку: движок поднят — модели помечаются, нет — как есть.
-pub fn availability(chat_endpoint: Option<Endpoint>, snapshot: &mut Snapshot) {
-    let Some(endpoint) = chat_endpoint else { return };
-    let raw = Api::new(&endpoint).providers();
-    if let Ok(raw) = raw {
-        with_engine_providers(&mut snapshot.models, &raw);
+/// Модели движка вне каталога — секция переключателя: строка на модель
+/// включённого провайдера, чьё имя после «/» в каталоге не названо (свои
+/// endpoint'ы, локальные серверы). Выключенный провайдер мимо, известная
+/// каталогу модель не дублируется. Цена у секции «—», «Выбрать» живая.
+pub fn with_engine_models(
+    models: &mut Vec<Model>,
+    raw_models: &serde_json::Value,
+    raw_providers: &serde_json::Value,
+    disabled: &[String],
+) {
+    let known: HashSet<String> = models
+        .iter()
+        .filter_map(|one| one.id.split_once('/').map(|(_, mid)| mid.to_string()))
+        .collect();
+    let names = provider_names(raw_providers);
+    for (provider, model, name, context) in engine_models(raw_models, disabled) {
+        if known.contains(&model) {
+            continue;
+        }
+        models.push(Model {
+            id: format!("{provider}/{model}"),
+            lab: names.get(&provider).cloned().unwrap_or_else(|| provider.clone()),
+            name: if name.is_empty() { model.clone() } else { name },
+            description: "Модель движка вне каталога opencode.ai".to_string(),
+            context,
+            input: None,
+            output: None,
+            cache_read: None,
+            release_date: None,
+            reasoning: false,
+            tool_call: true,
+            open_weights: false,
+            image_output: false,
+            benchmarks: Vec::new(),
+            available: true,
+            engine: true,
+        });
     }
+}
+
+/// Модели движка к снимку: движок поднят — модели помечаются и секция
+/// собирается, нет — как есть. Выключенные провайдеры (providers.json) их
+/// модели прячут и из пометок, и из секции.
+pub fn availability(chat_endpoint: Option<Endpoint>, snapshot: &mut Snapshot, disabled: &[String]) {
+    let Some(endpoint) = chat_endpoint else { return };
+    let api = Api::new(&endpoint);
+    let Ok(raw_models) = api.models() else { return };
+    with_engine_providers(&mut snapshot.models, &raw_models, disabled);
+    let raw_providers = api.providers().unwrap_or(serde_json::Value::Null);
+    with_engine_models(&mut snapshot.models, &raw_models, &raw_providers, disabled);
 }
 
 #[cfg(test)]
@@ -425,10 +511,12 @@ mod tests {
         let _ = std::fs::remove_file(&file);
     }
 
-    /// Провайдеры движка: модель чужой лабы, чьё имя есть у подключённого
+    /// Провайдеры движка: модель чужой лабы, чьё имя есть у включённого
     /// провайдера, доступна; у неподключённого провайдера — «Нет у провайдера».
+    /// Форма `/api/model` v2.0.25: плоский список с providerID/modelID.
     #[test]
-    fn engine_providers_mark_availability() {        let catalog = serde_json::json!({
+    fn engine_providers_mark_availability() {
+        let catalog = serde_json::json!({
             "models": {
                 "zhipuai/glm-5.3-flash": { "name": "GLM-5.3 Flash", "limit": { "context": 200000 } },
                 "deepseek/deepseek-v4-1-flash": { "name": "DeepSeek V4.1 Flash", "limit": { "context": 128000 } }
@@ -437,17 +525,67 @@ mod tests {
         let mut models = parse(&catalog, &serde_json::json!({}));
         with_engine_providers(
             &mut models,
-            &serde_json::json!({
-                "all": [
-                    { "id": "opencode-go", "models": { "glm-5.3-flash": {}, "glm-5.3": {} } },
-                    { "id": "deepseek", "models": { "deepseek-v4-1-flash": {} } }
-                ],
-                "connected": ["opencode-go"]
-            }),
+            &serde_json::json!([
+                { "providerID": "zai-coding-plan", "modelID": "glm-5.3-flash", "enabled": true },
+                { "providerID": "groq", "modelID": "compound", "enabled": true },
+                { "providerID": "broken", "modelID": "off", "enabled": false }
+            ]),
+            &[],
         );
         let glm = models.iter().find(|m| m.id == "zhipuai/glm-5.3-flash").expect("GLM на месте");
-        assert!(glm.available, "имя модели есть у подключённого провайдера — доступна");
+        assert!(glm.available, "имя модели есть у включённого провайдера — доступна");
         let deepseek = models.iter().find(|m| m.id == "deepseek/deepseek-v4-1-flash").expect("DeepSeek на месте");
         assert!(!deepseek.available, "провайдер не подключён — «Нет у провайдера»");
+    }
+
+    /// Выключенный провайдер (providers.json) прячет свои модели: пометка
+    /// «Нет у провайдера» возвращается, в секцию движка модель не попадает.
+    #[test]
+    fn disabled_provider_hides_its_models() {
+        let catalog = serde_json::json!({
+            "models": { "zhipuai/glm-5.3-flash": { "name": "GLM-5.3 Flash", "limit": { "context": 200000 } } }
+        });
+        let mut models = parse(&catalog, &serde_json::json!({}));
+        let served = serde_json::json!([
+            { "providerID": "zai-coding-plan", "modelID": "glm-5.3-flash", "enabled": true }
+        ]);
+        with_engine_providers(&mut models, &served, &[]);
+        assert!(models[0].available, "включён — доступна");
+        with_engine_providers(&mut models, &served, &["zai-coding-plan".to_string()]);
+        assert!(!models[0].available, "выключен — «Нет у провайдера»");
+    }
+
+    /// Секция «Модели движка»: модель своего endpoint'а, которой в каталоге нет,
+    /// добавляется с ценой «—» и пометкой движка; имя после «/», известное
+    /// каталогу, не дублируется; у выключенного провайдера модели нет.
+    #[test]
+    fn engine_models_outside_the_catalog_become_a_section() {
+        let providers = serde_json::json!([
+            { "id": "llm-corp", "name": "Корпоративный прокси" },
+            { "id": "zai-coding-plan", "name": "Z.AI Coding Plan" }
+        ]);
+        let served = serde_json::json!([
+            { "providerID": "llm-corp", "modelID": "corp-model-a", "name": "Corp Model A", "limit": { "context": 8192 }, "enabled": true },
+            { "providerID": "llm-corp", "modelID": "corp-off", "name": "Off", "enabled": false },
+            { "providerID": "zai-coding-plan", "modelID": "glm-5.3-flash", "name": "GLM-5.3 Flash", "enabled": true }
+        ]);
+        let catalog = serde_json::json!({
+            "models": { "zhipuai/glm-5.3-flash": { "name": "GLM-5.3 Flash", "limit": { "context": 200000 } } }
+        });
+        let mut models = parse(&catalog, &serde_json::json!({}));
+        with_engine_models(&mut models, &served, &providers, &[]);
+        assert_eq!(models.len(), 2, "добавлена одна модель движка, известная каталогу не дублировалась: {models:?}");
+        let section = models.last().expect("модель движка в конце снимка");
+        assert_eq!(section.id, "llm-corp/corp-model-a");
+        assert!(section.engine, "строка помечена моделью движка");
+        assert_eq!(section.lab, "Корпоративный прокси", "лаба — имя провайдера");
+        assert_eq!(section.name, "Corp Model A");
+        assert_eq!(section.context, 8192);
+        assert_eq!(section.input, None, "цены у модели движка нет — «—»");
+        assert_eq!(section.output, None);
+        assert!(section.available, "модель движка выбирается");
+
+        with_engine_models(&mut models, &served, &providers, &["llm-corp".to_string()]);
+        assert_eq!(models.len(), 2, "выключенный endpoint секцию не пополнил");
     }
 }

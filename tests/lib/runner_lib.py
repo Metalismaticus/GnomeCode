@@ -21,8 +21,9 @@ LIMITS = {"quick_build": 150, "harness": 180, "window_shot": 600, "opencode_clie
           "plugin_toolsets": 180, "plugins_toolsets": 300,
           "plugins_usage": 300, "plugin_usage": 180, "usage_shot": 120,
           "sources_used": 300, "sources_shot": 120,
-          "compare": 300, "chat_model": 600, "compare_shot": 240,
+          "compare": 300, "chat_model": 600, "compare_shot": 240, "compare_read_once": 300,
           "settings": 300, "settings_shot": 240, "settings_store": 180,
+          "providers_store": 300, "providers_endpoints": 300,
           "full_cycle": 600, "glavnoe": 300, "variant_b": 300, "frameless": 300, "frameless_shot": 240,
           "new_chat": 300, "startup_freeze": 120}  # секунды: замер × 3, одно место
 DEFAULT_LIMIT = 60

@@ -42,8 +42,10 @@ export function Row({
   );
 }
 
-/** Строка провайдера с раскрытием поля ключа: пометка «задан ✓» — статусным
- *  цветом, «Убрать» рисуется только у ключа, который есть. */
+/** Строка провайдера или своего endpoint'а: пометка «задан ✓» — статусным
+ *  цветом, «Убрать» рисуется только у ключа, который есть; у endpoint'а —
+ *  пометка «endpoint» и удаление; у каждого — включённость (выключенный
+ *  прячет свои модели из переключателя чата). */
 export function ProviderRowLine({
   id,
   name,
@@ -53,11 +55,15 @@ export function ProviderRowLine({
   draft,
   status,
   tone,
+  isEndpoint,
+  enabled,
   onOpenForm,
   onDraft,
   onSave,
   onCancel,
   onRemove,
+  onToggle,
+  onRemoveEndpoint,
 }: {
   id: string;
   name: string;
@@ -67,16 +73,38 @@ export function ProviderRowLine({
   draft: string;
   status: string;
   tone: "dim" | "success" | "danger";
+  /** Свой endpoint: пометка у имени и кнопка удаления. */
+  isEndpoint: boolean;
+  /** Включён ли провайдер: выключенный приглушён и помечен. */
+  enabled: boolean;
   onOpenForm: () => void;
   onDraft: (text: string) => void;
   onSave: () => void;
   onCancel: () => void;
   onRemove: () => void;
+  onToggle: () => void;
+  onRemoveEndpoint: () => void;
 }) {
   return (
     <>
-      <div className="settings-row" data-testid="settings-provider-row" data-provider={id}>
-        <span className="settings-row__label">{name}</span>
+      <div
+        className="settings-row"
+        data-testid="settings-provider-row"
+        data-provider={id}
+      >
+        <span className="settings-row__label">
+          {name}
+          {isEndpoint ? (
+            <span className="settings-key-mark" data-testid="settings-endpoint-mark">
+              {" endpoint"}
+            </span>
+          ) : null}
+          {!enabled ? (
+            <span className="settings-key-mark" data-testid="settings-provider-off">
+              {" выключен"}
+            </span>
+          ) : null}
+        </span>
         <span className="settings-row__value">
           <span
             className={`settings-key-mark${keySet ? " settings-key-mark--set" : ""}`}
@@ -86,6 +114,26 @@ export function ProviderRowLine({
           </span>
         </span>
         <span className="settings-row__actions">
+          <button
+            type="button"
+            className="settings-row__ghost"
+            data-testid="settings-provider-toggle"
+            title={enabled ? `Выключить ${name}: модели уйдут из переключателя чата` : `Включить ${name}`}
+            onClick={onToggle}
+          >
+            {enabled ? "Выключить" : "Включить"}
+          </button>
+          {isEndpoint ? (
+            <button
+              type="button"
+              className="settings-row__ghost settings-row__ghost--dim"
+              data-testid="settings-endpoint-remove"
+              title={`Удалить endpoint ${name}: запись и его ключ уходят`}
+              onClick={onRemoveEndpoint}
+            >
+              Удалить
+            </button>
+          ) : null}
           <button
             type="button"
             className="settings-row__ghost"

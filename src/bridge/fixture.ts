@@ -19,7 +19,18 @@ import {
 import { params } from "../viewparams";
 import { entries as fixtureCatalog, install as installFixture } from "../fixtureCatalog";
 import { list as fixtureCompare } from "../fixtureCompare";
-import { providers as settingsProviders, keyRows as keyFixture, saveKey as saveKeyFixture, removeKey as removeKeyFixture, defaultsList as defaultsFixture, setDefault as setDefaultFixture, DATA_FOLDER } from "../fixtureSettings";
+import {
+  addEndpoint as addEndpointFixture,
+  providers as settingsProviders,
+  keyRows as keyFixture,
+  removeEndpoint as removeEndpointFixture,
+  saveKey as saveKeyFixture,
+  removeKey as removeKeyFixture,
+  setEnabled as setEnabledFixture,
+  defaultsList as defaultsFixture,
+  setDefault as setDefaultFixture,
+  DATA_FOLDER,
+} from "../fixtureSettings";
 import {
   granted as fixtureGranted,
   launch as fixtureLaunch,
@@ -103,6 +114,7 @@ export const fixtureBridge = (): Bridge => ({
     return fixtureCatalog();
   },
   async compareList() {
+    recordCompareRead();
     return fixtureCompare();
   },
   async compareRefresh() {
@@ -202,6 +214,15 @@ export const fixtureBridge = (): Bridge => ({
   async providerList() {
     return settingsProviders();
   },
+  async providerSetEnabled(id: string, enabled: boolean) {
+    return setEnabledFixture(id, enabled);
+  },
+  async endpointAdd(name: string, baseUrl: string, key: string) {
+    return addEndpointFixture(name, baseUrl, key);
+  },
+  async endpointRemove(id: string) {
+    return removeEndpointFixture(id);
+  },
   async keyStatuses(ids: string[]) {
     return keyFixture(ids);
   },
@@ -240,6 +261,14 @@ function recordWindowCall(action: string): void {
   maximizedFixture = action === "maximize" ? !maximizedFixture : maximizedFixture;
   const holder = window as unknown as { __windowCalls?: string[] };
   holder.__windowCalls = [...(holder.__windowCalls ?? []), action];
+}
+
+/** Чтения каталога сравнения, зафиксированные фикстурой: сценарий темпа чтения
+ *  панели считает их со страницы (`window.__compareListCalls`) — настоящих
+ *  вызовов моста на странице нет, а цикл перечитывания виден только числом. */
+function recordCompareRead(): void {
+  const holder = window as unknown as { __compareListCalls?: number };
+  holder.__compareListCalls = (holder.__compareListCalls ?? 0) + 1;
 }
 
 /** Состояние «развёрнуто» у фикстуры: Toggle возвращает его же наизнанку. */

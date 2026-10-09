@@ -6,7 +6,7 @@
 // найти, выбрать, перечитать. Пометка «сайт недоступен» живёт вместе с данными
 // (`stale` + дата снимка) — её ставит мост, не интерфейс.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { bridge } from "../../bridge";
 import type { CompareModel, CompareSnapshot } from "../../compare";
@@ -33,21 +33,34 @@ export function useCompare(open: boolean): CompareState {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [loaded, setLoaded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Панель перечитывает снимок на каждом открытии: модели движка (свои
+  // endpoint'ы) меняются без перезапуска окна — выключенный endpoint и его
+  // модели должны исчезнуть из переключателя, как только панель открыли.
+  // Чтение кэш-первое (compare.rs) — повторное открытие дешёвое.
+  //
+  // Ровно одно чтение на открытие: зависимость от loading перезапускала бы
+  // эффект самим завершением загрузки — панель перечитывала бы каталог,
+  // пока открыта (tests/ui/compare_read_once.mjs ловит это на задержке моста;
+  // мгновенный ответ фикстуры батчится до коммита и цикл прячет).
+  const readForOpen = useRef(false);
   useEffect(() => {
-    if (!open || loaded) {
+    if (!open) {
+      readForOpen.current = false; // следующее открытие перечитает каталог
       return;
     }
-    setLoaded(true);
+    if (readForOpen.current) {
+      return; // это открытие каталог уже читало
+    }
+    readForOpen.current = true;
     setLoading(true);
     bridge()
       .compareList()
       .then(setSnapshot)
       .catch((reason: unknown) => setError(String(reason)))
       .finally(() => setLoading(false));
-  }, [open, loaded]);
+  }, [open]);
 
   const refresh = useCallback(() => {
     if (loading || refreshing) {

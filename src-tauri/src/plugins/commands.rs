@@ -17,7 +17,6 @@ use super::model::Plugin;
 use super::permissions::Grants;
 use super::registry::Registry;
 use super::{rules, rules::Decision, scopes, toolsets, updates, usage};
-
 /// Папка данных: переменную задаёт проверка или копия, иначе — папка данных Tauri.
 pub(crate) fn data_dir(app: &AppHandle) -> std::path::PathBuf {
     app.path()
@@ -507,37 +506,256 @@ fn settings_defaults_inner(file: &std::path::Path) -> Result<Vec<rules::Permissi
 
 /// Пометка ключа провайдера: «задан» / «не задан»; секрет не возвращается
 /// никогда (docs/specs/2026-10-06-12-nastrojki.md, «Решено за вас» №3).
+/// У endpoint'а запись названа с префиксом (`providers_store::key_id`).
 #[tauri::command]
-pub fn key_status(provider: String) -> Result<bool, String> {
-    crate::providers::status(&provider)
+pub fn key_status(app: AppHandle, provider: String) -> Result<bool, String> {
+    crate::providers::status(&key_name(&app, &provider))
 }
 
 /// Сохранить ключ провайдера и тихо перезапустить движок: ключи читаются
 /// только при старте (provider.rs движка), сессия переживает рестарт.
 #[tauri::command]
-pub fn key_save(chat: State<'_, Chat>, provider: String, secret: String) -> Result<bool, String> {
-    crate::providers::save(&provider, &secret)?;
+pub fn key_save(app: AppHandle, chat: State<'_, Chat>, provider: String, secret: String) -> Result<bool, String> {
+    crate::providers::save(&key_name(&app, &provider), &secret)?;
     chat.restart()?;
-    crate::providers::status(&provider)
+    crate::providers::status(&key_name(&app, &provider))
 }
 
 /// Убрать ключ провайдера: рестарта не нужно — движок ничего не знает
 /// о ключе, которого у него уже нет (пезапуск вернёт 401 заметки).
 #[tauri::command]
-pub fn key_remove(provider: String) -> Result<bool, String> {
-    crate::providers::remove(&provider)?;
+pub fn key_remove(app: AppHandle, provider: String) -> Result<bool, String> {
+    crate::providers::remove(&key_name(&app, &provider))?;
     Ok(false)
 }
 
-/// Провайдеры движка списком: id, имя и число моделей — строки раздела
-/// «Модели» окна настроек. Подключённость движок считает сам; строка
-/// «не подключён» на экране не показывается (спека, «Где снимать»).
+/// Имя записи ключа: у своего endpoint'а — `endpoint:<id>`, у провайдера
+/// движка — его id. Одно место знает правило, окну префикс не виден.
+fn key_name(app: &AppHandle, provider: &str) -> String {
+    let file = crate::providers_store::file(data_dir(app));
+    if crate::providers_store::endpoint(&crate::providers_store::at(&file), provider).is_some() {
+        crate::providers_store::key_id(provider)
+    } else {
+        provider.to_string()
+    }
+}
+
+/// Строка раздела «Провайдеры и ключи»: движок (активированные провайдеры —
+/// живой список ядра, замер 2026-10-09) плюс свои endpoint'ы из providers.json;
+/// моделей столько, сколько отдал `GET /api/model`; включённость — из файла.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderRow {
+    pub id: String,
+    pub name: String,
+    pub models: usize,
+    /// Свой endpoint (providers.json), а не провайдер движка.
+    pub endpoint: bool,
+    pub enabled: bool,
+}
+
+/// Список провайдеров окна настроек: движок и свои endpoint'ы, без дублей id.
 #[tauri::command]
-pub fn provider_list(chat: State<'_, Chat>) -> Result<serde_json::Value, String> {
+pub fn provider_list(app: AppHandle, chat: State<'_, Chat>) -> Result<Vec<ProviderRow>, String> {
     let endpoint = chat
         .endpoint()
         .ok_or_else(|| "Движок OpenCode не запущен: список провайдеров недоступен".to_string())?;
-    Api::new(&endpoint).providers()
+    let file = crate::providers_store::file(data_dir(&app));
+    let held = crate::providers_store::at(&file);
+    let enabled_of = |id: &str| !held.disabled.iter().any(|known| known == id);
+
+    let api = Api::new(&endpoint);
+    // Модели по провайдерам — из /api/model; не ответил — строки всё равно
+    // видны, у строки будет «моделей: 0».
+    let models_raw = api.models().unwrap_or(serde_json::Value::Null);
+    let counts = model_counts(&models_raw);
+    let providers_raw = api.providers().unwrap_or(serde_json::Value::Null);
+    let mut rows: Vec<ProviderRow> = match providers_raw.as_array() {
+        Some(list) => list
+            .iter()
+            .filter_map(|one| {
+                let id = one.get("id").and_then(serde_json::Value::as_str)?;
+                let name = one.get("name").and_then(serde_json::Value::as_str).unwrap_or(id);
+                Some(ProviderRow {
+                    id: id.to_string(),
+                    name: name.to_string(),
+                    models: counts.get(id).copied().unwrap_or_default(),
+                    endpoint: held.endpoints.iter().any(|known| known.id == id),
+                    enabled: enabled_of(id),
+                })
+            })
+            .collect(),
+        None => Vec::new(),
+    };
+    // Свои endpoint'ы, которых движок не отдал (выключен или движок ещё
+    // читал конфиг): строка остаётся — включить и удалить её надо всегда.
+    for one in &held.endpoints {
+        if rows.iter().any(|row| row.id == one.id) {
+            continue;
+        }
+        rows.push(ProviderRow {
+            id: one.id.clone(),
+            name: one.name.clone(),
+            models: one.models.len(),
+            endpoint: true,
+            enabled: enabled_of(&one.id),
+        });
+    }
+    Ok(rows)
+}
+
+/// Число включённых моделей по провайдерам из списка `/api/model`.
+fn model_counts(raw: &serde_json::Value) -> std::collections::HashMap<String, usize> {
+    let mut counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let Some(list) = raw.as_array() else { return counts };
+    for one in list {
+        let enabled = one.get("enabled").and_then(serde_json::Value::as_bool).unwrap_or(true);
+        if !enabled {
+            continue;
+        }
+        if let Some(provider) = one.get("providerID").and_then(serde_json::Value::as_str) {
+            *counts.entry(provider.to_string()).or_default() += 1;
+        }
+    }
+    counts
+}
+
+/// Включить или выключить провайдера/endpoint: включённость — в providers.json
+/// (формат state.json не растёт). Endpoint меняет конфиг движка — тихий
+/// рестарт; у провайдера движка меняется только видимость в окне.
+#[tauri::command]
+pub fn provider_set_enabled(
+    app: AppHandle,
+    chat: State<'_, Chat>,
+    id: String,
+    enabled: bool,
+) -> Result<Vec<ProviderRow>, String> {
+    let file = crate::providers_store::file(data_dir(&app));
+    crate::providers_store::set_enabled(&file, &id, enabled)?;
+    if crate::providers_store::endpoint(&crate::providers_store::at(&file), &id).is_some() {
+        chat.restart()?;
+    }
+    provider_list(app, chat)
+}
+
+/// Сколько секунд ждать список моделей endpoint'а: локальные серверы отвечают
+/// мгновенно, корпоративному прокси хватает десяти.
+const ENDPOINT_PROBE_SECONDS: u64 = 10;
+
+/// Модели endpoint'а: `GET {база}/models` — открытый список OpenAI-совместимого
+/// сервера. Ключ идёт заголовком запроса, не файлом; ошибка — словами наружу.
+fn endpoint_models(base_url: &str, key: &str) -> Result<Vec<String>, String> {
+    let url = format!("{}/models", base_url.trim_end_matches('/'));
+    let mut request = ureq::get(&url).timeout(std::time::Duration::from_secs(ENDPOINT_PROBE_SECONDS));
+    if !key.is_empty() {
+        request = request.set("Authorization", &format!("Bearer {key}"));
+    }
+    let response = request
+        .call()
+        .map_err(|e| format!("endpoint не ответил на список моделей — {e}"))?;
+    // Тело строкой и serde_json: json-фича ureq не включена, как и у каталога.
+    let text = response
+        .into_string()
+        .map_err(|e| format!("ответ endpoint'а не прочитан — {e}"))?;
+    let value: serde_json::Value =
+        serde_json::from_str(&text).map_err(|e| format!("ответ endpoint'а не JSON — {e}"))?;
+    let list = match &value {
+        serde_json::Value::Array(list) => list.clone(),
+        serde_json::Value::Object(map) => map
+            .get("data")
+            .and_then(serde_json::Value::as_array)
+            .cloned()
+            .ok_or_else(|| "в ответе endpoint'а нет списка моделей".to_string())?,
+        _ => return Err("ответ endpoint'а — не список моделей".to_string()),
+    };
+    Ok(list
+        .iter()
+        .filter_map(|one| {
+            one.get("id")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_string)
+        })
+        .collect())
+}
+
+/// Добавить свой endpoint: имя + база URL (+ ключ), модели спрашиваются с
+/// самого endpoint'а, ключ — только в хранилище ОС. Тихий рестарт несёт
+/// endpoint движку — его модели появляются в переключателе чата.
+#[tauri::command]
+pub fn endpoint_add(
+    app: AppHandle,
+    chat: State<'_, Chat>,
+    name: String,
+    base_url: String,
+    key: String,
+) -> Result<Vec<ProviderRow>, String> {
+    let file = crate::providers_store::file(data_dir(&app));
+    let key = key.trim().to_string();
+    let models = endpoint_models(base_url.trim(), &key)?;
+    if models.is_empty() {
+        return Err("endpoint не отдал ни одной модели — проверьте базу URL".to_string());
+    }
+    let added = crate::providers_store::add_endpoint(&file, &name, &base_url, models)?;
+    if !key.is_empty() {
+        crate::providers::save(&crate::providers_store::key_id(&added.id), &key)?;
+    }
+    chat.restart()?;
+    provider_list(app, chat)
+}
+
+/// Удалить свой endpoint: запись и её ключ уходят, движок после тихого
+/// рестарта модели endpoint'а больше не отдаёт.
+#[tauri::command]
+pub fn endpoint_remove(app: AppHandle, chat: State<'_, Chat>, id: String) -> Result<Vec<ProviderRow>, String> {
+    let file = crate::providers_store::file(data_dir(&app));
+    crate::providers_store::remove_endpoint(&file, &id)?;
+    let _ = crate::providers::remove(&crate::providers_store::key_id(&id));
+    chat.restart()?;
+    provider_list(app, chat)
+}
+
+/// «Нет ключа» у выбранного провайдера модели: причина строкой или None —
+/// вопрос можно нести движку.
+pub fn provider_key_missing(app: &AppHandle, chat: &State<'_, Chat>, model_id: &str) -> Option<String> {
+    key_missing(&crate::providers_store::file(data_dir(app)), chat.endpoint(), model_id)
+}
+
+/// Тот же вопрос без типов окна: папка данных и адрес движка — аргументы,
+/// её же зовёт проверка затвора (tests/providers_store.rs). Своему endpoint'у
+/// ключ не обязателен; провайдеру движка хватает ключа в хранилище ОС или его
+/// собственной активации (ключ в окружении, локальный сервер — провайдер в
+/// списке ядра).
+pub fn key_missing(
+    file: &std::path::Path,
+    engine: Option<crate::opencode::client::Endpoint>,
+    model_id: &str,
+) -> Option<String> {
+    let provider = model_id.split('/').next().unwrap_or_default();
+    if provider.is_empty() {
+        return None;
+    }
+    let held = crate::providers_store::at(file);
+    if crate::providers_store::endpoint(&held, provider).is_some() {
+        return None;
+    }
+    if crate::providers::status(provider).unwrap_or(false) {
+        return None;
+    }
+    if let Some(endpoint) = engine {
+        let listed = Api::new(&endpoint)
+            .providers()
+            .ok()
+            .and_then(|raw| raw.as_array().map(|list| list.clone()))
+            .unwrap_or_default()
+            .iter()
+            .any(|one| one.get("id").and_then(serde_json::Value::as_str) == Some(provider));
+        if listed {
+            return None;
+        }
+    }
+    Some(format!(
+        "нет ключа — задайте в настройках (провайдер «{provider}»)"
+    ))
 }
 
 /// Полный путь папки данных (вкладка «Папка данных»): показывает, где лежит

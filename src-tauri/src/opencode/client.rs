@@ -948,6 +948,13 @@ impl<'a> Api<'a> {
     pub fn providers(&self) -> Result<Value, String> {
         self.endpoint.call("GET", "/api/provider", None)
     }
+
+    /// Модели движка списком: `GET /api/model` — включённые модели доступных
+    /// провайдеров (v2.0.25: инвентарь моделей в `/api/provider` больше не идёт,
+    /// замер 2026-10-09). Форму элемента разбирает `compare` (ADR-0001).
+    pub fn models(&self) -> Result<Value, String> {
+        self.endpoint.call("GET", "/api/model", None)
+    }
 }
 
 /// Данные ответа движка — список. Форма элемента остаётся на стороне Rust

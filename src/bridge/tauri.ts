@@ -12,6 +12,7 @@ import type {
   Plugin,
   PluginRun,
   PluginScope,
+  ProviderRow,
   RuleEntry,
   ToolSet,
   TreeNode,
@@ -125,16 +126,17 @@ export const tauriBridge = (): Bridge => ({
     return (await invoke<WindowState>("state_patch", { patch })) as WindowState;
   },
   async providerList() {
-    // `/api/provider` отдаёт {all, connected}; строкам настроек нужны все
-    // — ключ заводят и у ещё не подключённого провайдера.
-    const raw = await invoke<{ all?: { id: string; name?: string; models?: Record<string, unknown> }[] }>(
-      "provider_list",
-    );
-    return (raw.all ?? []).map((one) => ({
-      id: one.id,
-      name: one.name ?? one.id,
-      models: one.models ? Object.keys(one.models).length : 0,
-    }));
+    // Строки собирает Rust (ADR-0001): движок плюс свои endpoint'ы, без дублей.
+    return (await invoke<ProviderRow[]>("provider_list")) as ProviderRow[];
+  },
+  async providerSetEnabled(id: string, enabled: boolean) {
+    return (await invoke<ProviderRow[]>("provider_set_enabled", { id, enabled })) as ProviderRow[];
+  },
+  async endpointAdd(name: string, baseUrl: string, key: string) {
+    return (await invoke<ProviderRow[]>("endpoint_add", { name, baseUrl, key })) as ProviderRow[];
+  },
+  async endpointRemove(id: string) {
+    return (await invoke<ProviderRow[]>("endpoint_remove", { id })) as ProviderRow[];
   },
   async keyStatuses(providers: string[]) {
     // Проверка ключа — по одному провайдеру: мост знает только запись целиком.
