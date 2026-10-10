@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { bridge } from "./bridge";
 import {
@@ -19,6 +19,7 @@ import { StatsPage } from "./components/StatsPage";
 import { WindowCluster } from "./components/WindowCluster";
 import { panels } from "./fixture";
 import { patchState, type WindowState } from "./appstate";
+import type { SidebarChat } from "./components/Sidebar";
 import { useApproval } from "./features/plugins/useApproval";
 import { usePlugins } from "./features/plugins/usePlugins";
 import { useProject } from "./features/project/useProject";
@@ -87,11 +88,42 @@ export default function App() {
     setPage("chat");
     void bridge().newChat();
   }, []);
+  /** Открытый кликом чат: титул и время строки применит обработчик `reset` —
+   *  событие приходит, когда лента уже чистая и наполняется его историей.
+   *  «Новый чат» открывшего не ставит — сбрасывает, как раньше. */
+  const openingRef = useRef<{ title: string; time: number | null } | null>(null);
+  const openChatRow = useCallback((row: SidebarChat) => {
+    if (!row.id) {
+      return;
+    }
+    setPage("chat");
+    openingRef.current = { title: row.title, time: row.time ?? null };
+    void bridge().openChat(row.id);
+  }, []);
   useFeedReset(
     useCallback(() => {
-      chat.dropChat();
-      void patchState({ chatTitle: "", chatTime: 0 });
-    }, [chat.dropChat]),
+      const opened = openingRef.current;
+      openingRef.current = null;
+      if (opened) {
+        // Титул и время открытой строки — через applySaved: вопрос в открытом
+        // чате титул больше не переписывает (у чата он уже есть).
+        chat.applySaved({
+          session: null,
+          chatTitle: opened.title,
+          chatTime: opened.time,
+          project: null,
+          theme: null,
+          pluginFavorites: null,
+          pluginRecent: null,
+          chatModel: null,
+          defaultModel: null,
+        });
+        void patchState({ chatTitle: opened.title, chatTime: opened.time ?? 0 });
+      } else {
+        chat.dropChat();
+        void patchState({ chatTitle: "", chatTime: 0 });
+      }
+    }, [chat.applySaved, chat.dropChat]),
   );
 
   // Состояние прошлого запуска — один запрос при старте: см. useSavedState.
@@ -147,6 +179,7 @@ export default function App() {
         onPickFolder={project.pick}
         onOpenStats={() => setPage("stats")}
         onOpenChat={() => setPage("chat")}
+        onOpenChatRow={openChatRow}
         onNewChat={newChat}
       />
       {page === "plugins" ? (

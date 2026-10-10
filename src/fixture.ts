@@ -128,9 +128,18 @@ const hoursAgo = (index: number): number => {
 };
 
 /** Строка списка чатов: превью — начало последнего сообщения (спека сайдбара §4);
- *  чат без сообщений превью не несёт — строка одной линией. */
-const chatRow = (title: string, preview: string | undefined, hours: number, active = false): SidebarChat => ({
+ *  чат без сообщений превью не несёт — строка одной линией. `id` есть у чатов
+ *  дефолтного состояния: строка истории кликается и открывается (переключение
+ *  сессий, карточка b20261009-p4b-openchats); у «много» строка — отображение. */
+const chatRow = (
+  id: string | undefined,
+  title: string,
+  preview: string | undefined,
+  hours: number,
+  active = false,
+): SidebarChat => ({
   title,
+  ...(id ? { id } : {}),
   ...(preview ? { preview } : {}),
   time: Date.now() - hours * HOUR,
   ...(active ? { active: true } : {}),
@@ -141,26 +150,27 @@ const chatRow = (title: string, preview: string | undefined, hours: number, acti
  *  5 на этой неделе, 4 ранее; превью — реальные начала сообщений. Поиск «модел»
  *  находит две строки в двух группах, «ффф» — ничего. */
 const defaultChats = (): SidebarChat[] => [
-  chatRow("Разбор главного окна", "Смотрю структуру папки. Мост на месте, сборка зелёная.", 2, true),
+  chatRow("fx-1", "Разбор главного окна", "Смотрю структуру папки. Мост на месте, сборка зелёная.", 2, true),
   chatRow(
+    "fx-2",
     "Открыть проект из Documents без переименования 2026 и не сломать путь",
     "Путь и имя папки показывает правая панель, титул — шапка чата",
     3,
   ),
-  chatRow("Новый чат без вопросов", undefined, 4),
-  chatRow("Настройки модели по умолчанию", "Своя у чата, иначе — выбор страницы «Настройки»", 6),
-  chatRow("Собери отчёт по панелям окна", "Собрал отчёт по панелям: всё, что видно на срезе проекта src", 26),
-  chatRow("Ползунки прокрутки в цвет", "Дорожка и ползунок на токенах тем, стрелки спрятаны", 30),
-  chatRow("Кнопки окна в один кластер", "Тема, свернуть, развернуть и закрыть — правый край шапки", 34),
-  chatRow("Мост к OpenCode server", "Типизированный клиент в src-tauri, React не зовёт HTTP", 73),
-  chatRow("Плагины в два клика", "Каталог читает index.json, установка спрашивает права", 80),
-  chatRow("Права и скоупы вызовов", "Once, Chat, Project и Global — полоса на строке плагина", 85),
-  chatRow("Статистика расхода", "Число вызовов и деньги по моделям за неделю", 90),
-  chatRow("Здоровье кода и база", "tools/code_check.py считает строки новых файлов", 96),
-  chatRow("Каркас окна на Tauri 2", "React 18 и strict-типы, сборка tsc и vite", 240),
-  chatRow("Окно без рамки", "Своё окно перетаскивается за шапку чата", 336),
-  chatRow("Первый вопрос движку", "opencode serve поднялся, сессия пережила рестарт", 432),
-  chatRow("Стенд снимков интерфейса", "Кадры снимает Playwright на странице фикстуры", 528),
+  chatRow("fx-3", "Новый чат без вопросов", undefined, 4),
+  chatRow("fx-4", "Настройки модели по умолчанию", "Своя у чата, иначе — выбор страницы «Настройки»", 6),
+  chatRow("fx-5", "Собери отчёт по панелям окна", "Собрал отчёт по панелям: всё, что видно на срезе проекта src", 26),
+  chatRow("fx-6", "Ползунки прокрутки в цвет", "Дорожка и ползунок на токенах тем, стрелки спрятаны", 30),
+  chatRow("fx-7", "Кнопки окна в один кластер", "Тема, свернуть, развернуть и закрыть — правый край шапки", 34),
+  chatRow("fx-8", "Мост к OpenCode server", "Типизированный клиент в src-tauri, React не зовёт HTTP", 73),
+  chatRow("fx-9", "Плагины в два клика", "Каталог читает index.json, установка спрашивает права", 80),
+  chatRow("fx-10", "Права и скоупы вызовов", "Once, Chat, Project и Global — полоса на строке плагина", 85),
+  chatRow("fx-11", "Статистика расхода", "Число вызовов и деньги по моделям за неделю", 90),
+  chatRow("fx-12", "Здоровье кода и база", "tools/code_check.py считает строки новых файлов", 96),
+  chatRow("fx-13", "Каркас окна на Tauri 2", "React 18 и strict-типы, сборка tsc и vite", 240),
+  chatRow("fx-14", "Окно без рамки", "Своё окно перетаскивается за шапку чата", 336),
+  chatRow("fx-15", "Первый вопрос движку", "opencode serve поднялся, сессия пережила рестарт", 432),
+  chatRow("fx-16", "Стенд снимков интерфейса", "Кадры снимает Playwright на странице фикстуры", 528),
 ];
 
 /** Реалистичные часы реплики (спека ленты §8): минут назад от сейчас. */
@@ -201,6 +211,18 @@ class Fixture {
    *  обрыв потока не начинает нумерацию заново — иначе следующий вопрос занял бы id
    *  прошлой строки и лента заменила бы её вместо новой. */
   private sent = 0;
+  /** Открытый сейчас чат: вопрос уходит в его разговор, как в живом окне —
+   *  в его сессию. Новый чат начинает со своей строки. */
+  private current = "fx-current";
+  /** Чаты, которые здесь спрашивали: строка списка ядра — титул (первый
+   *  вопрос) и время, идентификатор ведёт клик. Как ядро помнит сессии. */
+  private asked: SidebarChat[] = [];
+  /** История по идентификатору: открытие читает её заново (инвариант карточки —
+   *  старые сообщения каждый раз из «ядра»), это память движка, не окна. */
+  private talks = new Map<string, FeedEvent[]>();
+  /** Фиксёрные чаты одним снимком: разговор строки собирается из её титула и
+   *  превью, список строк списка — отсюда же (`chatRows`). */
+  private readonly stock = defaultChats();
 
   /** Много данных: сто строк ленты и сто чатов — длинный чат не должен тормозить.
    *  Реплики несут время (спека ленты §8): вопросы уходят по паре часов —
@@ -280,11 +302,34 @@ class Fixture {
    *  как в живом окне (спека ленты §6, сценарий стрима).
    *  Прикреплённые файлы видны в строке вопроса именами — как их показывает
    *  `project::prompt` в ленте окна (src-tauri/src/project/prompt.rs) — и идут
-   *  полем `files`: по ним блок «Sources used» собирает источники. */
+   *  полем `files`: по ним блок «Sources used» собирает источники.
+   *  Разговор запоминается за открытым чатом: повторное открытие показывает
+   *  его историю, как ядро отдаёт её маршрутом сообщений. */
   push(text: string, files: string[]): void {
     this.sent += 1;
     const answerId = `msg_fixture_${this.sent}`;
     const asked = Date.now();
+    // Строка списка для нового чата: титулом становится первый вопрос — то же
+    // правило, что у окна (`chatTitleOf` в src/appstate.ts; копия: импорт
+    // зациклил бы fixture → appstate → bridge → fixture, сверять при правке).
+    // Свой строки нет у чатов фиксёрного списка — они уже в панели.
+    const known = (chat: SidebarChat) => chat.id === this.current;
+    if (![...this.asked, ...this.stock].some(known)) {
+      const first = text.trim().split("\n")[0] ?? text.trim();
+      this.asked.push({
+        id: this.current,
+        title: first.length > 60 ? `${first.slice(0, 60)}…` : first,
+        time: asked,
+      });
+    }
+    const talk = this.talks.get(this.current) ?? [];
+    talk.push(
+      { type: "row", id: `user-${this.sent}`, kind: "user", text: shown(text, files), files: files.map(fromRoot), time: asked },
+      row(answerId, "assistant", ANSWER, asked),
+      { type: "row", id: `call_${this.sent}`, kind: "tool", text: "✓ read · src/bridge.ts", file: "src/bridge.ts" },
+      row("engine", "notice", DONE),
+    );
+    this.talks.set(this.current, talk);
     this.emit({ type: "row", id: `user-${this.sent}`, kind: "user", text: shown(text, files), files: files.map(fromRoot), time: asked });
     this.emit(row(answerId, "assistant", "", asked));
     window.setTimeout(() => {
@@ -299,9 +344,46 @@ class Fixture {
       }
       // Вызов инструмента с файлом: тот же вид и то же поле `file`, что отдаёт
       // Feed::tool в окне (src-tauri/src/opencode/client.rs) — источник ответа.
-      this.emit({ type: "row", id: "call_1", kind: "tool", text: "✓ read · src/bridge.ts", file: "src/bridge.ts" });
+      this.emit({ type: "row", id: `call_${this.sent}`, kind: "tool", text: "✓ read · src/bridge.ts", file: "src/bridge.ts" });
       this.emit(row("engine", "notice", DONE));
     }, 250);
+  }
+
+  /** Открыть старый чат: лента чистится тем же событием, что шлёт живой мост
+   *  (FeedEvent::reset), и наполняется историей сессии из ядра — фикстура
+   *  отвечает её памятью. Следующий вопрос уйдёт в этот же разговор. */
+  open(id: string): void {
+    this.current = id;
+    this.emit({ type: "reset" });
+    for (const event of this.talkOf(id)) {
+      this.emit(event);
+    }
+  }
+
+  /** Спрошенные чаты для списка панели: строка с идентификатором, титулом и
+   *  временем — как ядро помнит сессии владельца; копия массива, панель его
+   *  не меняет. */
+  askedChats(): SidebarChat[] {
+    return [...this.asked];
+  }
+
+  /** История чата для открытия: у спрашиванного — что в нём говорили; у
+   *  фиксёрного — вопрос-титул и ответ-превью (превью — начало последнего
+   *  сообщения, спека сайдбара §4); чат без сообщений — вопрос один. */
+  private talkOf(id: string): FeedEvent[] {
+    const held = this.talks.get(id);
+    if (held) {
+      return held;
+    }
+    const chat = this.stock.find((one) => one.id === id);
+    if (!chat) {
+      return [];
+    }
+    const talk: FeedEvent[] = [row(`user-${id}`, "user", chat.title, chat.time ?? 0)];
+    if (chat.preview) {
+      talk.push(row(`answer-${id}`, "assistant", chat.preview, (chat.time ?? 0) + 60_000));
+    }
+    return talk;
   }
 
   /** Строка в ленту фикстуры. Слой прав вне окна Tauri вместо Rust-моста (opencode/client.rs)
@@ -341,11 +423,12 @@ export function panels(state: typeof params.feed): PanelData {
       projects: [{ title: LONG_PROJECT, path: LONG_PATH }],
       chats: [
         // Превью этих чатов — последняя строка ленты (спека сайдбара §8): у всех
-        // ста она «Ответ модели получен», она же превью.
+        // ста она «Ответ модели получен», она же превью. Без id: в «много»
+        // строка — отображение, клик открывает чаты живого состояния.
         ...Array.from({ length: 99 }, (_, i) =>
-          chatRow(`Вопрос ${i + 1}`, DONE, hoursAgo(i)),
+          chatRow(undefined, `Вопрос ${i + 1}`, DONE, hoursAgo(i)),
         ),
-        chatRow(ACTIVE_CHAT, DONE, 2, true),
+        chatRow(undefined, ACTIVE_CHAT, DONE, 2, true),
       ],
       sections: [
         {
@@ -362,7 +445,9 @@ export function panels(state: typeof params.feed): PanelData {
   }
   return {
     projects: [{ title: "GnomeCode" }],
-    chats: defaultChats(),
+    // Спрошенные чаты — перед фиксёрными: список помнит их, как ядро помнит
+    // сессии владельца; строки с идентификаторами открываются кликом.
+    chats: [...fixture.askedChats(), ...defaultChats()],
     sections: baseSections(),
     engineDown: state === "error",
     project: project() ?? "",

@@ -26,7 +26,8 @@ LIMITS = {"quick_build": 150, "harness": 180, "window_shot": 600, "opencode_clie
           "providers_store": 300, "providers_endpoints": 300, "stats_store": 300,
           "stats_page": 300, "stats_shot": 240,
           "full_cycle": 600, "glavnoe": 300, "variant_b": 300, "frameless": 300, "frameless_shot": 240,
-          "new_chat": 300, "startup_freeze": 120}  # секунды: замер × 3, одно место
+          "new_chat": 300, "startup_freeze": 120,
+          "chat_open": 300, "open_chat": 300}  # секунды: замер × 3, одно место
 DEFAULT_LIMIT = 60
 
 

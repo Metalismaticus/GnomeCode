@@ -15,7 +15,9 @@ import logoMark from "../../docs/refs/owner-2026-10-05-3-icon.png";
 import "./Sidebar.css";
 
 export type SidebarProject = { title: string; path?: string; cost?: string };
-export type SidebarChat = { title: string; active?: boolean; time?: number; preview?: string };
+/** Чат сайдбара: `id` стоит у строк с ядром за ними — клик открывает чат;
+ *  строка без него (фиксёрная) — отображение. */
+export type SidebarChat = { id?: string; title: string; active?: boolean; time?: number; preview?: string };
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -141,8 +143,16 @@ function avatar(title: string, engineDown: boolean) {
 }
 
 /** Тело раздела «Чаты» (спека сайдбара §5/§7): группы дат со строками; список
- *  пуст — «Пока нет чатов», поиск без совпадений — «Ничего не нашлось». */
-function chatRows(all: SidebarChat[], visible: SidebarChat[], now: number, onOpenChat: () => void) {
+ *  пуст — «Пока нет чатов», поиск без совпадений — «Ничего не нашлось». Строка
+ *  с ядром за ней (id) — кнопка открытия, активная — возврат на экран чата;
+ *  фиксёрная строка — отображение (§15: честный сигнал «нажать нельзя»). */
+function chatRows(
+  all: SidebarChat[],
+  visible: SidebarChat[],
+  now: number,
+  onOpenChat: () => void,
+  onOpenChatRow: (chat: SidebarChat) => void,
+) {
   if (!all.length) {
     return <SidebarItem title="Пока нет чатов" />;
   }
@@ -164,8 +174,10 @@ function chatRows(all: SidebarChat[], visible: SidebarChat[], now: number, onOpe
           end={chatTimeOf(chat, now)}
           sub={chat.preview}
           active={chat.active}
-          testid={chat.active ? "chat-active" : undefined}
-          onClick={chat.active ? onOpenChat : undefined}
+          testid={chat.active ? "chat-active" : chat.id ? "chat-row" : undefined}
+          onClick={
+            chat.active ? onOpenChat : chat.id ? () => onOpenChatRow(chat) : undefined
+          }
         />
       ))}
     </div>
@@ -185,6 +197,7 @@ export function Sidebar({
   onPickFolder,
   onOpenStats,
   onOpenChat,
+  onOpenChatRow,
   onNewChat,
 }: {
   projects: SidebarProject[];
@@ -197,6 +210,9 @@ export function Sidebar({
   onOpenStats: () => void;
   /** Возврат в чат кликом по строке чата: страница раздела размонтируется. */
   onOpenChat: () => void;
+  /** Открыть старый чат кликом по строке истории: сессия переключается,
+   *  лента показывает его переписку (слова владельца 2026-10-10). */
+  onOpenChatRow: (chat: SidebarChat) => void;
   /** «Новый чат»: лента чистится, движку поднимается новая сессия (замечание
    *  владельца 2026-10-06 — карточку «Новый чат» не нажать). */
   onNewChat: () => void;
@@ -247,7 +263,7 @@ export function Sidebar({
           <SidebarItem title="Пока нет проектов" />
         )}
         <div className="sidebar__section-title">Чаты</div>
-        {chatRows(all, visible, now, onOpenChat)}
+        {chatRows(all, visible, now, onOpenChat, onOpenChatRow)}
       </div>
       <div className="sidebar__footer">
         <span className="sidebar__avatar">Г</span>

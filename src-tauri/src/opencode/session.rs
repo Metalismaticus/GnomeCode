@@ -25,10 +25,14 @@ pub struct SessionItem {
     pub updated: Option<u64>,
 }
 
-/// Строка сайдбара из списка ядра (`chat_list`): интерфейс читает титул и время,
-/// идентификатор сессии ему не нужен (спека сайдбара §7, ADR-0001).
+/// Строка сайдбара из списка ядра (`chat_list`): интерфейс читает титул и
+/// время, идентификатор ведёт клик по строке — открытие старого чата
+/// переключает сессию по нему (слова владельца 2026-10-10, «чаты все
+/// неактивные»; решение «id не нужен» отменено). Форму элемента знает только
+/// этот разбор (ADR-0001).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ChatRow {
+    pub id: String,
     pub title: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub updated: Option<u64>,
@@ -79,6 +83,7 @@ pub fn chats(api: &Api) -> Result<Vec<ChatRow>, String> {
     Ok(parse_list(&api.sessions_raw()?)
         .into_iter()
         .map(|item| ChatRow {
+            id: item.id,
             title: item.title,
             updated: item.updated,
         })

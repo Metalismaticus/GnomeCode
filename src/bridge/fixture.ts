@@ -61,6 +61,11 @@ export const fixtureBridge = (): Bridge => ({
   async newChat() {
     fixture.reset();
   },
+  async openChat(id: string) {
+    // Тот же ход, что у живого моста: reset и история сессии из ядра —
+    // фикстура отвечает своей памятью разговора (src/fixture.ts).
+    fixture.open(id);
+  },
   async listen(listener: Listener) {
     return fixture.play(listener);
   },

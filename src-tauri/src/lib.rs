@@ -146,6 +146,14 @@ fn chat_new(chat: State<'_, Chat>) -> Result<(), String> {
     chat.new_chat()
 }
 
+/// Открыть старый чат кликом из сайдбара: лента чистится и наполняется его
+/// историей из ядра, сессия переключается (валидацию списком движка и запись
+/// в состояние окна ведёт поток ленты — `opencode::supervise`).
+#[tauri::command]
+fn chat_open(chat: State<'_, Chat>, id: String) -> Result<(), String> {
+    chat.open_chat(&id)
+}
+
 /// Живой список чатов ядра для сайдбара: титулы и время обновления одним
 /// запросом (спека сайдбара §7); форму элемента знает только `session.rs`
 /// (ADR-0001). Движок не поднят — ошибка наружу: сайдбар живёт тем, что уже
@@ -222,6 +230,7 @@ pub fn run() {
             catalog_list,
             chat_list,
             chat_new,
+            chat_open,
             chat_send,
             compare_list,
             compare_refresh,

@@ -84,9 +84,11 @@ impl Endpoint {
             .map_err(|e| format!("сервер не ответил на {}:{} — {e}", self.host, self.port))
     }
 
-    /// Тело запроса: сервер кладёт ответ в `data`, без обёртки — отдаём как есть.
-    /// пустой ответ (204 у POST команды) — тоже успех: `Ok(Null)`.
-    fn call(&self, method: &str, path: &str, body: Option<&Value>) -> Result<Value, String> {
+    /// Полный ответ сервера как JSON, без разворота: у пагинированного списка
+    /// `data` и `cursor` лежат рядом (живой замер v2.0.25, 2026-10-10:
+    /// `GET /api/session/{id}/message` отвечает `{"data": […], "cursor": …}`) —
+    /// курсор истории нужен вызывающему так же, как сами страницы.
+    fn request(&self, method: &str, path: &str, body: Option<&Value>) -> Result<Value, String> {
         let mut reply = self.send(method, path, body, false)?;
         if reply.status == 401 {
             return Err("401 — пароль не тот: сервер не пустил GnomeCode".to_string());
@@ -95,9 +97,14 @@ impl Endpoint {
         if text.trim().is_empty() {
             return Ok(Value::Null);
         }
-        let value: Value =
-            serde_json::from_str(&text).map_err(|e| format!("ответ сервера не JSON: {e}"))?;
-        Ok(value.get("data").cloned().unwrap_or(value))
+        serde_json::from_str(&text).map_err(|e| format!("ответ сервера не JSON: {e}"))
+    }
+
+    /// Тело запроса: сервер кладёт ответ в `data`, без обёртки — отдаём как есть.
+    /// пустой ответ (204 у POST команды) — тоже успех: `Ok(Null)`.
+    fn call(&self, method: &str, path: &str, body: Option<&Value>) -> Result<Value, String> {
+        self.request(method, path, body)
+            .map(|value| value.get("data").cloned().unwrap_or(value))
     }
 }
 
@@ -832,8 +839,9 @@ impl Feed {
 }
 
 /// Состояние вызова инструмента: пока идёт — видно, что началось, и с чем.
+/// Разбору истории оно тоже нужно: строка старого вызова собирается той же.
 #[derive(Debug, Clone, Copy, PartialEq)]
-enum ToolState {
+pub(crate) enum ToolState {
     Started,
     Input,
     Running,
@@ -842,7 +850,8 @@ enum ToolState {
 }
 
 /// Строка вызова инструмента: `✓ read · docs/BATCH.md` — по ней владелец видит, что делал агент.
-fn tool_line(name: &str, state: ToolState, detail: &str) -> String {
+/// Её же собирает история сессии (history.rs) — вид старых строк не отличается от живых.
+pub(crate) fn tool_line(name: &str, state: ToolState, detail: &str) -> String {
     let mark = match state {
         ToolState::Started => "⧗",
         ToolState::Input | ToolState::Running => "⋯",
@@ -889,11 +898,11 @@ pub fn command_refused(plugin: &str, label: &str, why: Refusal) -> String {
 }
 
 /// Имя, когда движок не назвал инструмент: лучше «инструмент», чем пустая строка в ленте.
-const UNKNOWN_TOOL: &str = "инструмент";
+pub(crate) const UNKNOWN_TOOL: &str = "инструмент";
 
 /// Файл из входа инструмента — источник ответа (phase2.md, 9.1): ключи `filePath`
 /// и `path`, те же, что дают короткое имя действия. Ключей нет — вызов файла не касался.
-fn file_of(input: &Value) -> Option<String> {
+pub(crate) fn file_of(input: &Value) -> Option<String> {
     ["filePath", "path"]
         .iter()
         .find_map(|key| input.get(*key).and_then(Value::as_str))
@@ -906,7 +915,8 @@ fn file_of_str(input: &str) -> Option<String> {
 }
 
 /// Короткое «действие» из входа инструмента: путь файла, команда, запрос.
-pub fn summarize(input: &str) -> String {
+/// Историю сессии собирает им же (history.rs) — деталь старой строки та же, что у живой.
+pub(crate) fn summarize(input: &str) -> String {
     let value: Value = serde_json::from_str(input).unwrap_or(Value::Null);
     let picked = SUMMARY_KEYS
         .iter()
@@ -1036,6 +1046,59 @@ impl<'a> Api<'a> {
     pub fn models(&self) -> Result<Value, String> {
         self.endpoint.call("GET", "/api/model", None)
     }
+
+    /// История сессии сообщениями старыми сверху. Живой замер v2.0.25
+    /// (2026-10-10): `GET /api/session/{id}/message?limit&cursor` отдаёт
+    /// `{"data": […], "cursor": …}`, страницы идут свежими сверху, следующая
+    /// берётся курсором `cursor.next`, у последней его нет. Форму сообщения
+    /// разбирает `history` (ADR-0001) — отсюда наружу только сырые значения.
+    pub fn messages(&self, session: &str) -> Result<Vec<Value>, String> {
+        let mut cursor = String::new();
+        let mut fresh_first: Vec<Value> = Vec::new();
+        for _ in 0..MESSAGE_PAGES {
+            let mut path = format!("/api/session/{session}/message?limit={MESSAGE_LIMIT}");
+            if !cursor.is_empty() {
+                path.push_str("&cursor=");
+                path.push_str(&percent_encode(&cursor));
+            }
+            let page = self.endpoint.request("GET", &path, None)?;
+            if let Some(items) = page.get("data").and_then(Value::as_array) {
+                fresh_first.extend(items.iter().cloned());
+            }
+            cursor = page
+                .get("cursor")
+                .and_then(|held| held.get("next"))
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string();
+            if cursor.is_empty() {
+                break;
+            }
+        }
+        Ok(fresh_first.into_iter().rev().collect())
+    }
+}
+
+/// Страница истории: сообщений за раз; длинный чат добирается курсором.
+const MESSAGE_LIMIT: usize = 200;
+/// Граница страниц истории: сервер, который всегда отвечает одним и тем же
+/// курсором, не должен крутить луп вечно — дальше читаем, что успели.
+const MESSAGE_PAGES: usize = 50;
+
+/// Процентное кодирование значения параметра запроса (RFC 3986): безопасны
+/// буквы, цифры и `-._~`; курсор истории едет в query-строке и может нести
+/// любые символы идентификатора сообщения.
+fn percent_encode(raw: &str) -> String {
+    let mut out = String::with_capacity(raw.len());
+    for byte in raw.as_bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(*byte as char)
+            }
+            other => out.push_str(&format!("%{other:02X}")),
+        }
+    }
+    out
 }
 
 /// Данные ответа движка — список. Форма элемента остаётся на стороне Rust

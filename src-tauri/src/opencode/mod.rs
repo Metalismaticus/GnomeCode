@@ -9,6 +9,7 @@
 
 pub mod client;
 pub mod engine;
+mod history;
 pub mod job;
 pub mod session;
 
@@ -34,6 +35,9 @@ const NOTICE_RECOVERED: &str = "Сервер OpenCode снова отвечае�
 pub const NOTICE_STARTING: &str = "Движок OpenCode поднимается…";
 pub const NOTICE_READY: &str = "Движок OpenCode готов";
 const NOTICE_NO_ENGINE: &str = "Движок OpenCode не запущен";
+/// Открытие старого чата мимо списка движка: сессия не меняется, лента говорит
+/// почему. Проверке нужен точный текст — константа наружу (tests/chat_open.rs).
+pub const NOTICE_OPEN_MISSED: &str = "Такого чата нет в списке движка — открыт прежний";
 const RETRY_SECONDS: u64 = 5;
 
 /// Момент старта процесса: метки фаз печатаются от него — диагностика «при
@@ -128,6 +132,10 @@ enum Cmd {
     /// «Новый чат»: лента чистится событием `reset`, сессия поднимается новая —
     /// прошлый чат остаётся в списке сессий движка (session.rs), а не удаляется.
     NewChat,
+    /// Открыть старый чат кликом из сайдбара: лента чистится и наполняется
+    /// историей этой сессии из ядра, сессия переключается. Историю читает
+    /// pump, валидацию списком движка и переключение ведёт supervise.
+    OpenChat { id: String },
     Stop,
     /// Установлен плагин из каталога или записан ключ провайдера: движок
     /// перечитывает их только при старте — лента поднимает его заново,
@@ -308,6 +316,15 @@ impl Chat {
             .send(Cmd::NewChat)
             .map_err(|_| "лента закрыта: перезапустите приложение".to_string())
     }
+
+    /// Открыть старый чат: команда уходит в поток ленты — как «новый чат»,
+    /// лента не ждёт сеть на вызывающем. История читается из ядра заново на
+    /// каждый клик, локально она не хранится.
+    pub fn open_chat(&self, id: &str) -> Result<(), String> {
+        self.tx
+            .send(Cmd::OpenChat { id: id.to_string() })
+            .map_err(|_| "лента закрыта: перезапустите приложение".to_string())
+    }
 }
 
 impl Drop for Chat {
@@ -362,6 +379,9 @@ fn supervise(
     let mut restart_asked = false;
     // Просьба «новый чат»: сессия обнуляется, лента — чистая, без строки «прерван».
     let mut new_chat_asked = false;
+    // Просьба «открыть старый чат»: история уже в ленте (её читал pump),
+    // здесь сессия переключается — по списку движка, не по памяти моста.
+    let mut open_asked: Option<String> = None;
     // Расход в stats.jsonl: один писатель на всю жизнь потока — обрыв потока и
     // рестарт движка его не пересоздают, уже записанное не теряется и не дублируется.
     let mut usage = crate::stats::Recorder::at(crate::stats::file(), store.clone());
@@ -427,6 +447,7 @@ fn supervise(
             &mut plugin_rows,
             &mut restart_asked,
             &mut new_chat_asked,
+            &mut open_asked,
             &mut usage,
         ) {
             return;
@@ -450,6 +471,28 @@ fn supervise(
             // строка «переподключаюсь» новый чат не сопровождает.
             new_chat_asked = false;
             session = None;
+            continue;
+        }
+        if let Some(id) = open_asked.take() {
+            // История уже в ленте: чат есть в списке движка — сессия
+            // переключается и запоминается, следующий вопрос уйдёт в неё;
+            // нет (удалён, движок перезапущен) — уведомление, открыт прежний.
+            let found = session::sessions(&api)
+                .ok()
+                .and_then(|list| session::resumed(&list, &id).map(|item| item.id.clone()));
+            match found {
+                Some(id) => {
+                    session = Some(id.clone());
+                    if let Some(store) = store.as_deref() {
+                        let patch = crate::state::StatePatch {
+                            session: Some(id),
+                            ..crate::state::StatePatch::default()
+                        };
+                        let _ = store.patch(&patch);
+                    }
+                }
+                None => sink.emit(FeedEvent::notice("engine", NOTICE_OPEN_MISSED)),
+            }
             continue;
         }
         sink.emit(FeedEvent::notice("stream", NOTICE_RECONNECT));
@@ -492,6 +535,12 @@ fn supervise_missing(rx: Receiver<Cmd>, sink: Arc<dyn Sink>) {
             // «Новый чат» без движка: лента и так пуста, сессию поднимет
             // появившийся движок — тихий пропуск.
             Ok(Cmd::NewChat) => {}
+            // Открыть старый чат без движка нечем: списка сессий нет — строка
+            // честно говорит об этом, как у неотправленного вопроса.
+            Ok(Cmd::OpenChat { .. }) => sink.emit(FeedEvent::notice(
+                "engine",
+                &format!("{NOTICE_NO_ENGINE}: старый чат открыть нельзя"),
+            )),
             Err(TryRecvError::Disconnected) => return,
             Err(TryRecvError::Empty) => thread::sleep(Duration::from_secs(RETRY_SECONDS)),
         }
@@ -515,6 +564,9 @@ fn pump(
     restart_asked: &mut bool,
     // Просьба «новый чат»: лента чистится здесь же, сессию обнуляет supervise.
     new_chat_asked: &mut bool,
+    // Просьба «открыть старый чат»: историю читает pump, сессию переключает
+    // supervise — по списку движка.
+    open_asked: &mut Option<String>,
     // Писатель расхода: живёт дольше соединения, обрыв потока строки не теряет.
     usage: &mut crate::stats::Recorder,
 ) -> bool {
@@ -532,6 +584,27 @@ fn pump(
                     // должен видеть прошлый чат, пока движок занимает новую.
                     sink.emit(FeedEvent::Reset);
                     *new_chat_asked = true;
+                    return false;
+                }
+                Cmd::OpenChat { id } => {
+                    // Лента чистится сразу: прошлый разговор не должен доживать
+                    // под строками открываемого (узор «нового чата»).
+                    sink.emit(FeedEvent::Reset);
+                    // История читается из ядра здесь же, в потоке ленты, — не
+                    // переигрыванием и не из локального хранилища. Не читается —
+                    // строка-уведомление: лента жива, сессию переключит supervise.
+                    match api.messages(&id) {
+                        Ok(messages) => {
+                            for row in history::rows(&messages) {
+                                sink.emit(row);
+                            }
+                        }
+                        Err(reason) => sink.emit(FeedEvent::notice(
+                            "engine",
+                            &format!("История чата не читается: {reason}"),
+                        )),
+                    }
+                    *open_asked = Some(id);
                     return false;
                 }
                 Cmd::Prompt { shown, prompt, files, model } => {

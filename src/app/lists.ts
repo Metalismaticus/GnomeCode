@@ -22,19 +22,27 @@ function freshAbove(chats: SidebarChat[]): SidebarChat[] {
 }
 
 /** Чаты сайдбара: настоящий титул, когда он есть, иначе фиксёрный список;
- *  время чата несёт хвост первой линии и группу дат. */
-export function chatsList(data: ReturnType<typeof panels>, title: string, time: number | null): SidebarChat[] {
+ *  время чата несёт хвост первой линии и группу дат. Титул есть — активная
+ *  строка сверху, история под ней: до ответа списка ядра сайдбар показывает
+ *  те же строки, что и до вопроса, — фиксёрные строки несёт панель и в живом
+ *  окне, настоящий список заменит их с ответом `chat_list`. */export function chatsList(data: ReturnType<typeof panels>, title: string, time: number | null): SidebarChat[] {
   if (title) {
-    return freshAbove([{ title, active: true, ...(time ? { time } : {}) }]);
+    // Активная строка — настоящий чат окна; фиксёрные строки идут историей
+    // без своей пометки «активный» (она у строки панели — не у этого чата).
+    const history = data.chats
+      .filter((chat) => chat.title !== title)
+      .map((chat) => ({ ...chat, active: undefined }));
+    return freshAbove([{ title, active: true, ...(time ? { time } : {}) }, ...history]);
   }
   return freshAbove(data.chats);
 }
 
 /** Живой список ядра поверх того, что окно уже показывает (спека сайдбара §7):
  *  строки истории — из загруженных сессий (название и время обновления, превью
- *  в списке ядра нет — строки без второй линии); активный чат окна остаётся
- *  активным, совпавший с ним по титулу в истории не дублируется. Список ядра
- *  не дошёл — сайдбар живёт тем, что есть. */
+ *  в списке ядра нет — строки без второй линии); идентификатор строки ведёт
+ *  клик — старый чат открывается переключением сессии. Активный чат окна
+ *  остаётся активным, совпавший с ним по титулу в истории не дублируется.
+ *  Список ядра не дошёл — сайдбар живёт тем, что есть. */
 export function chatsWithLive(known: SidebarChat[], live: ChatRow[]): SidebarChat[] {
   if (!live.length) {
     return known;
@@ -42,6 +50,6 @@ export function chatsWithLive(known: SidebarChat[], live: ChatRow[]): SidebarCha
   const active = known.find((chat) => chat.active);
   const history = live
     .filter((row) => row.title !== active?.title)
-    .map((row) => ({ title: row.title, ...(row.updated ? { time: row.updated } : {}) }));
+    .map((row) => ({ id: row.id, title: row.title, ...(row.updated ? { time: row.updated } : {}) }));
   return freshAbove(active ? [active, ...history] : history);
 }

@@ -46,6 +46,9 @@ export const tauriBridge = (): Bridge => ({
   async newChat() {
     await invoke("chat_new");
   },
+  async openChat(id: string) {
+    await invoke("chat_open", { id });
+  },
   async listen(listener: Listener) {
     return listen<FeedEvent>(FEED_CHANNEL, (event) => listener(event.payload));
   },
