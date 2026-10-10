@@ -23,9 +23,11 @@ const GLOW_BLUR = "24px";
 const GLOW_PLACES = [".composer__send", ".sidebar__logo-mark"];
 const SEND = ".composer__send";
 const MARK = ".sidebar__logo-mark";
-// Знак логотипа по высоте строки сайдбара: 24–28 px, ширина авто.
-const LOGO_MIN_PX = 24;
-const LOGO_MAX_PX = 28;
+// Знак логотипа — фиксированные 36 px (§18 спеки сайдбара; владелец 2026-10-10:
+// «логотип внутри приложения побольше бы, для стиля»), ширина авто по квадрату
+// маскота; допуск — дробь рамки на нецелых масштабах экрана.
+const LOGO_PX = 36;
+const LOGO_FRAME_TOLERANCE_PX = 0.5;
 
 /** Значение CSS-переменной у <html> — малыми буквами, пробелы обрезаны. */
 const tokenOf = (page, name) =>
@@ -100,10 +102,10 @@ try {
     if (!logo.loaded) {
       done(1, "картинка маскота не загрузилась — файл логотипа не подключён");
     }
-    if (logo.height < LOGO_MIN_PX || logo.height > LOGO_MAX_PX) {
-      done(1, `знак логотипа ${logo.height.toFixed(1)} px высотой, а не ${LOGO_MIN_PX}–${LOGO_MAX_PX} px по рамке строки`);
+    if (Math.abs(logo.height - LOGO_PX) > LOGO_FRAME_TOLERANCE_PX) {
+      done(1, `знак логотипа ${logo.height.toFixed(1)} px высотой, а не ${LOGO_PX} px по рамке (§18 спеки сайдбара)`);
     }
-    if (logo.width < LOGO_MIN_PX || logo.width > LOGO_MAX_PX) {
+    if (Math.abs(logo.width - LOGO_PX) > LOGO_FRAME_TOLERANCE_PX) {
       done(1, `знак логотипа ${logo.width.toFixed(1)} px шириной — ширина должна быть авто по квадрату маскота`);
     }
     await dark.close();
@@ -134,7 +136,7 @@ try {
 
     done(
       0,
-      `вариант B в тёмной теме: --bg-panel/${DARK["--bg-panel"]} --bg-panel-2/${DARK["--bg-panel-2"]} --border/${DARK["--border"]}, свечение ${GLOW} ${GLOW_BLUR} на кнопке отправки и знаке логотипа, маскот ${LOGO_MIN_PX}–${LOGO_MAX_PX} px с alt «GnomeCode»; светлая тема без свечения, уровни A и маскот на месте`,
+      `вариант B в тёмной теме: --bg-panel/${DARK["--bg-panel"]} --bg-panel-2/${DARK["--bg-panel-2"]} --border/${DARK["--border"]}, свечение ${GLOW} ${GLOW_BLUR} на кнопке отправки и знаке логотипа, маскот ${LOGO_PX} px с alt «GnomeCode»; светлая тема без свечения, уровни A и маскот на месте`,
     );
   } finally {
     await browser.close();
