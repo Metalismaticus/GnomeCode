@@ -7,7 +7,7 @@
 // Итог: код возврата и последняя строка вывода — как у любой проверки.
 // Ограничение: снимается страница интерфейса, а не окно Tauri — WebView2
 // Playwright не водит (docs/TESTING.md, «Ловушки стека»).
-import { done, startInterface, startShot, openShotPage, connectPlugin, commandButton, openMore, INSTALL } from "../lib/ui_lib.mjs";
+import { done, startInterface, startShot, openShotPage, connectPlugin, commandButton, openMore, openPluginsSection, INSTALL } from "../lib/ui_lib.mjs";
 
 const OUT_DIR = "shots";
 const CARD = '[data-testid="plugin-card"][data-plugin="git"]';
@@ -58,7 +58,9 @@ try {
       const name = `usage-counter-1440x900${theme.suffix ? `-${theme.suffix}` : ""}`;
       const { context, page } = await openShotPage(browser, url, `?состояние=плагины${theme.mark}`, theme.suffix);
       await runDiff(page);
-      await page.click('[data-testid="sidebar-plugins"]');
+      // Раздел из чата — общий вход ui_lib (сайдбар без строки «Плагины», §18
+      // спеки сайдбара); счётчик — память страницы.
+      await openPluginsSection(page);
       await page.waitForSelector(CARD, { timeout: 5000 });
       const usage = await page.$eval(`${CARD} [data-testid="plugin-card-usage"]`, (el) => el.textContent.trim());
       if (usage !== "Вызовов: 1") {

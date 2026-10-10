@@ -6,7 +6,7 @@
 // Страница интерфейса, а не окно Tauri: фикстура зеркалит launch/утечку счётчика
 // (src/fixtureApprovals.ts), счётчик — память страницы, перезагрузка обнуляет,
 // поэтому сценарий в одной странице без reload.
-import { done, connectPlugin, commandButton, openMore, openStatePage, startInterface, INSTALL } from "../lib/ui_lib.mjs";
+import { done, connectPlugin, commandButton, openMore, openPluginsSection, openStatePage, startInterface, INSTALL } from "../lib/ui_lib.mjs";
 
 const CARD = '[data-testid="plugin-card"]';
 
@@ -49,7 +49,9 @@ try {
     }
 
     // в) Счётчик вызовов на карточке плагина ---------------------------------
-    await page.click('[data-testid="sidebar-plugins"]');
+    // Раздел из чата — общий вход ui_lib (сайдбар без строки «Плагины», §18
+    // спеки сайдбара); счётчик — память страницы, вход его не трогает.
+    await openPluginsSection(page);
     try {
       await page.waitForSelector(`${CARD}[data-plugin="git"]`, { timeout: 5000 });
     } catch {

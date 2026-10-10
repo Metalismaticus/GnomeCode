@@ -106,12 +106,12 @@ export default function App() {
   }, [chat.applySaved]);
   useSavedState(applySaved);
 
-  /** Возврат в чат со страницы настроек: фокус — шестерёнке сайдбара
-   *  (спека «Клавиатура», Esc и клик по активной строке ведут его же). */
+  /** Возврат в чат со страницы настроек: фокус — кнопке «⋯» шапки (§18 спеки
+   *  сайдбара: шестерёнки в сайдбаре больше нет, прежний адрес фокуса исчез). */
   const closeSettings = useCallback(() => {
     setPage("chat");
     requestAnimationFrame(() => {
-      (document.querySelector('[data-testid="sidebar-settings"]') as HTMLElement | null)?.focus();
+      (document.querySelector('[data-testid="header-more"]') as HTMLElement | null)?.focus();
     });
   }, []);
 
@@ -145,10 +145,7 @@ export default function App() {
         theme={theme}
         onToggleTheme={toggleTheme}
         onPickFolder={project.pick}
-        onOpenPlugins={() => setPage("plugins")}
         onOpenStats={() => setPage("stats")}
-        onOpenSettings={() => setPage("settings")}
-        settingsOpen={page === "settings"}
         onOpenChat={() => setPage("chat")}
         onNewChat={newChat}
       />

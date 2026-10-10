@@ -10,7 +10,8 @@ export const MODEL_BADGE = '[data-testid="model-badge"]';
  *  ChatPluginsPanel, ComparePanel, HeaderMenu), метки — кнопки и области шапки
  *  и композера, которыми оверлей открыт и которые его закрывать не должны:
  *  «⋯» переключает меню и панель «Контекст проекта» не закрывает (спека
- *  «тихого хрома», §6), бейдж модели — вход сравнения. */
+ *  «тихого хрома», §6), бейдж и пилюля модели — входы сравнения: клик по пилюле
+ *  при открытом оверлее не «закрыть-и-открыть» (правка владельца 2026-10-10). */
 const SURFACES = [
   ".add-menu",
   ".plugin-picker",
@@ -22,6 +23,7 @@ const SURFACES = [
   ".compare-panel",
   ".header-menu",
   '[data-testid="composer-add"]',
+  '[data-testid="composer-model"]',
   MODEL_BADGE,
   '[data-testid="header-more"]',
 ] as const;

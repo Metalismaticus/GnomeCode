@@ -1,5 +1,6 @@
 // Раздел «Плагины»: карточки и действия (docs/BATCH.md, пункт 2; docs/SPEC/plugins.md,
-// сцена A — открывается из главной левой навигации, четыре вкладки: Installed /
+// сцена A — открывается из приветствия «Подключить плагин» и адреса состояния,
+// сайдбар без строки «Плагины» — §18 спеки сайдбара; четыре вкладки: Installed /
 // Available / Updates / Disabled).
 //
 //   python -X utf8 tools/run_checks.py plugins_section
@@ -8,10 +9,9 @@
 // (src/fixturePlugins.ts, состояние `?состояние=плагины-раздел`).
 import { chromium } from "@playwright/test";
 
-import { closeMore, done, openMore, startInterface, INSTALL } from "../lib/ui_lib.mjs";
+import { closeMore, done, openMore, openPluginsSection, startInterface, INSTALL } from "../lib/ui_lib.mjs";
 
 const WIDE = { width: 1440, height: 900 };
-const SIDEBAR = '[data-testid="sidebar-plugins"]';
 const PAGE = '[data-testid="plugins-page"]';
 const TAB = (name) => `[data-testid="plugin-tab-${name}"]`;
 const CARD = '[data-testid="plugin-card"]';
@@ -41,16 +41,11 @@ try {
     const page = await browser.newPage({ viewport: WIDE });
     await page.goto(`${url}?состояние=плагины-раздел`, { waitUntil: "domcontentloaded", timeout: 90_000 });
 
-    // а) Сайдбар ведёт в раздел: строка «Плагины» и сама страница ---------------
-    try {
-      await page.waitForSelector(SIDEBAR, { timeout: 5000 });
-    } catch {
-      done(1, `на экране нет [data-testid="sidebar-plugins"] — сайдбар не ведёт в раздел «Плагины»`);
-    }
+    // а) Раздел открыт по адресу состояния: сама страница на месте --------------
     try {
       await page.waitForSelector(PAGE, { timeout: 5000 });
     } catch {
-      done(1, `строка «Плагины» есть, но страницы раздела нет: на экране нет [data-testid="plugins-page"]`);
+      done(1, `адрес ?состояние=плагины-раздел не открыл раздел: на экране нет [data-testid="plugins-page"]`);
     }
 
     // б) Installed открыт сразу: карточки с полями сцены A -----------------------
@@ -175,8 +170,8 @@ try {
       done(1, "после подключения пункт команды «diff» плагина «git» не появился в меню «⋯»");
     }
     await closeMore(page);
-    // Раздел открыт из этого же окна: пункты в меню «⋯» перечитаются при возврате.
-    await page.click(SIDEBAR);
+    // Раздел открыт из приветствия — общий вход ui_lib (§18 спеки сайдбара).
+    await openPluginsSection(page);
     try {
       await page.waitForSelector(card("git"), { timeout: 5000 });
     } catch {
@@ -213,7 +208,7 @@ try {
     ).catch(() => done(1, "после Disable пункты команды «diff» плагина «git» остались в меню «⋯»"));
     await closeMore(page);
     // Enable из вкладки Disabled и возврат в чат: пункт возвращается.
-    await page.click(SIDEBAR);
+    await openPluginsSection(page);
     await page.click(TAB("disabled"));
     try {
       await page.waitForSelector(`${card("git")} [data-testid="plugin-enable"]`, { timeout: 5000 });
@@ -232,7 +227,7 @@ try {
 
     done(
       0,
-      "сайдбар ведёт в раздел «Плагины» со вкладками Installed/Available/Updates/Disabled: карточки показывают имя, автора, версию, описание, права, команды и статус, у карточек из реестра есть Enable/Disable/Uninstall (у плагина движка Uninstall нет), Updates честно пуста без обновлений (пустота законна), Disabled пуст до первого Disable, Available открывает каталог, «Отмена» подтверждения ничего не удаляет, «Удалить» убирает карточку из Installed, Disable убирает пункты команд из меню «⋯», Enable возвращает",
+      "раздел «Плагины» открыт из приветствия «Подключить плагин» и адреса состояния, вкладки Installed/Available/Updates/Disabled: карточки показывают имя, автора, версию, описание, права, команды и статус, у карточек из реестра есть Enable/Disable/Uninstall (у плагина движка Uninstall нет), Updates честно пуста без обновлений (пустота законна), Disabled пуст до первого Disable, Available открывает каталог, «Отмена» подтверждения ничего не удаляет, «Удалить» убирает карточку из Installed, Disable убирает пункты команд из меню «⋯», Enable возвращает",
     );
   } finally {
     await browser.close();

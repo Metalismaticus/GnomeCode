@@ -151,12 +151,14 @@ try {
       }
     }
     const outside = await pick.$eval("html", (el) => {
-      const gear = document.querySelector('[data-testid="sidebar-settings"]');
+      // Мера — правый край колонки сайдбара: строки шестерёнки в сайдбаре больше
+      // нет (§18 спеки сайдбара), колонка всегда на месте.
+      const sidebar = document.querySelector(".sidebar");
       const panel = document.querySelector('[data-testid="compare-panel"]');
-      if (!gear || !panel) {
+      if (!sidebar || !panel) {
         return { sidebar: false, panel: false };
       }
-      const left = gear.getBoundingClientRect().right;
+      const left = sidebar.getBoundingClientRect().right;
       const panelLeft = panel.getBoundingClientRect().left;
       return { sidebar: panelLeft >= left - 1, panel: true };
     });

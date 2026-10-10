@@ -8,7 +8,6 @@ import { panels } from "../fixture";
 import { MONTHS } from "../compare";
 import { Button } from "./Button";
 import { SidebarItem } from "./SidebarItem";
-import { SettingsGlyph } from "./glyphs";
 import { ThemeSwitch } from "./ThemeSwitch";
 
 import logoMark from "../../docs/refs/owner-2026-10-05-3-icon.png";
@@ -174,18 +173,17 @@ function chatRows(all: SidebarChat[], visible: SidebarChat[], now: number, onOpe
 }
 
 /** Левая колонка: логотип, поиск по чатам, быстрые действия («+ Новый проект»,
- *  «Новый чат», «Плагины», «Настройки»), разделы «Проекты»/«Чаты» с датами,
- *  подвал. Строка списка и её состояние «активный» — SidebarItem. */
+ *  «Новый чат», «Статистика»), разделы «Проекты»/«Чаты» с датами, подвал.
+ *  Строка списка и её состояние «активный» — SidebarItem. Строк «Плагины» и
+ *  «Настройки» здесь нет (правка владельца 2026-10-10, §18 спеки сайдбара):
+ *  дублируют «⋯», «+» и приветствие. */
 export function Sidebar({
   projects,
   chats,
   theme,
   onToggleTheme,
   onPickFolder,
-  onOpenPlugins,
   onOpenStats,
-  onOpenSettings,
-  settingsOpen,
   onOpenChat,
   onNewChat,
 }: {
@@ -195,14 +193,8 @@ export function Sidebar({
   onToggleTheme: () => void;
   /** Выбор папки проекта системным диалогом — кнопка «+ Новый проект». */
   onPickFolder: () => void;
-  /** Раздел «Плагины» из главной левой навигации (docs/SPEC/plugins.md, сцена A). */
-  onOpenPlugins: () => void;
   /** Раздел «Статистика» из главной левой навигации (docs/BATCH.md, пункт 2). */
   onOpenStats: () => void;
-  /** Страница настроек из главной левой навигации (docs/specs/2026-10-06-12-nastrojki.md). */
-  onOpenSettings: () => void;
-  /** Страница настроек открыта: шестерёнка подсвечена постоянно (aria-current="page"). */
-  settingsOpen: boolean;
   /** Возврат в чат кликом по строке чата: страница раздела размонтируется. */
   onOpenChat: () => void;
   /** «Новый чат»: лента чистится, движку поднимается новая сессия (замечание
@@ -237,16 +229,7 @@ export function Sidebar({
       <Button variant="ghost" data-testid="btn-new-chat" onClick={onNewChat}>
         Новый чат
       </Button>
-      <SidebarItem title="Плагины" testid="sidebar-plugins" onClick={onOpenPlugins} />
       <SidebarItem title="Статистика" testid="sidebar-stats" onClick={onOpenStats} />
-      <SidebarItem
-        title="Настройки"
-        glyph={<SettingsGlyph />}
-        testid="sidebar-settings"
-        active={settingsOpen}
-        page
-        onClick={onOpenSettings}
-      />
       <div className="sidebar__lists">
         <div className="sidebar__section-title">Проекты</div>
         {projects.length ? (

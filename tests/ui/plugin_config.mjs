@@ -6,7 +6,7 @@
 // Страница интерфейса, а не окно Tauri: фикстура зеркалит plugin_run (src/fixtureApprovals.ts),
 // правила — память страницы, без перезагрузок страницы: смена правила в Configure должна
 // менять следующий вызов в этом же окне (критерий готовности).
-import { closeMore, done, openMore, startInterface, INSTALL, openStatePage } from "../lib/ui_lib.mjs";
+import { closeMore, done, openMore, openPluginsSection, startInterface, INSTALL, openStatePage } from "../lib/ui_lib.mjs";
 
 const CARD = '[data-testid="plugin-card"]';
 const CHAT = '[data-testid="chat-active"]';
@@ -41,9 +41,11 @@ const connect = async (page, id) => {
   await page.waitForSelector(`[data-testid="plugin-button"][data-plugin="${id}"]`, { timeout: 5000 });
 };
 
-/** Раздел «Плагины» и его карточка: возврат из чата и открытие Configure. */
+/** Раздел «Плагины» и его карточка: возврат из чата и открытие Configure. Вход —
+ *  общий помощник ui_lib («Новый чат» → карточка приветствия, §18 спеки
+ *  сайдбара); правила — память страницы. */
 const configure = async (page, id) => {
-  await page.click('[data-testid="sidebar-plugins"]');
+  await openPluginsSection(page);
   await page.waitForSelector(card(id), { timeout: 5000 });
   await page.click(`${card(id)} [data-testid="plugin-configure"]`);
   await page.waitForSelector(PANEL, { timeout: 5000 });

@@ -217,6 +217,25 @@ export const commandButton = (command) => `[data-testid="plugin-button"][data-co
 export const installedCard = (page, id) =>
   page.waitForSelector(`[data-testid="plugin-card"][data-plugin="${id}"]`, { timeout: 5000 });
 
+/** Вход в раздел «Плагины» из чата: строки «Плагины» в сайдбаре нет (правка
+ *  владельца 2026-10-10, §18 спеки сайдбара) — «Новый чат» → карточка приветствия
+ *  «Подключить плагин». Одно место на все сценарии; страницу раздела ждёт сам. */
+export const openPluginsSection = async (page) => {
+  const WELCOME = '[data-testid="welcome-scenario"][title="Подключить плагин"]';
+  await page.click('[data-testid="btn-new-chat"]');
+  try {
+    await page.waitForSelector(WELCOME, { timeout: 5000 });
+  } catch {
+    done(1, "после «Нового чата» нет карточки приветствия «Подключить плагин» — входу в раздел неоткуда открыться");
+  }
+  await page.click(WELCOME);
+  try {
+    await page.waitForSelector('[data-testid="plugins-page"]', { timeout: 5000 });
+  } catch {
+    done(1, "карточка «Подключить плагин» не открыла раздел: нет [data-testid=plugins-page]");
+  }
+};
+
 /** Панель «Plugins in this chat»: пункт «Плагины этого чата» меню «⋯». Доля отказа
  *  текстом: панель или нет [data-testid=chat-plugins-panel] — у обоих сценариев. */
 export const openChatPlugins = async (page) => {

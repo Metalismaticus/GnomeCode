@@ -1,18 +1,25 @@
-// Окно настроек (docs/specs/2026-10-06-12-nastrojki.md): шестерёнка сайдбара →
-// страница, смена темы применяется сразу, модель по умолчанию через панель
-// сравнения в режиме «по умолчанию», значения переживают перезагрузку страницы.
+// Окно настроек (docs/specs/2026-10-06-12-nastrojki.md): вход «⋯» → «Настройки» →
+// страница (сайдбар без шестерёнки — §18 спеки сайдбара), смена темы применяется
+// сразу, модель по умолчанию через панель сравнения в режиме «по умолчанию»,
+// значения переживают перезагрузку страницы.
 //
 //   node tests/ui/settings.mjs
 // Итог: код возврата и последняя строка вывода — как у любой проверки (tests/lib/runner_lib.py).
 // Страница интерфейса, а не окно Tauri: фикстура зеркалит мост (src/fixture*),
 // рестарт движка после ключа сценарий не видит (живой шаг владельца).
-import { done, openStatePage, startInterface, INSTALL } from "../lib/ui_lib.mjs";
+import { done, openMore, openStatePage, startInterface, INSTALL } from "../lib/ui_lib.mjs";
 
-const GEAR = '[data-testid="sidebar-settings"]';
 const PAGE = '[data-testid="settings-page"]';
 const THEME = '[data-testid="settings-theme-switch"]';
 const BADGE = '[data-testid="model-badge"]';
 const COMPARE = '[data-testid="compare-panel"]';
+
+/** Вход в настройки из чата: «⋯» → «Настройки» — один жест на все возвраты. */
+const openSettings = async (page) => {
+  await openMore(page);
+  await page.click('[data-testid="menu-settings"]');
+  await page.waitForSelector(PAGE, { timeout: 5000 });
+};
 
 /** Первый вопрос в композере: чат без своей модели — бейдж сменил дефолт. */
 const ask = async (page, text) => {
@@ -26,17 +33,14 @@ try {
   const { browser, page } = await openStatePage(iface, "настройки");
   try {
 
-    // а) Шестерёнка сайдбара ведёт на страницу настроек ----------------------------
+    // а) Вход «⋯» → «Настройки» ведёт на страницу настроек -------------------------
+    // Состояние адреса открыло страницу само — сначала в чат, вход делаем оттуда.
+    await page.click('[data-testid="chat-active"]');
     try {
-      await page.waitForSelector(GEAR, { timeout: 5000 });
-    } catch {
-      done(1, "в сайдбаре нет шестерёнки настроек: нет [data-testid=sidebar-settings] — вход в окно настроек не появился");
-    }
-    await page.click(GEAR);
-    try {
+      await openSettings(page);
       await page.waitForSelector(`${PAGE} [data-testid="settings-tab-вид"]`, { timeout: 5000 });
     } catch {
-      done(1, "клик по шестерёнке не открыл страницу настроек: нет [data-testid=settings-page] или вкладки «Внешний вид»");
+      done(1, "пункт «Настройки» меню «⋯» не открыл страницу настроек: нет [data-testid=settings-page] или вкладки «Внешний вид»");
     }
 
     // б) Смена темы применяется к data-theme сразу (без перезапуска) ---------------
@@ -103,9 +107,7 @@ try {
 
     // д) Перезагрузка страницы — значения пережили её (состояние в фикстуре моста)
     await page.reload({ waitUntil: "domcontentloaded" });
-    await page.waitForSelector(GEAR, { timeout: 90_000 });
-    await page.click(GEAR);
-    await page.waitForSelector(PAGE, { timeout: 5000 });
+    await page.waitForSelector(PAGE, { timeout: 90_000 });
     await page.click('[data-testid="settings-tab-модели"]');
     const after = await page.$eval(
       '[data-testid="settings-default-model"] .settings-row__main',
@@ -154,8 +156,7 @@ try {
     }
 
     // з) Смена дефолта из настроек не трогает бейдж чата со своей моделью -----------
-    await page.click(GEAR);
-    await page.waitForSelector(PAGE, { timeout: 5000 });
+    await openSettings(page);
     await page.click('[data-testid="settings-tab-модели"]');
     await page.click('[data-testid="settings-open-compare"]');
     await page.waitForFunction(
@@ -185,7 +186,7 @@ try {
 
     await done(
       0,
-      `шестерёнка открывает страницу настроек; смена темы применила html[data-theme] («${before}» → «${applied}») сразу; «Изменить →» открыл панель в режиме «по умолчанию», «По умолчанию» сменил дефолт («${wasDefault}» → «${defaultModel}») и бейдж чата без своей модели; перезагрузка — значения на месте; бейдж чата с собственной моделью остался «${ownBadge}»`,
+      `пункт «Настройки» в «⋯» открывает страницу настроек; смена темы применила html[data-theme] («${before}» → «${applied}») сразу; «Изменить →» открыл панель в режиме «по умолчанию», «По умолчанию» сменил дефолт («${wasDefault}» → «${defaultModel}») и бейдж чата без своей модели; перезагрузка — значения на месте; бейдж чата с собственной моделью остался «${ownBadge}»`,
     );
   } finally {
     await browser.close();
