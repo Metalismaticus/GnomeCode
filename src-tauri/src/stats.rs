@@ -203,32 +203,42 @@ fn unix_ms() -> u64 {
         .unwrap_or(0)
 }
 
-/// Период сводки: последние 7 дней, 30 или всё.
+/// Период сводки: последние 7 дней, 30, всё или «за сегодня» (с начала местных
+/// суток — счётчики приветственной сборки, спека приветствия §5).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Period {
     Days7,
     Days30,
     All,
+    Today,
 }
 
 impl Period {
-    /// Из строки моста: «7», «30» или «all».
+    /// Из строки моста: «7», «30», «all» или «today».
     pub fn parse(value: &str) -> Result<Period, String> {
         match value {
             "7" => Ok(Period::Days7),
             "30" => Ok(Period::Days30),
             "all" => Ok(Period::All),
-            other => Err(format!("неизвестный период «{other}»: 7, 30 или all")),
+            "today" => Ok(Period::Today),
+            other => Err(format!("неизвестный период «{other}»: 7, 30, all или today")),
         }
     }
 
-    /// Граница периода: строки со временем раньше неё не считаются.
-    fn cutoff(self, now: u64) -> Option<u64> {
+    /// Граница периода: строки со временем раньше неё не считаются. «За сегодня»
+    /// границей берёт начало суток, посчитанное интерфейсом (`day_start`): в
+    /// std часовых поясов нет, полночь считает окно; границы нет — внятная
+    /// ошибка, а не молчаливое «всё время» (спека приветствия §13).
+    fn cutoff(self, now: u64, day_start: Option<u64>) -> Result<Option<u64>, String> {
         const DAY_MS: u64 = 24 * 60 * 60 * 1000;
         match self {
-            Period::Days7 => Some(now.saturating_sub(7 * DAY_MS)),
-            Period::Days30 => Some(now.saturating_sub(30 * DAY_MS)),
-            Period::All => None,
+            Period::Days7 => Ok(Some(now.saturating_sub(7 * DAY_MS))),
+            Period::Days30 => Ok(Some(now.saturating_sub(30 * DAY_MS))),
+            Period::All => Ok(None),
+            Period::Today => day_start.map(Some).ok_or_else(|| {
+                "период «today» требует начало суток (day_start): полночь считает интерфейс"
+                    .to_string()
+            }),
         }
     }
 }
@@ -394,13 +404,20 @@ fn row_cost(row: &Row, found: &Match) -> f64 {
         / 1_000_000.0
 }
 
-/// Сводка расхода для раздела «Статистика»: одна команда читает stats.jsonl
-/// целиком и считает суммы по проектам и моделям — экран тысяч строк не видит.
-/// Цены — только из кэша compare (сеть не зовётся): строки хранят токены, деньги
-/// каждый раз пересчитываются по актуальным ценам; `priced_at` — дата кэша.
-pub fn summary(file: &Path, period: &str, prices: Option<&compare::Snapshot>) -> Result<Summary, String> {
+/// Сводка расхода для раздела «Статистика» и счётчиков приветственной сборки:
+/// одна команда читает stats.jsonl целиком и считает суммы по проектам и
+/// моделям — экран тысяч строк не видит. Цены — только из кэша compare (сеть
+/// не зовётся): строки хранят токены, деньги каждый раз пересчитываются по
+/// актуальным ценам; `priced_at` — дата кэша. Для «today» границей служит
+/// `day_start` — начало местных суток в unix-мс от интерфейса (спека §13).
+pub fn summary(
+    file: &Path,
+    period: &str,
+    prices: Option<&compare::Snapshot>,
+    day_start: Option<u64>,
+) -> Result<Summary, String> {
     let period = Period::parse(period)?;
-    let cutoff = period.cutoff(unix_ms());
+    let cutoff = period.cutoff(unix_ms(), day_start)?;
     let mut totals = Acc::default();
     let mut models_acc: BTreeMap<(String, String), Acc> = BTreeMap::new();
     let mut projects_acc: BTreeMap<String, Acc> = BTreeMap::new();
@@ -565,7 +582,7 @@ mod tests {
             ],
         );
         let snapshot = prices(1_765_000_000_000, 0.14);
-        let all = summary(&file, "all", Some(&snapshot)).expect("сводка посчиталась");
+        let all = summary(&file, "all", Some(&snapshot), None).expect("сводка посчиталась");
 
         assert_eq!(all.models.len(), 3, "деление по моделям: {all:?}");
         let glm = all
@@ -680,11 +697,46 @@ mod tests {
             ],
         );
         let snapshot = prices(1, 0.0);
-        let of = |period: &str| summary(&file, period, Some(&snapshot)).expect("сводка").totals.input;
+        let of = |period: &str| {
+            summary(&file, period, Some(&snapshot), None)
+                .expect("сводка")
+                .totals
+                .input
+        };
         assert!(close(of("7"), 1.0), "7 дней: {}", of("7"));
         assert!(close(of("30"), 3.0), "30 дней: {}", of("30"));
         assert!(close(of("all"), 7.0), "всё: {}", of("all"));
-        assert!(summary(&file, "вчера", Some(&snapshot)).is_err(), "неизвестный период — ошибка");
+        assert!(summary(&file, "вчера", Some(&snapshot), None).is_err(), "неизвестный период — ошибка");
+        let _ = fs::remove_file(&file);
+    }
+
+    /// «За сегодня» режет по началу суток, посчитанному интерфейсом: полночь
+    /// считает окно, Rust часовых поясов не заводит (спека приветствия §13);
+    /// границы нет — внятная ошибка команды, а не молчаливое «всё время».
+    #[test]
+    fn summary_today_cuts_at_day_start_from_interface() {
+        let file = temp_file("today");
+        let hour: u64 = 60 * 60 * 1000;
+        let now = unix_ms();
+        write_rows(
+            &file,
+            &[
+                row_at(now - hour, "C:\\пр", "lab", "m", 1.0, 0.0, 0.0, 0.0, 0),
+                row_at(now - 25 * hour, "C:\\пр", "lab", "m", 2.0, 0.0, 0.0, 0.0, 0),
+            ],
+        );
+        let snapshot = prices(1, 0.0);
+        // Полночь посчитал интерфейс: 5 часов назад. Строка часовой давности —
+        // за сегодня, вчерашняя (25 часов) — нет.
+        let day_start = now - 5 * hour;
+        let today = summary(&file, "today", Some(&snapshot), Some(day_start))
+            .expect("сводка за сегодня");
+        assert!(close(today.totals.input, 1.0), "за сегодня — только после полуночи: {}", today.totals.input);
+        assert_eq!(today.models.len(), 1, "одна модель за сегодня — одна строка деления");
+        assert!(
+            summary(&file, "today", Some(&snapshot), None).is_err(),
+            "период «today» без начала суток — ошибка команды",
+        );
         let _ = fs::remove_file(&file);
     }
 
@@ -693,7 +745,7 @@ mod tests {
     fn summary_empty_and_garbage_is_honest_zero() {
         let missing = temp_file("missing");
         let _ = fs::remove_file(&missing);
-        let empty = summary(&missing, "all", None).expect("сводка без файла — ноль");
+        let empty = summary(&missing, "all", None, None).expect("сводка без файла — ноль");
         assert_eq!(empty.models.len(), 0);
         assert_eq!(empty.projects.len(), 0);
         assert_eq!(empty.totals.input, 0.0);
@@ -704,7 +756,7 @@ mod tests {
         let file = temp_file("garbage");
         fs::write(&file, "мусор без формата\n{\"битый\": json}\n").expect("мусор записан");
         let snapshot = prices(7, 0.14);
-        let garbage = summary(&file, "all", Some(&snapshot)).expect("испорченный файл — норма");
+        let garbage = summary(&file, "all", Some(&snapshot), None).expect("испорченный файл — норма");
         assert_eq!(garbage.totals.cost, Some(0.0));
         assert_eq!(garbage.priced_at, Some(7), "кэш передан — дата известна, строк нет");
         let _ = fs::remove_file(&file);
@@ -718,9 +770,9 @@ mod tests {
             &file,
             &[row_at(unix_ms(), "C:\\пр", "zai-coding-plan", "glm-5.3-flash", 1_000_000.0, 0.0, 0.0, 0.0, 0)],
         );
-        let old = summary(&file, "all", Some(&prices(1, 0.14))).expect("старые цены");
+        let old = summary(&file, "all", Some(&prices(1, 0.14)), None).expect("старые цены");
         assert!(close(old.totals.cost.unwrap_or_default(), 0.14), "по 0.14: {:?}", old.totals.cost);
-        let fresh = summary(&file, "all", Some(&prices(2, 0.28))).expect("свежие цены");
+        let fresh = summary(&file, "all", Some(&prices(2, 0.28)), None).expect("свежие цены");
         assert!(close(fresh.totals.cost.unwrap_or_default(), 0.28), "по 0.28: {:?}", fresh.totals.cost);
         assert_eq!(fresh.priced_at, Some(2), "дата цен — дата свежего кэша");
         let _ = fs::remove_file(&file);
@@ -738,7 +790,7 @@ mod tests {
             })
             .collect();
         write_rows(&file, &rows);
-        let all = summary(&file, "all", Some(&prices(1, 0.14))).expect("сводка тысяч строк");
+        let all = summary(&file, "all", Some(&prices(1, 0.14)), None).expect("сводка тысяч строк");
         assert!(close(all.totals.input, 10_000.0 * 100.0), "итог по вводу: {}", all.totals.input);
         assert_eq!(all.models.len(), 1, "одна модель — одна строка деления");
         assert_eq!(all.projects.len(), 2, "два проекта — две строки деления");

@@ -20,7 +20,14 @@ const SCENARIOS = [
   ["Подключить плагин", "Каталог и права"],
   ["Сравнить модели", "Выбрать для этого чата"],
 ];
-const COUNTERS = ["ЧАТЫ", "ПРОЕКТЫ", "ПЛАГИНЫ", "ВЫЗОВЫ"];
+const COUNTERS = ["ЧАТЫ", "ПРОЕКТЫ", "ПЛАГИНЫ", "ВЫЗОВЫ", "ТОКЕНЫ", "ДЕНЬГИ"];
+/** Честные нули — только у первых четырёх; у расхода значения фикстуры «за сегодня»
+ *  (src/fixtureStats.ts, §8 спеки приветствия): приходят с моста асинхронно — сценарий
+ *  ждёт число, а не карточку. */
+const SPEND = { ТОКЕНЫ: "650 000", ДЕНЬГИ: "$0.18" };
+const SPEND_NOTE = "Токены и деньги — за сегодня";
+/** Крупный ввод нового чата — тот же композер в середине сборки (спека приветствия §4). */
+const HERO_MIN_PX = 96;
 /** Ряд моделей — текущая плюс известные, не весь каталог: приветствие не должно
  *  выкатывать сотни карточек за сгиб (замечание владельца 2026-10-06, живая копия). */
 const MODEL_ROW_LIMIT = 8;
@@ -50,6 +57,18 @@ try {
     } catch {
       done(1, "при ?состояние=пусто в ленте нет приветственной сборки: нет [data-testid=empty]");
     }
+    // Числа расхода приходят с моста позже сборки — ждём значение, не только каркас.
+    // Разряды ru-RU — неразрывный пробел (U+00A0): сверяем нормализованным текстом,
+    // как stats_page (иначе значение на экране есть, а строка сравнения не совпадает).
+    await page.waitForFunction(
+      (needle) =>
+        [...document.querySelectorAll('[data-testid="welcome-counter"]')]
+          .some((card) => card.textContent.replace(/\s+/g, " ").includes(needle)),
+      SPEND.ТОКЕНЫ,
+      { timeout: 15000 },
+    ).catch(() => {
+      done(1, `счётчик «ТОКЕНЫ» не дождался числа «${SPEND.ТОКЕНЫ}» — расход «за сегодня» не приходит с моста`);
+    });
     const h1 = await styleOf(page, '[data-testid="empty-title"]', "fontSize");
     if (h1 !== `${H1_PX}px`) {
       done(1, `заголовок приветствия ${h1}, а не ${H1_PX} px (крупный заголовок образца)`);
@@ -63,26 +82,27 @@ try {
       done(1, `под заголовком нет подзаголовка приветствия — есть «${subtitle.slice(0, 80)}»`);
     }
 
-    // Ряд счётчиков: 4 карточки с честными нулями, число 16 px/600, табличное.
+    // Ряд счётчиков: шесть карточек; честные нули — у первых четырёх, расход — из фикстуры.
     const counters = await page.$$eval('[data-testid="welcome-counter"]', (cards) =>
       cards.map((card) => ({
         label: card.querySelector(".counter__label")?.textContent.trim() ?? "",
-        value: card.querySelector(".counter__value")?.textContent.trim() ?? "",
+        value: card.querySelector(".counter__value")?.textContent.replace(/\s+/g, " ").trim() ?? "",
         size: getComputedStyle(card.querySelector(".counter__value")).fontSize,
         weight: getComputedStyle(card.querySelector(".counter__value")).fontWeight,
         numeric: getComputedStyle(card.querySelector(".counter__value")).fontVariantNumeric,
       })),
     ).catch(() => []);
     if (counters.length !== COUNTERS.length) {
-      done(1, `ряд счётчиков — ${counters.length} карточки, а не ${COUNTERS.length} (ЧАТЫ/ПРОЕКТЫ/ПЛАГИНЫ/ВЫЗОВЫ)`);
+      done(1, `ряд счётчиков — ${counters.length} карточки, а не ${COUNTERS.length} (${COUNTERS.join("/")})`);
     }
     for (const [index, label] of COUNTERS.entries()) {
       const card = counters[index];
       if (card.label !== label) {
         done(1, `счётчик ${index + 1} — «${card.label}», а не «${label}»`);
       }
-      if (card.value !== "0") {
-        done(1, `счётчик «${label}» показывает «${card.value}», а не честный ноль на пустом чате`);
+      const wanted = SPEND[label] ?? "0";
+      if (card.value !== wanted) {
+        done(1, `счётчик «${label}» показывает «${card.value}», а не «${wanted}» (честный ноль или число фикстуры)`);
       }
       if (card.size !== `${NUMBER_PX}px` || card.weight !== "600") {
         done(1, `число счётчика «${label}» — ${card.size}/${card.weight}, а не ${NUMBER_PX} px/600 (крупные полужирные числа образца)`);
@@ -90,6 +110,35 @@ try {
       if (!card.numeric.includes("tabular-nums")) {
         done(1, `число счётчика «${label}» не табличное (tabular-nums)`);
       }
+    }
+    // Подпись периода под рядом: называет «за сегодня» для обеих карточек расхода.
+    const note = await page.textContent('[data-testid="welcome-spend-note"]').catch(() => "");
+    if (!note.includes(SPEND_NOTE)) {
+      done(1, `под счётчиками нет подписи «${SPEND_NOTE}»: есть «${note.trim()}»`);
+    }
+
+    // Герой-ввод: тот же композер слотом сборки, крупное поле (спека приветствия §4).
+    const hero = await page.$eval('[data-testid="welcome-composer"]', (block) => ({
+      composer: Boolean(block.querySelector('[data-testid="composer"]')),
+      add: Boolean(block.querySelector('[data-testid="composer-add"]')),
+      model: Boolean(block.querySelector('[data-testid="composer-model"]')),
+      box: block.querySelector(".composer__box")?.getBoundingClientRect().height ?? 0,
+      bottom: (() => {
+        const composer = document.querySelector(".composer");
+        return composer ? getComputedStyle(composer).position : null;
+      })(),
+    })).catch(() => null);
+    if (!hero || !hero.composer) {
+      done(1, "крупного ввода нет: [data-testid=welcome-composer] с композером между счётчиками и сценариями");
+    }
+    if (!hero.add || !hero.model) {
+      done(1, "в герое нет «+» или пилюли модели — селекторы композера должны жить в герое");
+    }
+    if (hero.box < HERO_MIN_PX) {
+      done(1, `поле героя ${Math.round(hero.box)} px, а не ≥ ${HERO_MIN_PX} — «крупный ввод» одной строкой не читается`);
+    }
+    if (hero.bottom !== "static") {
+      done(1, `герой позиционирован сам (${hero.bottom}) — всплывающие якорятся к области чата`);
     }
 
     // Ряд моделей — из каталога, который продукт знает: текущая первой, вторая линия.
@@ -113,22 +162,23 @@ try {
     if (providerCards) {
       done(1, `в приветствии остался ряд провайдеров (${providerCards} карточки) — перегружает сборку, ряд переехал в настройки`);
     }
-    // Порядок сборки: H1 → счётчики → 4 сценария → модели (замечание владельца 21:46).
+    // Порядок сборки: H1 → счётчики → герой → 4 сценария → модели (замечание владельца 21:46).
     const order = await page.$eval('[data-testid="empty"]', (block) => ({
       title: block.querySelector('[data-testid="empty-title"]')?.getBoundingClientRect().top ?? null,
       counters: block.querySelector('[data-testid="welcome-counter"]')?.getBoundingClientRect().top ?? null,
+      composer: block.querySelector('[data-testid="welcome-composer"]')?.getBoundingClientRect().top ?? null,
       scenarios: block.querySelector('[data-testid="welcome-scenarios"]')?.getBoundingClientRect().top ?? null,
       models: block.querySelector('[data-testid="welcome-model"]')?.getBoundingClientRect().top ?? null,
     }));
     if (Object.values(order).some((top) => top === null)) {
       done(1, "приветственной сборки нет целиком: один из рядов потерялся — порядок не проверить");
     }
-    const sequence = ["title", "counters", "scenarios", "models"];
+    const sequence = ["title", "counters", "composer", "scenarios", "models"];
     for (let i = 1; i < sequence.length; i += 1) {
       if (order[sequence[i]] <= order[sequence[i - 1]]) {
         done(
           1,
-          `ряд «${sequence[i]}» стоит не ниже «${sequence[i - 1]}» — целое: H1 → счётчики → сценарии → модели, есть «${sequence.map((step) => `${step}=${Math.round(order[step])}`).join(" / ")}»`,
+          `ряд «${sequence[i]}» стоит не ниже «${sequence[i - 1]}» — целое: H1 → счётчики → герой → сценарии → модели, есть «${sequence.map((step) => `${step}=${Math.round(order[step])}`).join(" / ")}»`,
         );
       }
     }
@@ -598,7 +648,7 @@ try {
 
     done(
       0,
-      `приветственная сборка: H1 ${H1_PX} px/700, счётчики ${COUNTERS.join("/")} с честными нулями и числами ${NUMBER_PX} px/600 табличные, без ряда провайдеров, порядок H1 → счётчики → сценарии → модели (ряд до ${MODEL_ROW_LIMIT}), 4 сценария с глифами; разбор: ступени с номерами сворачиваются, код-блок «Копировать→Скопировано» с языком и переносом; сайдбар: группы ${GROUPS.join("/")} и двухстрочные строки; панель: тумблер файлов переключает право чата (без папки — выбор папки проекта), интернет выключен с причиной, команды плагинов через одобрение, «позже» нет; сайдбар живой: поиск под логотипом фильтрует только чаты и пересобирает группы, ✕ и Esc очищают, пустой результат — «Ничего не нашлось», время справа первой линии и превью второй, чат без сообщений одной линией, точка проекта --success и --danger при ошибке движка`,
+      `приветственная сборка: H1 ${H1_PX} px/700, счётчиков шесть (${COUNTERS.join("/")}) с честными нулями у первых четырёх, «ТОКЕНЫ» «${SPEND.ТОКЕНЫ}» и «ДЕНЬГИ» «${SPEND.ДЕНЬГИ}» из фикстуры, подпись «${SPEND_NOTE}», герой-ввод — композер полем ≥ ${HERO_MIN_PX} px между счётчиками и сценариями, порядок H1 → счётчики → герой → сценарии → модели (ряд до ${MODEL_ROW_LIMIT}), 4 сценария с глифами; разбор: ступени с номерами сворачиваются, код-блок «Копировать→Скопировано» с языком и переносом; сайдбар: группы ${GROUPS.join("/")} и двухстрочные строки; панель: тумблер файлов переключает право чата (без папки — выбор папки проекта), интернет выключен с причиной, команды плагинов через одобрение, «позже» нет; сайдбар живой: поиск под логотипом фильтрует только чаты и пересобирает группы, ✕ и Esc очищают, пустой результат — «Ничего не нашлось», время справа первой линии и превью второй, чат без сообщений одной линией, точка проекта --success и --danger при ошибке движка`,
     );
   } finally {
     await browser.close();

@@ -34,6 +34,23 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+/* Расход «за сегодня»: ряд шести счётчиков и подпись периода под ним (спека §5).
+   Подпись 11 px --text-faint без капители — называет метрику, а не данные. */
+.empty__spend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.empty__row--counters {
+  grid-template-columns: repeat(6, 1fr);
+}
+
+.empty__spend-note {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
 /* Карточка счётчика/провайдера/модели: не кнопка и не фокусируется (спека «Состояния»). */
 .welcome-card {
   display: flex;
@@ -149,18 +166,26 @@
   color: var(--text);
 }
 
-/* Минимум 1024×640: ряды перестраиваются в 2×2, H1 переносится (спека §3). */
+/* Минимум 1024×640: счётчики 3×2, сценарии 2×2, H1 переносится (спека §3). */
 @media (max-width: 1199px) {
   .empty__row,
   .empty__row--scenarios {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  .empty__row--counters {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
-/* Ещё более узкое окно: последняя перестройка — одна колонка (спека §3). */
+/* Ещё более узкое окно: счётчики 2 колонки (3 ряда), сценарии в одну (спека §5). */
 @media (max-width: 700px) {
   .empty__row,
   .empty__row--scenarios {
     grid-template-columns: 1fr;
+  }
+
+  .empty__row--counters {
+    grid-template-columns: repeat(2, 1fr);
   }
 }

@@ -198,14 +198,17 @@ async fn compare_refresh(app: AppHandle, chat: State<'_, Chat>) -> Result<compar
     Ok(snapshot)
 }
 
-/// Сводка расхода для раздела «Статистика»: суммы по stats.jsonl считает
-/// stats.rs одним вызовом — экран тысяч строк не видит. Цены берутся только
-/// из кэша сравнения (`compare::fresh_cache`), сеть не зовётся: «Обновить
-/// цены» остаётся кнопкой панели сравнения.
+/// Сводка расхода для раздела «Статистика» и счётчиков приветственной сборки:
+/// суммы по stats.jsonl считает stats.rs одним вызовом — экран тысяч строк не
+/// видит. Цены берутся только из кэша сравнения (`compare::fresh_cache`), сеть
+/// не зовётся: «Обновить цены» остаётся кнопкой панели сравнения. Для периода
+/// «today» границей служит `day_start` — начало местных суток в unix-мс,
+/// посчитанное интерфейсом: полночь считает окно, Rust часовых поясов не
+/// заводит (спека приветствия §13).
 #[tauri::command]
-fn stats_summary(app: AppHandle, period: String) -> Result<stats::Summary, String> {
+fn stats_summary(app: AppHandle, period: String, day_start: Option<u64>) -> Result<stats::Summary, String> {
     let prices = compare::fresh_cache(&compare::file(data_dir(&app)));
-    stats::summary(&stats::file(), &period, prices.as_ref())
+    stats::summary(&stats::file(), &period, prices.as_ref(), day_start)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

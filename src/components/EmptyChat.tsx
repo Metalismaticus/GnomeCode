@@ -1,13 +1,18 @@
-// Приветственная сборка пустого чата (docs/specs/2026-10-06-11-glavnoe.md, §3/§5):
-// H1 с подзаголовком, ряд счётчиков из настоящих данных, ряды провайдеров и моделей
-// из каталога, который продукт знает, и ровно 4 карточки сценариев. Ряд без данных
-// не рисуется вовсе; ноль счётчика — честный. Сборка стоит вверху прокручиваемой
-// ленты; композер — не часть сборки и не едет.
-import { useMemo } from "react";
+// Приветственная сборка пустого чата (docs/specs/2026-10-10-5-приветственная.md):
+// H1 с подзаголовком, шесть счётчиков — четыре из настоящего состояния и расход
+// «за сегодня» из данных «Статистики» (useStats; без сводки — честный прочерк
+// с причиной на карточке), герой-ввод слотом между счётчиками и сценариями —
+// тот же композер крупным вариантом (ChatView создаёт его один раз, первый
+// вопрос уводит вниз строкой), ровно 4 карточки сценариев и ряд моделей.
+// Ряд без данных не рисуется вовсе; ноль счётчика — честный. Сборка стоит
+// вверху прокручиваемой ленты.
+import { useMemo, type ReactNode } from "react";
 
+import { moneyOf } from "../compare";
 import { knownModels, type KnownModel } from "../markdown";
 import { useCompare } from "../features/compare/useCompare";
 import type { PluginsState } from "../features/plugins/usePlugins";
+import { tokensOf, useStats } from "../features/stats/useStats";
 import { ChatGlyph, FolderGlyph, PuzzleGlyph, ScalesGlyph } from "./glyphs";
 
 import "./EmptyChat.css";
@@ -16,6 +21,14 @@ const TITLE = "Добро пожаловать в GnomeCode";
 const SUBTITLE = "Опишите задачу, приложите файл или выберите сценарий";
 const MANAGE = "Управление моделями →";
 const MODEL_OF_CHAT = "модель этого чата";
+/** Подпись под рядом счётчиков: называет период «за сегодня» для обеих карточек
+ *  расхода — короткие метки без периода влезают в карточку (спека §5/§13);
+ *  стоит всегда, и при прочерке тоже — поясняет метрику, а не данные. */
+const SPEND_NOTE = "Токены и деньги — за сегодня";
+/** Причины прочерка расхода на самой карточке (спека приветствия §9). */
+const SPEND_LOADING = "Считаю расход…";
+const SPEND_BROKEN = "Статистика не читается";
+const SPEND_NO_PRICES = "Цены моделей неизвестны — деньги не считаются";
 /** Ряд моделей — текущая плюс известные, не весь каталог: приветствие не должно
  *  выкатывать сотни карточек за сгиб (замечание владельца 2026-10-06, живая копия). */
 const MODEL_ROW_LIMIT = 8;
@@ -36,6 +49,7 @@ export function EmptyChat({
   counts,
   plugins,
   model,
+  hero,
   onOpenProject,
   onConnectPlugin,
   onCompare,
@@ -44,6 +58,9 @@ export function EmptyChat({
   counts: WelcomeCounts;
   plugins: PluginsState;
   model: string;
+  /** Герой-ввод слотом: тот же композер крупным вариантом, стоит между
+   *  счётчиками и сценариями (спека приветствия §3/§7). */
+  hero?: ReactNode;
   /** Клик по карточке сценария: папка проекта, каталог плагинов, панель сравнения. */
   onOpenProject: () => void;
   onConnectPlugin: () => void;
@@ -52,6 +69,12 @@ export function EmptyChat({
   onNewChat: () => void;
 }) {
   const compare = useCompare(true);
+  // Расход «за сегодня» — те же данные, что у раздела «Статистика» (спека §5):
+  // сводку считает Rust, значения приходят с моста при каждом появлении сборки —
+  // после разговора «Новый чат» показывает свежие числа.
+  const { summary: spend, error: spendError } = useStats("today");
+  /** Причина прочерка, пока сводки нет: «считаю» или «не читается» (§9). */
+  const spendTitle = spend ? undefined : spendError ? SPEND_BROKEN : SPEND_LOADING;
   // Ряд моделей: сегодня известные за текущей не выходит за лимит — приветствие
   // отвечает за сводку, а не за весь каталог (замечание владельца 21:46).
   const models = useMemo(
@@ -69,11 +92,20 @@ export function EmptyChat({
     () => plugins.plugins.filter((plugin) => !plugin.disabled && plugin.uninstallable).length,
     [plugins.plugins],
   );
-  const counters: { label: string; value: number }[] = [
-    { label: "ЧАТЫ", value: counts.chats },
-    { label: "ПРОЕКТЫ", value: counts.projects },
-    { label: "ПЛАГИНЫ", value: installed },
-    { label: "ВЫЗОВЫ", value: usage },
+  const counters: { label: string; value: string; title?: string }[] = [
+    { label: "ЧАТЫ", value: counts.chats.toLocaleString("ru-RU") },
+    { label: "ПРОЕКТЫ", value: counts.projects.toLocaleString("ru-RU") },
+    { label: "ПЛАГИНЫ", value: installed.toLocaleString("ru-RU") },
+    { label: "ВЫЗОВЫ", value: usage.toLocaleString("ru-RU") },
+    // Токены — по одной формуле с «Статистикой», деньги — тем же moneyOf:
+    // числа сборки и раздела сходятся (спека §13). Данных нет — «—» у обеих;
+    // цены неизвестны — «—» только у денег, токены показываются.
+    { label: "ТОКЕНЫ", value: spend ? tokensOf(spend.totals) : "—", title: spendTitle },
+    {
+      label: "ДЕНЬГИ",
+      value: spend ? moneyOf(spend.totals.cost) : "—",
+      title: spend ? (spend.totals.cost === null ? SPEND_NO_PRICES : undefined) : spendTitle,
+    },
   ];
   const actionOf = (key: (typeof SCENARIOS)[number]["key"]): (() => void) | undefined => {
     if (key === "open-project") {
@@ -89,21 +121,38 @@ export function EmptyChat({
       return onCompare;
     }
     return undefined;
-  };  return (
+  };
+  return (
     <div className="empty" data-testid="empty">
       <h1 className="empty__title" data-testid="empty-title">
         {TITLE}
       </h1>
       <div className="empty__subtitle">{SUBTITLE}</div>
 
-      <div className="empty__row">
-        {counters.map((counter) => (
-          <div className="welcome-card" key={counter.label} data-testid="welcome-counter">
-            <span className="counter__value">{counter.value.toLocaleString("ru-RU")}</span>
-            <span className="counter__label">{counter.label}</span>
-          </div>
-        ))}
+      <div className="empty__spend">
+        <div className="empty__row empty__row--counters">
+          {counters.map((counter) => (
+            <div
+              className="welcome-card"
+              key={counter.label}
+              data-testid="welcome-counter"
+              title={counter.title}
+            >
+              <span className="counter__value">{counter.value}</span>
+              <span className="counter__label">{counter.label}</span>
+            </div>
+          ))}
+        </div>
+        <div className="empty__spend-note" data-testid="welcome-spend-note">
+          {SPEND_NOTE}
+        </div>
       </div>
+
+      {hero ? (
+        <div className="empty__composer" data-testid="welcome-composer">
+          {hero}
+        </div>
+      ) : null}
 
       <div className="empty__row empty__row--scenarios" data-testid="welcome-scenarios">
         {SCENARIOS.map((scenario) => (

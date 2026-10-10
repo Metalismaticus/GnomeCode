@@ -52,12 +52,17 @@ const SHOTS = [
   { name: "main-window-1440x900-chips", size: [1440, 900], query: "?состояние=проект&правая=открыта", wait: "panel", chips: true, texts: ["README.md", "tokens.css"] },
   { name: "main-window-1024x640-chips", size: [1024, 640], query: "?состояние=проект&правая=открыта", wait: "panel", chips: true, texts: ["README.md", "tokens.css"] },
   // Кадры пункта 11 (docs/specs/2026-10-06-11-glavnoe.md, «Где снимать»): приветствие
-  // и разбор в обеих темах плюс минимум.
-  { name: "glavnoe-1440x900-pusto", size: [1440, 900], query: "?состояние=пусто", wait: "empty", texts: ["Добро пожаловать в GnomeCode", "ЧАТЫ", "Открыть проект"] },
-  { name: "glavnoe-1440x900-pusto-light", size: [1440, 900], query: "?состояние=пусто&тема=светлая", wait: "empty-light", texts: ["Добро пожаловать в GnomeCode"] },
+  // и разбор в обеих темах плюс минимум. Числа расхода приходят асинхронно — кадры
+  // ждут значения, а не только каркас сборки (спека приветствия §11).
+  { name: "glavnoe-1440x900-pusto", size: [1440, 900], query: "?состояние=пусто", wait: "empty", text: "650 000", texts: ["Добро пожаловать в GnomeCode", "ЧАТЫ", "Открыть проект", "650 000", "$0.18", "Токены и деньги — за сегодня"] },
+  { name: "glavnoe-1440x900-pusto-light", size: [1440, 900], query: "?состояние=пусто&тема=светлая", wait: "empty-light", text: "650 000", texts: ["Добро пожаловать в GnomeCode", "650 000", "$0.18"] },
+  // Кадры приветственной сборки (docs/specs/2026-10-10-5-приветственная.md, §11):
+  // прочерк расхода и меню «+» героя снимаются адресом, без кликов.
+  { name: "glavnoe-1440x900-pusto-nostats", size: [1440, 900], query: "?состояние=пусто&статистика=нет", wait: "empty", texts: ["Добро пожаловать в GnomeCode", "ТОКЕНЫ", "ДЕНЬГИ", "—"] },
+  { name: "glavnoe-1440x900-pusto-plus", size: [1440, 900], query: "?состояние=пусто&плюс=открыто", wait: "add-menu", heroMenu: true, texts: ["Добро пожаловать в GnomeCode", "Connect plugin", "650 000"] },
   { name: "glavnoe-1440x900-razbor", size: [1440, 900], query: "?состояние=разбор", wait: "step", texts: ["Копировать", "Sources used"] },
   { name: "glavnoe-1440x900-razbor-light", size: [1440, 900], query: "?состояние=разбор&тема=светлая", wait: "step-light", texts: ["Копировать", "Sources used"] },
-  { name: "glavnoe-1024x640-pusto", size: [1024, 640], query: "?состояние=пусто", wait: "empty", texts: ["Добро пожаловать в GnomeCode"] },
+  { name: "glavnoe-1024x640-pusto", size: [1024, 640], query: "?состояние=пусто", wait: "empty", text: "650 000", texts: ["Добро пожаловать в GnomeCode", "650 000", "$0.18"] },
 ];
 
 const WAITED = { header: 90_000, theme: 15000, empty: 15000, panel: 15000 };
@@ -94,6 +99,11 @@ const settled = async (page, shot) => {
     await page.waitForFunction(() => Boolean(document.querySelector('[data-testid="empty"]')), undefined, {
       timeout: WAITED.empty,
     });
+    return;
+  }
+  if (shot.wait === "add-menu") {
+    // Меню «+» героя (`?плюс=открыто`): кадр снимается, когда меню на экране.
+    await page.waitForSelector('[data-testid="add-menu"]', { timeout: WAITED.empty });
     return;
   }
   if (shot.wait === "empty-light" || shot.wait === "step-light") {
@@ -140,13 +150,37 @@ const settled = async (page, shot) => {
     return;
   }
   if (shot.text) {
+    // Разряды ru-RU — неразрывный пробел (U+00A0): ждём нормализованным текстом,
+    // как stats_page (иначе значение на экране есть, а признак не совпадает).
     await page.waitForFunction(
-      (needle) => document.querySelector('[data-testid="feed"]')?.innerText.includes(needle),
+      (needle) => {
+        const text = document.querySelector('[data-testid="feed"]')?.innerText ?? "";
+        return text.replace(/\s+/g, " ").includes(needle);
+      },
       shot.text,
       { timeout: 15000 },
     );
   }
 };
+
+/** Меню «+» героя (`плюс=открыто`, спека приветствия §12.4): оверлей области
+ *  чата под шапкой, целиком на экране, поверх сборки — краем ленты не обрезан.
+ *  Числами, не глазами: порог «не выше шапки» — как у пикера двери панели
+ *  в window_look (шапка min-height 48, узор top 56), рамки чата — точно. */
+const heroMenuBounds = async (page) =>
+  page.evaluate(() => {
+    const box = (sel) => {
+      const el = document.querySelector(sel);
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return { top: r.top, left: r.left, right: r.right, bottom: r.bottom };
+    };
+    return {
+      menu: box('[data-testid="add-menu"]'),
+      chat: box(".chat"),
+      header: box('[data-testid="chat-header"]'),
+    };
+  });
 
 const { url, stop, ok, port } = await startInterface();
 try {
@@ -189,11 +223,30 @@ try {
           timeout: WAITED.panel,
         });
       }
-      const body = await page.innerText("body");
+      const body = (await page.innerText("body")).replace(/\s+/g, " ");
       const missing = shot.texts.filter((text) => !body.includes(text));
       if (missing.length) {
         await context.close();
         done(1, `нет текста на экране в ракурсе ${shot.name}: ${missing.map((t) => `«${t}»`).join(", ")}`);
+      }
+      if (shot.heroMenu) {
+        const bounds = await heroMenuBounds(page);
+        if (!bounds.menu || !bounds.chat || !bounds.header) {
+          await context.close();
+          done(1, "кадр «плюс=открыто»: меню героя, шапка или область чата не на экране");
+        }
+        if (bounds.menu.top < bounds.chat.top + 40) {
+          await context.close();
+          done(1, `меню «+» героя стоит на ${Math.round(bounds.menu.top - bounds.chat.top)} px ниже верха чата — окно выше шапки, оверлей должен открываться под ней`);
+        }
+        if (
+          bounds.menu.left < bounds.chat.left - 1 ||
+          bounds.menu.right > bounds.chat.right + 1 ||
+          bounds.menu.bottom > bounds.chat.bottom + 1
+        ) {
+          await context.close();
+          done(1, `меню «+» героя выходит за область чата (${Math.round(bounds.menu.left)}…${Math.round(bounds.menu.right)}, низ ${Math.round(bounds.menu.bottom)}) — обрезано краем ленты`);
+        }
       }
       if (shot.cutTitle) {
         // §14.8: «название усечено с «…»» — строка шире своего места и режется

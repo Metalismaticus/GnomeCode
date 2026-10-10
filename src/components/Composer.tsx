@@ -17,6 +17,12 @@ const PLACEHOLDER = "Напишите сообщение… (Ctrl + Enter — о
 const EMPTY = "Напишите сообщение — отправлять нечего";
 
 export type ComposerProps = {
+  /** Герой приветственной сборки: тот же композер крупным вариантом слотом
+   *  EmptyChat — дети и селекторы те же, внешние поля сняты (зазоры даёт
+   *  сборка), сам композер static: всплывающие якорятся к области чата,
+   *  от героя вверх их обрезал бы край ленты (спека приветствия §4/§7).
+   *  Фокус в поле героя ведёт ChatView — он знает ход владельца. */
+  hero?: boolean;
   draft: string;
   sending: boolean;
   onDraft: (text: string) => void;
@@ -74,8 +80,12 @@ function ModelPill({ model, open, onToggle }: { model: string; open: boolean; on
 /** Композер-строка («тихий хром», §7): «+», поле, модель мелко, место отправки —
  *  один ряд. «↑» на пустом поле не видно вовсе, но место её зарезервировано —
  *  строка не прыгает; с текстом — появляется, при отправке — «…». Подсказки про
- *  шорткат под полем нет: он назван в placeholder'е. */
+ *  шорткат под полем нет: он назван в placeholder'е. Герой — тот же ряд крупным
+ *  вариантом в середине приветственной сборки: один набор текстов, состояний
+ *  и селекторов проверок (спека приветствия §7), при появлении сборки фокус
+ *  сразу в поле — главное действие нового чата, написать сообщение. */
 export function Composer({
+  hero = false,
   draft,
   sending,
   onDraft,
@@ -103,7 +113,7 @@ export function Composer({
 }: ComposerProps) {
   const hasText = Boolean(draft.trim());
   return (
-    <div className="composer">
+    <div className={hero ? "composer composer--hero" : "composer"}>
       <div className="composer__column">
         <FileChips files={files} onDetach={onDetach} />
         <div className="composer__box">

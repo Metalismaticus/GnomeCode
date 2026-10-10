@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import type { ApprovalDecision, PluginScope } from "../bridge";
 import type { CatalogEntry } from "../catalog";
@@ -47,11 +47,18 @@ export function ChatView({
 }: ChatViewProps) {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
-  // Сравнение и меню «⋯» на снимках открываются сразу: `?состояние=сравнение*`,
-  // `?меню=открыто`; строка `сравнение-раскрыто` несёт строку с развёрнутыми
-  // подробностями. Кадры снимаются адресом, без кликов (спека «тихого хрома», §13).
+  // Сравнение, меню «⋯» и меню «+» героя на снимках открываются сразу:
+  // `?состояние=сравнение*`, `?меню=открыто`, `?плюс=открыто`; строка
+  // `сравнение-раскрыто` несёт строку с развёрнутыми подробностями. Кадры
+  // снимаются адресом, без кликов (спеки «тихого хрома» §13, приветствия §11).
   const [overlay, setOverlay] = useState<Overlay>(
-    params.menu ? "more" : params.feed.startsWith("сравнение") ? "compare" : "none",
+    params.menu
+      ? "more"
+      : params.plus
+        ? "menu"
+        : params.feed.startsWith("сравнение")
+          ? "compare"
+          : "none",
   );
   /** Карточка, чью сводку прав открыли: решение ещё не принято. */
   const [pending, setPending] = useState<CatalogEntry | undefined>(undefined);
@@ -234,6 +241,81 @@ export function ChatView({
     [approval.decide],
   );
 
+  /** Фокус героя — только по ходу владельца: «Новый чат» переводит ленту в
+   *  пустое состояние, и сборка сразу принимает текст (спека приветствия §4).
+   *  При старте окна автофокуса нет: повтор строк ленты мог вернуть разговор,
+   *  а фокус, снятый его приходом, ломал бы порядок обхода — Tab начинается
+   *  с поиска сайдбара (спека сайдбара §12). Уход героя с первым вопросом
+   *  переносит фокус поля в композер-строку внизу — как вёл себя единственный
+   *  композер до двух видов; снять фокус мало: браузер держит точку входа
+   *  Tab на месте удалённого поля, и первый Tab проскакивал бы сайдбар.
+   *  Был ли фокус в сборке, говорит focusin, а не чтение после коммита:
+   *  владелец фокусирует поле между коммитами. Layout-эффект — до отрисовки. */
+  const prevRowsRef = useRef(rows.length);
+  const heroFocusRef = useRef(false);
+  useLayoutEffect(() => {
+    const wasEmpty = prevRowsRef.current === 0;
+    prevRowsRef.current = rows.length;
+    if (wasEmpty && rows.length > 0) {
+      if (heroFocusRef.current) {
+        heroFocusRef.current = false;
+        (document.querySelector('[data-testid="composer"]') as HTMLElement | null)?.focus();
+      }
+    } else if (!wasEmpty && rows.length === 0) {
+      (
+        document.querySelector(
+          '[data-testid="welcome-composer"] [data-testid="composer"]',
+        ) as HTMLElement | null
+      )?.focus();
+    }
+  }, [rows.length]);
+  useEffect(() => {
+    if (rows.length > 0) {
+      return;
+    }
+    heroFocusRef.current = false;
+    const track = (event: FocusEvent) => {
+      const target = event.target;
+      heroFocusRef.current =
+        target instanceof HTMLElement && target.closest('[data-testid="welcome-composer"]') !== null;
+    };
+    document.addEventListener("focusin", track);
+    return () => document.removeEventListener("focusin", track);
+  }, [rows.length]);
+
+  /** Композер создаётся один раз: пустой чат передаёт его сборке слотом (герой),
+   *  разговор рисует его внизу строкой — черновик, отправка и оверлеи живут как
+   *  сейчас и переживают смену вида (спека приветствия §3/§7). */
+  const composer = (
+    <Composer
+      hero={!rows.length}
+      draft={draft}
+      sending={sending}
+      onDraft={setDraft}
+      onSend={() => void ask(draft)}
+      files={project.files}
+      onDetach={project.detach}
+      model={model}
+      compareOpen={overlay === "compare"}
+      onToggleCompare={() => setOverlay(overlay === "compare" ? "none" : "compare")}
+      plugins={{ ...plugins, connect: connectFromList }}
+      toolsets={toolsets}
+      addOpen={overlay === "menu"}
+      pickerOpen={overlay === "plugins"}
+      toolsetsOpen={overlay === "toolsets"}
+      catalogOpen={overlay === "catalog"}
+      catalog={catalog}
+      onToggleAdd={() => setOverlay(overlay === "menu" ? "none" : "menu")}
+      onConnectPlugins={() => setOverlay("plugins")}
+      onBrowsePlugins={() => setOverlay("catalog")}
+      onClosePlugins={() => setOverlay("none")}
+      onToolsets={() => setOverlay("toolsets")}
+      onConnectToolset={connectFromToolset}
+      onSaveToolset={saveToolset}
+      onInstallCatalog={installFromCatalog}
+    />
+  );
+
   return (
     <main className="chat" data-testid="chat">
       <ChatHeader
@@ -303,6 +385,7 @@ export function ChatView({
             counts={counts}
             plugins={plugins}
             model={model}
+            hero={composer}
             onOpenProject={project.pick}
             onConnectPlugin={onOpenPluginsPage}
             onCompare={() => setOverlay("compare")}
@@ -310,32 +393,7 @@ export function ChatView({
           />
         )}
       </div>
-      <Composer
-        draft={draft}
-        sending={sending}
-        onDraft={setDraft}
-        onSend={() => void ask(draft)}
-        files={project.files}
-        onDetach={project.detach}
-        model={model}
-        compareOpen={overlay === "compare"}
-        onToggleCompare={() => setOverlay(overlay === "compare" ? "none" : "compare")}
-        plugins={{ ...plugins, connect: connectFromList }}
-        toolsets={toolsets}
-        addOpen={overlay === "menu"}
-        pickerOpen={overlay === "plugins"}
-        toolsetsOpen={overlay === "toolsets"}
-        catalogOpen={overlay === "catalog"}
-        catalog={catalog}
-        onToggleAdd={() => setOverlay(overlay === "menu" ? "none" : "menu")}
-        onConnectPlugins={() => setOverlay("plugins")}
-        onBrowsePlugins={() => setOverlay("catalog")}
-        onClosePlugins={() => setOverlay("none")}
-        onToolsets={() => setOverlay("toolsets")}
-        onConnectToolset={connectFromToolset}
-        onSaveToolset={saveToolset}
-        onInstallCatalog={installFromCatalog}
-      />
+      {rows.length ? composer : null}
     </main>
   );
 }

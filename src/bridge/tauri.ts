@@ -164,9 +164,11 @@ export const tauriBridge = (): Bridge => ({
   async setDefault(category: string, value: string) {
     return (await invoke<RuleEntry[]>("settings_set_default", { category, value })) as RuleEntry[];
   },
-  async statsSummary(period: StatsPeriod) {
+  async statsSummary(period: StatsPeriod, dayStart: number) {
     // Сводку считает Rust одним вызовом: stats.jsonl целиком в интерфейс не идёт.
-    return (await invoke<StatsSummary>("stats_summary", { period })) as StatsSummary;
+    // dayStart — начало местных суток (unix-мс): полночь считает интерфейс, для
+    // «today» это граница периода (спека приветствия §13).
+    return (await invoke<StatsSummary>("stats_summary", { period, dayStart })) as StatsSummary;
   },
   async dataFolder() {
     return (await invoke<string>("data_folder")) as string;
