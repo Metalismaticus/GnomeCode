@@ -119,8 +119,8 @@ try {
       const said = await page.$eval('[data-testid="feed"]', (el) => el.textContent.replace(/\s+/g, " ").slice(-200));
       done(1, `после deny-правила вызов commit не дал строки «⚠ git · commit denied» в ленте — в конце ленты «${said}»`);
     }
-    if ((await toolRows(page)).some((row) => row.startsWith("⧗ git ·"))) {
-      done(1, "после deny-правила в ленте есть строка запуска «⧗ git ·» — движку ушёл запрещённый вызов");
+    if ((await toolRows(page)).some((row) => row.startsWith("git ·"))) {
+      done(1, "после deny-правила в ленте есть строка запуска «git ·» — движку ушёл запрещённый вызов");
     }
     if (await page.isVisible(APPROVAL)) {
       done(1, "после deny-правила открылось окно одобрения — denied-категории не спрашиваются никогда");
@@ -134,12 +134,12 @@ try {
     try {
       await page.waitForFunction(
         () => Array.from(document.querySelectorAll('[data-testid="feed"] .feed__row--tool'))
-          .some((row) => row.textContent.startsWith("⧗ git ·")),
+          .some((row) => row.textContent.startsWith("git ·")),
         undefined,
         { timeout: 5000 },
       );
     } catch {
-      done(1, "после allow-правила команда commit не исполнилась: строки запуска «⧗ git ·» в ленте нет");
+      done(1, "после allow-правила команда commit не исполнилась: строки запуска «git ·» в ленте нет");
     }
     if (await page.isVisible(APPROVAL)) {
       done(1, "после allow-правила открылось окно одобрения — allow исполняется молча");

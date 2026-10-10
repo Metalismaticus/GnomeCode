@@ -26,6 +26,7 @@ export function foldFeed(events: FeedEvent[]): FeedRow[] {
         ...(event.plugin ? { plugin: event.plugin } : {}),
         ...(event.files?.length ? { files: event.files } : {}),
         ...(event.file ? { file: event.file } : {}),
+        ...(typeof event.time === "number" ? { time: event.time } : {}),
       };
       const at = index.get(event.id);
       if (at === undefined) {

@@ -292,7 +292,9 @@ try {
     } catch {
       done(1, `после «Отказать» в ленте нет строки отказа «⚠ ${SOLO} · ${SOLO_COMMAND} requires approval»: есть ${JSON.stringify(await toolRows(asked))}`);
     }
-    if ((await toolRows(asked)).filter((row) => row.startsWith("⧗") && row.includes(SOLO)).length) {
+    // Бегущая строка рисуется без знака и зовёт плагин по имени, как строка отказа,
+    // — запуском считается строка плагина без хвоста «requires approval» (спека ленты §6).
+    if ((await toolRows(asked)).filter((row) => row.includes(SOLO) && !row.includes("requires approval")).length) {
       done(1, "после «Отказать» в ленте есть строка запуска команды — движку ушёл отвергнутый вызов");
     }
     try {
@@ -314,12 +316,15 @@ try {
     // о) «Разрешить для этого чата» — тот же вызов исполняется ---------------------
     await asked.click('text="Разрешить для этого чата"');
     try {
+      // Строка отказа тоже называет плагин — строкой запуска считается только она без хвоста отказа.
       await asked.waitForFunction(
         (needle) => {
           const tools = document.querySelectorAll('[data-testid="feed"] .feed__row--tool');
-          return Array.from(tools).some((row) => row.textContent.includes(needle));
+          return Array.from(tools).some(
+            (row) => row.textContent.includes(needle) && !row.textContent.includes("requires approval"),
+          );
         },
-        `⧗ ${SOLO} ·`,
+        `${SOLO} ·`,
         { timeout: 5000 },
       );
     } catch {
@@ -336,12 +341,17 @@ try {
       // Окна нет — правило выдано и действует.
     }
     try {
+      // Та же оговорка, что выше: без хвоста отказа считаются только строки запуска.
       await asked.waitForFunction(
         (needle) => {
           const tools = document.querySelectorAll('[data-testid="feed"] .feed__row--tool');
-          return Array.from(tools).filter((row) => row.textContent.includes(needle)).length > 1;
+          return (
+            Array.from(tools).filter(
+              (row) => row.textContent.includes(needle) && !row.textContent.includes("requires approval"),
+            ).length > 1
+          );
         },
-        `⧗ ${SOLO} ·`,
+        `${SOLO} ·`,
         { timeout: 5000 },
       );
     } catch {

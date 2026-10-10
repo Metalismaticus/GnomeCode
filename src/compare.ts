@@ -48,8 +48,28 @@ export function dateOf(fetchedAt: number): string {
   if (Number.isNaN(date.getTime())) {
     return "";
   }
-  const time = `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-  return `${date.getDate()} ${MONTHS[date.getMonth()]}, ${time}`;
+  return `${date.getDate()} ${MONTHS[date.getMonth()]}, ${clockOf(date)}`;
+}
+
+/** Время реплики: сегодня — «14:32», раньше — «9 окт, 14:32» (спека ленты §4).
+ *  Тот же словарь месяцев и порядок «день месяц, чч:мм», что у dateOf, —
+ *  одно место знания о времени в окне. */
+export function timeOf(at: number): string {
+  const date = new Date(at);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  const now = new Date();
+  const today =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+  return today ? clockOf(date) : `${date.getDate()} ${MONTHS[date.getMonth()]}, ${clockOf(date)}`;
+}
+
+/** Часы и минуты с нулями — общая часть обоих форматов времени. */
+function clockOf(date: Date): string {
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
 /** Цена за 1 млн токенов: два знака; меньше цента — четыре (`$0.0040`). */

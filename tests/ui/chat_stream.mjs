@@ -29,6 +29,18 @@ try {
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 90_000 });
     await page.fill('[data-testid="composer"]', QUESTION);
     await page.click('[data-testid="send"]');
+    // Живой прогресс: пустая строка ответа читается «Думаю…», не молчанием
+    // (docs/specs/2026-10-10-3-лента.md, §6); с первым кусочком текста она уходит.
+    try {
+      await page.waitForFunction(
+        (needle) => document.querySelector('[data-testid="feed"]').innerText.includes(needle),
+        "Думаю…",
+        { timeout: 5000 },
+      );
+    } catch {
+      const seen = await feedText(page);
+      done(1, `после отправки в ленте нет живой строки «Думаю…»: ${seen.replace(/\s+/g, " ").slice(0, 200)}`);
+    }
     try {
       await page.waitForFunction(
         (needle) => document.querySelector('[data-testid="feed"]').innerText.includes(needle),
@@ -40,6 +52,9 @@ try {
       done(1, `в ленте нет строки вызова инструмента «${TOOL_LINE}»: ${seen.replace(/\s+/g, " ").slice(0, 200)}`);
     }
     const feed = await feedText(page);
+    if (feed.includes("Думаю…")) {
+      done(1, "«Думаю…» осталось в ленте после первого кусочка ответа — бегущая строка не исчезает");
+    }
     const wanted = [QUESTION, "Мост на месте", TOOL_LINE, "Ответ модели получен"];
     const missing = wanted.filter((text) => !feed.includes(text));
     if (missing.length) {

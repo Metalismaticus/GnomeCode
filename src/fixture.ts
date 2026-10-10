@@ -48,6 +48,68 @@ const RAZBOR = `Смотрю структуру папки. Мост на мес
 const message = "Длинная строка кода переносится внутри плашки, а не вылезает за край ленты: ${"х".repeat(160)}";
 \`\`\``;
 
+/** Полный markdown (спека ленты §12): два хода — ступени, подзаголовок,
+ *  нумерованный и вложенный списки, таблица шире колонки, цитата, инлайн-код,
+ *  ссылка, код-блок; завершённые шаги дают «Sources used». */
+const MARKDOWN_QUESTION = "Собери отчёт по панелям окна и покажи таблицей";
+const MARKDOWN = `Собрал отчёт по панелям: всё, что видно на срезе проекта \`src\`.
+
+## Состав окна
+Считаю по файлам, которые открыл:
+1. Шапка чата — \`ChatHeader\`, кластер кнопок окна
+2. Лента разговора:
+   - колонка чтения 760 px
+   - воздух между ходами
+   - ступени разбора ответа
+3. Композер с чипами файлов
+
+## Сравнение панелей
+Собрал размеры в таблицу:
+
+| Панель | Где живёт | Ширина | Режим | Прокрутка | Заметка |
+|---|---|---|---|---|---|
+| Сайдбар | src/components/Sidebar.tsx | 240 px | колонка | своя | группы дат чатов |
+| Лента | src/components/Feed.tsx | 760 px | колонка чтения | вертикальная | разговор без коробок |
+| Правая панель | src/components/ContextPanel.tsx | 280 px | оверлей | своя | вкладки «Файлы» и «Символы» |
+| Композер | src/components/Composer.tsx | 760 px | колонка чтения | нет | чипы файлов одной линией |
+| Меню «⋯» | src/components/ChatHeader.tsx | 320 px | оверлей | нет | команды плагинов чата |
+| Сравнение | src/components/ComparePanel.tsx | 560 px | оверлей | своя | каталог моделей с ценами |
+
+> Плотность — про панели: они делятся рамками. Лента наоборот читается воздухом, разговор — текст на чистом листе.
+
+### Детали прокрутки
+Таблица шире колонки — ползунок живёт внутри таблицы, сама лента остаётся вертикальной.
+
+\`\`\`ts
+const feed = document.querySelector<HTMLElement>(".feed");
+// Лента прокручивается только по вертикали, даже когда таблица шире колонки:
+const locked = feed ? getComputedStyle(feed).overflowX === "hidden" : false;
+\`\`\`
+
+Подробные правила — [интерфейс проекта](https://example.com/gnomecode/design).`;
+
+const MARKDOWN_SECOND = "Покажи уровни заголовков глубже и вложенный список";
+const MARKDOWN_SECOND_ANSWER = `Готово: уровни ниже, каждый глубже предыдущего.
+
+#### Уровень четыре
+Глубокий заголовок читается меткой: приглушённый, мельче подзаголовка.
+
+##### Уровень пять
+Ещё глубже — тот же приём, сдвиг чуть больше.
+
+Списки вкладываются:
+
+- первый уровень
+  - второй уровень
+    - третий уровень — по 16 px на каждый
+- снова первый
+
+\`инлайн-код\`, **жирный** и *курсив* живут в одной строке, а --- делит блоки.
+
+---
+
+Файл токенов открыл, чтобы уровни сверить с системой размеров.`;
+
 const HOUR = 60 * 60 * 1000;
 
 /** Время чата по номеру: первые — сегодня, дальше вчера, неделя и старше —
@@ -65,8 +127,18 @@ const hoursAgo = (index: number): number => {
   return 240 + (index - 28) * 96;
 };
 
-/** Строка ленты: тот же вид, что отдаёт `FeedEvent::Row` в Rust. */
-const row = (id: string, kind: RowKind, text: string): FeedEvent => ({ type: "row", id, kind, text });
+/** Реалистичные часы реплики (спека ленты §8): минут назад от сейчас. */
+const minutesAgo = (minutes: number): number => Date.now() - minutes * 60_000;
+
+/** Строка ленты: тот же вид, что отдаёт `FeedEvent::Row` в Rust; время реплики —
+ *  поле события моста (спека ленты §4), у вызовов и служебных строк его нет. */
+const row = (id: string, kind: RowKind, text: string, time?: number): FeedEvent => ({
+  type: "row",
+  id,
+  kind,
+  text,
+  ...(time ? { time } : {}),
+});
 
 /** Что владелец видит в строке вопроса: сам вопрос и имена приложенных файлов —
  *  тот же вид, что собирает мост для окна (`project::request`). */
@@ -94,14 +166,17 @@ class Fixture {
    *  прошлой строки и лента заменила бы её вместо новой. */
   private sent = 0;
 
-  /** Много данных: сто строк ленты и сто чатов — длинный чат не должен тормозить. */
+  /** Много данных: сто строк ленты и сто чатов — длинный чат не должен тормозить.
+   *  Реплики несут время (спека ленты §8): вопросы уходят по паре часов —
+   *  на кадре видны и «14:32», и «9 окт, …». */
   private static many(): FeedEvent[] {
     const events: FeedEvent[] = [];
     for (let i = 1; i < 100; i += 1) {
-      events.push(row(`user-${i}`, "user", `Вопрос ${i}: проверь пункт ${i}`));
-      events.push(row(`answer-${i}`, "assistant", "Ответ модели получен"));
+      const at = Date.now() - i * 3 * HOUR;
+      events.push(row(`user-${i}`, "user", `Вопрос ${i}: проверь пункт ${i}`, at));
+      events.push(row(`answer-${i}`, "assistant", "Ответ модели получен", at));
     }
-    events.push(row("long", "assistant", LONG_TEXT));
+    events.push(row("long", "assistant", LONG_TEXT, Date.now() - HOUR));
     events.push(row("last", "notice", DONE));
     return events;
   }
@@ -117,11 +192,35 @@ class Fixture {
     if (params.feed === "разбор") {
       // Разбор своего вопроса: строка вопроса → ответ ступенями с код-блоком →
       // исполненный вызов инструмента — источник блока «Sources used».
+      const asked = minutesAgo(5);
       return [
-        row("razbor_user", "user", RAZBOR_QUESTION),
-        row("razbor_answer", "assistant", RAZBOR),
+        row("razbor_user", "user", RAZBOR_QUESTION, asked),
+        row("razbor_answer", "assistant", RAZBOR, minutesAgo(4)),
         { type: "row", id: "razbor_tool", kind: "tool", text: "✓ read · src/bridge.ts", file: "src/bridge.ts" },
         row("razbor_done", "notice", DONE),
+      ];
+    }
+    if (params.feed === "маркдаун") {
+      // Полный markdown (спека ленты §12): два хода с завершёнными шагами —
+      // под ними блоки «Sources used»; подписи с временем стоят над репликами.
+      const firstAsked = minutesAgo(6);
+      const secondAsked = minutesAgo(3);
+      return [
+        row("mark_user", "user", MARKDOWN_QUESTION, firstAsked),
+        { type: "row", id: "mark_tool", kind: "tool", text: "✓ read · src/App.tsx", file: "src/App.tsx" },
+        row("mark_answer", "assistant", MARKDOWN, minutesAgo(5)),
+        row("mark_user2", "user", MARKDOWN_SECOND, secondAsked),
+        { type: "row", id: "mark_tool2", kind: "tool", text: "✓ read · src/styles/tokens.css", file: "src/styles/tokens.css" },
+        row("mark_answer2", "assistant", MARKDOWN_SECOND_ANSWER, minutesAgo(2)),
+      ];
+    }
+    if (params.feed === "прогресс") {
+      // Живой прогресс (спека ленты §12): вопрос → завершённый шаг с чевроном →
+      // бегущий вызов без входа — «Ищу…»; ответ ещё не начался.
+      return [
+        row("progress_user", "user", "Найди в проекте все места с пометкой TODO", minutesAgo(2)),
+        { type: "row", id: "progress_done", kind: "tool", text: "✓ read · src/App.tsx", file: "src/App.tsx" },
+        row("progress_run", "tool", "⧗ glob"),
       ];
     }
     if (params.feed === "many" || params.feed.startsWith("сравнение")) {
@@ -140,28 +239,33 @@ class Fixture {
     return () => this.listeners.delete(listener);
   }
 
-  /** Вопрос владельца: своя строка, ответ модели дописывается по кучкам.
+  /** Вопрос владельца: своя строка, ответ модели дописывается по кучкам —
+   *  позже первого показа, чтобы пустая строка ответа успела показать «Думаю…»,
+   *  как в живом окне (спека ленты §6, сценарий стрима).
    *  Прикреплённые файлы видны в строке вопроса именами — как их показывает
    *  `project::prompt` в ленте окна (src-tauri/src/project/prompt.rs) — и идут
    *  полем `files`: по ним блок «Sources used» собирает источники. */
   push(text: string, files: string[]): void {
     this.sent += 1;
     const answerId = `msg_fixture_${this.sent}`;
-    this.emit({ type: "row", id: `user-${this.sent}`, kind: "user", text: shown(text, files), files: files.map(fromRoot) });
-    this.emit(row(answerId, "assistant", ""));
-    for (const part of ANSWER.split(/(?<= )/)) {
-      this.emit({ type: "append", id: answerId, delta: part });
-    }
-    if (params.feed === "error") {
-      this.emit(row("engine_back", "notice", RECOVERED));
-    }
-    if (params.breaks) {
-      this.emit(row("stream", "notice", RECONNECT));
-    }
-    // Вызов инструмента с файлом: тот же вид и то же поле `file`, что отдаёт
-    // Feed::tool в окне (src-tauri/src/opencode/client.rs) — источник ответа.
-    this.emit({ type: "row", id: "call_1", kind: "tool", text: "✓ read · src/bridge.ts", file: "src/bridge.ts" });
-    this.emit(row("engine", "notice", DONE));
+    const asked = Date.now();
+    this.emit({ type: "row", id: `user-${this.sent}`, kind: "user", text: shown(text, files), files: files.map(fromRoot), time: asked });
+    this.emit(row(answerId, "assistant", "", asked));
+    window.setTimeout(() => {
+      for (const part of ANSWER.split(/(?<= )/)) {
+        this.emit({ type: "append", id: answerId, delta: part });
+      }
+      if (params.feed === "error") {
+        this.emit(row("engine_back", "notice", RECOVERED));
+      }
+      if (params.breaks) {
+        this.emit(row("stream", "notice", RECONNECT));
+      }
+      // Вызов инструмента с файлом: тот же вид и то же поле `file`, что отдаёт
+      // Feed::tool в окне (src-tauri/src/opencode/client.rs) — источник ответа.
+      this.emit({ type: "row", id: "call_1", kind: "tool", text: "✓ read · src/bridge.ts", file: "src/bridge.ts" });
+      this.emit(row("engine", "notice", DONE));
+    }, 250);
   }
 
   /** Строка в ленту фикстуры. Слой прав вне окна Tauri вместо Rust-моста (opencode/client.rs)

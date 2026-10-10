@@ -294,6 +294,7 @@ export function ChatView({
             rows={rows}
             error={error}
             chatTitle={title}
+            model={model}
             onSourceFile={revealSource}
             onSourcePlugin={onOpenPluginsPage}
           />

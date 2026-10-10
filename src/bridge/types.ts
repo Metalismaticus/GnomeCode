@@ -17,9 +17,11 @@ export type RowKind = "user" | "assistant" | "tool" | "notice";
  *  строка вызова плагина несёт его id (`plugin`) — клик по строке открывает
  *  детали вызова (сцена J); строка вопроса несёт приложенные файлы (`files`),
  *  строка исполненного вызова инструмента — прочитанный файл (`file`): это
- *  источники ответа (phase2.md, раздел 9.1), блок «Sources used» их показывает. */
+ *  источники ответа (phase2.md, раздел 9.1), блок «Sources used» их показывает;
+ *  реплика (вопрос, ответ) несёт своё время (`time`, unix-мс) — подпись
+ *  «Вы · 14:32» показывает то, что знают данные, выдуманного нет. */
 export type FeedEvent =
-  | { type: "row"; id: string; kind: RowKind; text: string; plugin?: string; files?: string[]; file?: string }
+  | { type: "row"; id: string; kind: RowKind; text: string; plugin?: string; files?: string[]; file?: string; time?: number }
   | { type: "append"; id: string; delta: string }
   /** Новый чат: лента чистится целиком, следующие строки — нового чата. */
   | { type: "reset" };
@@ -33,6 +35,8 @@ export type FeedRow = {
   files?: string[];
   /** Файл исполненного вызова инструмента (ключ filePath/path входа). */
   file?: string;
+  /** Время реплики (unix-мс) с событием моста; нет — подпись без времени. */
+  time?: number;
 };
 
 /** Строка дерева файлов: папка или файл, полный путь — чтобы читать содержимое. */

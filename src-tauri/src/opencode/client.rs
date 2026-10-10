@@ -615,6 +615,11 @@ pub enum FeedEvent {
         /// источник у строки `✓`; у запусков, отказов и чужих вызовов его нет.
         #[serde(skip_serializing_if = "Option::is_none")]
         file: Option<String>,
+        /// Момент реплики (unix-миллисекунды): подпись «Вы · 14:32» показывает то,
+        /// что знают данные; поля нет — подпись без времени (спека ленты §4/§14).
+        /// Стоит у строк вопроса и ответа; у вызовов и служебных строк его нет.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        time: Option<u64>,
     },
     Append {
         id: String,
@@ -644,6 +649,7 @@ impl FeedEvent {
             plugin: None,
             files: None,
             file: None,
+            time: None,
         }
     }
 }
@@ -653,6 +659,9 @@ impl FeedEvent {
 #[derive(Default)]
 pub struct Feed {
     texts: HashMap<String, String>,
+    /// Момент начала ответа по сообщению: строка ответа уходит с ним дважды
+    /// (пустой при старте и целой по завершении) — время одно и то же.
+    times: HashMap<String, u64>,
     /// Вызовы инструментов по id: строка не должна менять имя или терять действие
     /// на событиях, где их уже нет.
     tools: HashMap<String, ToolRow>,
@@ -687,7 +696,7 @@ impl Feed {
         }
         match event {
             ServerEvent::StepStarted { data } | ServerEvent::TextStarted { data } => {
-                self.answer(&data.message)
+                self.answer(&data.message, data.started)
             }
             ServerEvent::TextDelta { data } => {
                 self.texts
@@ -701,6 +710,7 @@ impl Feed {
             }
             ServerEvent::TextEnded { data } => {
                 self.texts.insert(data.message.clone(), data.text.clone());
+                let time = self.times.get(&data.message).copied();
                 vec![FeedEvent::Row {
                     id: data.message.clone(),
                     kind: RowKind::Assistant,
@@ -708,6 +718,7 @@ impl Feed {
                     plugin: None,
                     files: None,
                     file: None,
+                    time,
                 }]
             }
             ServerEvent::ToolInputStarted { data } => {
@@ -741,12 +752,18 @@ impl Feed {
         }
     }
 
-    /// Строка ответа появляется один раз на сообщение ассистента.
-    fn answer(&mut self, message: &str) -> Vec<FeedEvent> {
+    /// Строка ответа появляется один раз на сообщение ассистента. Время ответа —
+    /// момент запроса провайдеру (`started` шага): повтор ленты показывает его же,
+    /// метка «сейчас» на перерисовке врала бы (спека ленты §14).
+    fn answer(&mut self, message: &str, started: u64) -> Vec<FeedEvent> {
         if self.texts.contains_key(message) {
             return Vec::new();
         }
         self.texts.insert(message.to_string(), String::new());
+        if started > 0 {
+            self.times.insert(message.to_string(), started);
+        }
+        let time = self.times.get(message).copied();
         vec![FeedEvent::Row {
             id: message.to_string(),
             kind: RowKind::Assistant,
@@ -754,6 +771,7 @@ impl Feed {
             plugin: None,
             files: None,
             file: None,
+            time,
         }]
     }
 
@@ -807,6 +825,8 @@ impl Feed {
             plugin: None,
             files: None,
             file: shown,
+            // Строки работы без подписей — время нужно репликам, не вызовам.
+            time: None,
         }]
     }
 }

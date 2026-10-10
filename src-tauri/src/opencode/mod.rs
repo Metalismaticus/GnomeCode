@@ -324,6 +324,15 @@ fn engine_model(id: &str) -> Option<Value> {
     Some(json!({ "providerID": provider, "modelID": model }))
 }
 
+/// Метка момента (unix-миллисекунды): строка вопроса уходит с ней — подпись
+/// реплики показывает время из данных, а не «сейчас» на перерисовке ленты.
+fn now_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|span| span.as_millis() as u64)
+        .unwrap_or(0)
+}
+
 /// Поток ленты: сессия, поток событий, команды пользователя и перезапуск движка.
 /// `saved` — сессия прошлого запуска приложения: жива ли она, решит список движка,
 /// а не память моста.
@@ -474,6 +483,7 @@ fn supervise_missing(rx: Receiver<Cmd>, sink: Arc<dyn Sink>) {
                     plugin: Some(plugin),
                     files: None,
                     file: None,
+                    time: None,
                 });
             }
             // Движка нет — перезапускать нечего: запрос установки уже исполнен,
@@ -535,6 +545,7 @@ fn pump(
                         plugin: None,
                         files: if files.is_empty() { None } else { Some(files) },
                         file: None,
+                        time: Some(now_ms()),
                     });
                     if let Err(reason) = api.prompt(session, &prompt, model.as_ref()) {
                         sink.emit(FeedEvent::notice(
@@ -554,6 +565,7 @@ fn pump(
                         plugin: Some(plugin),
                         files: None,
                         file: None,
+                        time: None,
                     });
                     if let Err(reason) = api.command(session, &command) {
                         sink.emit(FeedEvent::notice(
@@ -571,6 +583,7 @@ fn pump(
                         plugin: Some(plugin),
                         files: None,
                         file: None,
+                        time: None,
                     });
                 }
             }

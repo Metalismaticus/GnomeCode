@@ -25,10 +25,16 @@ const SHOTS = [
   // («тихий хром», §6), кадр ошибки открывает её адресом, как прежде.
   { name: "main-window-1440x900-error", size: [1440, 900], query: "?состояние=ошибка&правая=открыта", text: "Сервер OpenCode недоступен", texts: ["Не отвечает"] },
   { name: "main-window-1440x900-long", size: [1440, 900], query: "?состояние=много", wait: "rows:100", texts: ["Открыть проект из Documents"] },
-  // «Минимум» по §13 спеки: 1024×640 на состоянии «разбор». §14.8 судит кадр
+  // «Минимум» по §13 спеки: 1024×640 на состоянии «маркдаун» (полный markdown —
+  // кадр пункта ленты, docs/specs/2026-10-10-3-лента.md, §12). §14.8 судит кадр
   // «название усечено с «…»» — титул прошлого запуска сидируется зеркалом
   // состояния страницы (src/fixtureState.ts) до загрузки, усечение меряется.
-  { name: "main-window-1024x640", size: [1024, 640], query: "?состояние=разбор", wait: "step", lastLaunchTitle: LAST_LAUNCH_TITLE, cutTitle: true, texts: [LAST_LAUNCH_TITLE, "Sources used"] },
+  { name: "main-window-1024x640", size: [1024, 640], query: "?состояние=маркдаун", wait: "step", lastLaunchTitle: LAST_LAUNCH_TITLE, cutTitle: true, texts: [LAST_LAUNCH_TITLE, "Копировать"] },
+  // Кадры пункта ленты (docs/specs/2026-10-10-3-лента.md, §12): полный markdown
+  // в обеих темах и живой прогресс бегущей строкой.
+  { name: "chat-markdown-1440x900", size: [1440, 900], query: "?состояние=маркдаун", wait: "step", texts: ["Копировать", "Sources used", "Детали прокрутки"] },
+  { name: "chat-markdown-1440x900-light", size: [1440, 900], query: "?состояние=маркдаун&тема=светлая", wait: "step-light", texts: ["Копировать", "Sources used"] },
+  { name: "chat-progress-1440x900", size: [1440, 900], query: "?состояние=прогресс", wait: "feed-run", texts: ["Ищу"] },
   // Кадры «тихого хрома» (docs/specs/2026-10-09-2-тихий-хром.md, §13): панель скрыта
   // по умолчанию на любой ширине; меню «⋯» и панель снимаются адресом.
   { name: "chat-more-1440x900", size: [1440, 900], query: "?состояние=разбор&меню=открыто", wait: "menu", texts: ["Контекст проекта", "Плагины этого чата", "Настройки"] },
@@ -102,6 +108,11 @@ const settled = async (page, shot) => {
     await page.waitForFunction(() => Boolean(document.querySelector('[data-testid="step"]')), undefined, {
       timeout: WAITED.empty,
     });
+    return;
+  }
+  if (shot.wait === "feed-run") {
+    // Бегущая строка живого прогресса (спека ленты §12): «Ищу…» с многоточием.
+    await page.waitForSelector('[data-testid="feed-run"]', { timeout: WAITED.empty });
     return;
   }
   if (shot.wait === "panel") {
