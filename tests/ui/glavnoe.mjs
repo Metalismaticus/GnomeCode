@@ -26,8 +26,12 @@ const COUNTERS = ["ЧАТЫ", "ПРОЕКТЫ", "ПЛАГИНЫ", "ВЫЗОВЫ"
  *  ждёт число, а не карточку. */
 const SPEND = { ТОКЕНЫ: "650 000", ДЕНЬГИ: "$0.18" };
 const SPEND_NOTE = "Токены и деньги — за сегодня";
-/** Крупный ввод нового чата — тот же композер в середине сборки (спека приветствия §4). */
+/** Крупный ввод нового чата — тот же композер, крупность сохранена и внизу окна
+ *  (спека приветствия §4, правка владельца 2026-10-10 — §16). */
 const HERO_MIN_PX = 96;
+/** Ширина героя — колонка чтения, слот общий с разговором: поле не прыгает
+ *  шириной после первого вопроса (спека приветствия §16). */
+const FEED_COLUMN_PX = 760;
 /** Ряд моделей — текущая плюс известные, не весь каталог: приветствие не должно
  *  выкатывать сотни карточек за сгиб (замечание владельца 2026-10-06, живая копия). */
 const MODEL_ROW_LIMIT = 8;
@@ -117,19 +121,28 @@ try {
       done(1, `под счётчиками нет подписи «${SPEND_NOTE}»: есть «${note.trim()}»`);
     }
 
-    // Герой-ввод: тот же композер слотом сборки, крупное поле (спека приветствия §4).
-    const hero = await page.$eval('[data-testid="welcome-composer"]', (block) => ({
-      composer: Boolean(block.querySelector('[data-testid="composer"]')),
-      add: Boolean(block.querySelector('[data-testid="composer-add"]')),
-      model: Boolean(block.querySelector('[data-testid="composer-model"]')),
-      box: block.querySelector(".composer__box")?.getBoundingClientRect().height ?? 0,
-      bottom: (() => {
-        const composer = document.querySelector(".composer");
-        return composer ? getComputedStyle(composer).position : null;
-      })(),
-    })).catch(() => null);
+    // Герой-ввод: тот же композер внизу окна — слот общий с разговором (правка
+    // владельца 2026-10-10, спека приветствия §16), крупность сохранена; композер —
+    // якорь всплывающих героя, как у строки разговора.
+    const hero = await page.$eval('[data-testid="welcome-composer"]', (block) => {
+      const composer = block.querySelector(".composer");
+      const chat = document.querySelector(".chat");
+      const assembly = document.querySelector('[data-testid="empty"]');
+      return {
+        composer: Boolean(composer),
+        add: Boolean(block.querySelector('[data-testid="composer-add"]')),
+        model: Boolean(block.querySelector('[data-testid="composer-model"]')),
+        box: block.querySelector(".composer__box")?.getBoundingClientRect().height ?? 0,
+        column: block.querySelector(".composer__column")?.getBoundingClientRect().width ?? 0,
+        position: composer ? getComputedStyle(composer).position : null,
+        top: block.getBoundingClientRect().top,
+        bottom: composer ? composer.getBoundingClientRect().bottom : 0,
+        chatBottom: chat ? chat.getBoundingClientRect().bottom : 0,
+        assemblyBottom: assembly ? assembly.getBoundingClientRect().bottom : 0,
+      };
+    }).catch(() => null);
     if (!hero || !hero.composer) {
-      done(1, "крупного ввода нет: [data-testid=welcome-composer] с композером между счётчиками и сценариями");
+      done(1, "крупного ввода нет: [data-testid=welcome-composer] с композером внизу окна");
     }
     if (!hero.add || !hero.model) {
       done(1, "в герое нет «+» или пилюли модели — селекторы композера должны жить в герое");
@@ -137,8 +150,17 @@ try {
     if (hero.box < HERO_MIN_PX) {
       done(1, `поле героя ${Math.round(hero.box)} px, а не ≥ ${HERO_MIN_PX} — «крупный ввод» одной строкой не читается`);
     }
-    if (hero.bottom !== "static") {
-      done(1, `герой позиционирован сам (${hero.bottom}) — всплывающие якорятся к области чата`);
+    if (hero.top < hero.assemblyBottom - 1) {
+      done(1, `герой-ввод стоит внутри сборки (верх ${Math.round(hero.top)} при низе сборки ${Math.round(hero.assemblyBottom)}) — ввод живёт внизу окна, а не рядом сборки`);
+    }
+    if (Math.abs(hero.bottom - hero.chatBottom) > 2) {
+      done(1, `низ композера ${Math.round(hero.bottom)} при низе чата ${Math.round(hero.chatBottom)} — ввод не прижат к низу окна нового чата`);
+    }
+    if (Math.abs(hero.column - FEED_COLUMN_PX) > 1) {
+      done(1, `герой шириной ${Math.round(hero.column)} px, а не на колонке чтения ${FEED_COLUMN_PX} — после первого вопроса поле прыгнуло бы шириной`);
+    }
+    if (hero.position !== "relative") {
+      done(1, `композер не якорь всплывающих героя (position: ${hero.position}) — меню «+» и пикеры открываются от него, как у строки`);
     }
 
     // Ряд моделей — из каталога, который продукт знает: текущая первой, вторая линия.
@@ -162,23 +184,23 @@ try {
     if (providerCards) {
       done(1, `в приветствии остался ряд провайдеров (${providerCards} карточки) — перегружает сборку, ряд переехал в настройки`);
     }
-    // Порядок сборки: H1 → счётчики → герой → 4 сценария → модели (замечание владельца 21:46).
+    // Порядок сборки: H1 → счётчики → 4 сценария → модели; ряда героя в сборке
+    // больше нет — ввод живёт внизу окна (правка владельца 2026-10-10, §16).
     const order = await page.$eval('[data-testid="empty"]', (block) => ({
       title: block.querySelector('[data-testid="empty-title"]')?.getBoundingClientRect().top ?? null,
       counters: block.querySelector('[data-testid="welcome-counter"]')?.getBoundingClientRect().top ?? null,
-      composer: block.querySelector('[data-testid="welcome-composer"]')?.getBoundingClientRect().top ?? null,
       scenarios: block.querySelector('[data-testid="welcome-scenarios"]')?.getBoundingClientRect().top ?? null,
       models: block.querySelector('[data-testid="welcome-model"]')?.getBoundingClientRect().top ?? null,
     }));
     if (Object.values(order).some((top) => top === null)) {
       done(1, "приветственной сборки нет целиком: один из рядов потерялся — порядок не проверить");
     }
-    const sequence = ["title", "counters", "composer", "scenarios", "models"];
+    const sequence = ["title", "counters", "scenarios", "models"];
     for (let i = 1; i < sequence.length; i += 1) {
       if (order[sequence[i]] <= order[sequence[i - 1]]) {
         done(
           1,
-          `ряд «${sequence[i]}» стоит не ниже «${sequence[i - 1]}» — целое: H1 → счётчики → герой → сценарии → модели, есть «${sequence.map((step) => `${step}=${Math.round(order[step])}`).join(" / ")}»`,
+          `ряд «${sequence[i]}» стоит не ниже «${sequence[i - 1]}» — целое: H1 → счётчики → сценарии → модели, есть «${sequence.map((step) => `${step}=${Math.round(order[step])}`).join(" / ")}»`,
         );
       }
     }
@@ -715,7 +737,7 @@ try {
 
     done(
       0,
-      `приветственная сборка: H1 ${H1_PX} px/700, счётчиков шесть (${COUNTERS.join("/")}) с честными нулями у первых четырёх, «ТОКЕНЫ» «${SPEND.ТОКЕНЫ}» и «ДЕНЬГИ» «${SPEND.ДЕНЬГИ}» из фикстуры, подпись «${SPEND_NOTE}», герой-ввод — композер полем ≥ ${HERO_MIN_PX} px между счётчиками и сценариями, порядок H1 → счётчики → герой → сценарии → модели (ряд до ${MODEL_ROW_LIMIT}), 4 сценария с глифами; разбор: ступени с номерами сворачиваются, код-блок «Копировать→Скопировано» с языком и переносом; сайдбар: группы ${GROUPS.join("/")} и двухстрочные строки; панель: тумблер файлов переключает право чата (без папки — выбор папки проекта), интернет выключен с причиной, команды плагинов через одобрение, «позже» нет; сайдбар живой: строк «Настройки»/«Плагины» нет, знак логотипа 36 px с зазором 12, поиск под логотипом фильтрует только чаты и пересобирает группы, ✕ и Esc очищают, пустой результат — «Ничего не нашлось», время справа первой линии и превью второй, чат без сообщений одной линией, точка проекта --success и --danger при ошибке движка, пилюля модели открывает сравнение, клик в её точку при открытой панели его не «мигает», а пикер двери панели пилюля «снаружи» не закрывает`,
+      `приветственная сборка: H1 ${H1_PX} px/700, счётчиков шесть (${COUNTERS.join("/")}) с честными нулями у первых четырёх, «ТОКЕНЫ» «${SPEND.ТОКЕНЫ}» и «ДЕНЬГИ» «${SPEND.ДЕНЬГИ}» из фикстуры, подпись «${SPEND_NOTE}», порядок сборки H1 → счётчики → сценарии → модели (ряд до ${MODEL_ROW_LIMIT}, 4 сценария с глифами), герой-ввод — тот же композер полем ≥ ${HERO_MIN_PX} px внизу окна на колонке чтения ${FEED_COLUMN_PX}, низ композера у низа чата; разбор: ступени с номерами сворачиваются, код-блок «Копировать→Скопировано» с языком и переносом; сайдбар: группы ${GROUPS.join("/")} и двухстрочные строки; панель: тумблер файлов переключает право чата (без папки — выбор папки проекта), интернет выключен с причиной, команды плагинов через одобрение, «позже» нет; сайдбар живой: строк «Настройки»/«Плагины» нет, знак логотипа 36 px с зазором 12, поиск под логотипом фильтрует только чаты и пересобирает группы, ✕ и Esc очищают, пустой результат — «Ничего не нашлось», время справа первой линии и превью второй, чат без сообщений одной линией, точка проекта --success и --danger при ошибке движка, пилюля модели открывает сравнение, клик в её точку при открытой панели его не «мигает», а пикер двери панели пилюля «снаружи» не закрывает`,
     );
   } finally {
     await browser.close();

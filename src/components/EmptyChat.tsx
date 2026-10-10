@@ -1,12 +1,12 @@
 // Приветственная сборка пустого чата (docs/specs/2026-10-10-5-приветственная.md):
 // H1 с подзаголовком, шесть счётчиков — четыре из настоящего состояния и расход
 // «за сегодня» из данных «Статистики» (useStats; без сводки — честный прочерк
-// с причиной на карточке), герой-ввод слотом между счётчиками и сценариями —
-// тот же композер крупным вариантом (ChatView создаёт его один раз, первый
-// вопрос уводит вниз строкой), ровно 4 карточки сценариев и ряд моделей.
+// с причиной на карточке), ровно 4 карточки сценариев и ряд моделей. Ввода в
+// сборке нет: композер живёт внизу окна всегда, в пустом чате — крупным полем
+// героя (ChatView держит его в одном слоте, спека §16).
 // Ряд без данных не рисуется вовсе; ноль счётчика — честный. Сборка стоит
 // вверху прокручиваемой ленты.
-import { useMemo, type ReactNode } from "react";
+import { useMemo } from "react";
 
 import { moneyOf } from "../compare";
 import { knownModels, type KnownModel } from "../markdown";
@@ -49,7 +49,6 @@ export function EmptyChat({
   counts,
   plugins,
   model,
-  hero,
   onOpenProject,
   onConnectPlugin,
   onCompare,
@@ -58,9 +57,6 @@ export function EmptyChat({
   counts: WelcomeCounts;
   plugins: PluginsState;
   model: string;
-  /** Герой-ввод слотом: тот же композер крупным вариантом, стоит между
-   *  счётчиками и сценариями (спека приветствия §3/§7). */
-  hero?: ReactNode;
   /** Клик по карточке сценария: папка проекта, каталог плагинов, панель сравнения. */
   onOpenProject: () => void;
   onConnectPlugin: () => void;
@@ -147,12 +143,6 @@ export function EmptyChat({
           {SPEND_NOTE}
         </div>
       </div>
-
-      {hero ? (
-        <div className="empty__composer" data-testid="welcome-composer">
-          {hero}
-        </div>
-      ) : null}
 
       <div className="empty__row empty__row--scenarios" data-testid="welcome-scenarios">
         {SCENARIOS.map((scenario) => (

@@ -163,10 +163,11 @@ const settled = async (page, shot) => {
   }
 };
 
-/** Меню «+» героя (`плюс=открыто`, спека приветствия §12.4): оверлей области
- *  чата под шапкой, целиком на экране, поверх сборки — краем ленты не обрезан.
- *  Числами, не глазами: порог «не выше шапки» — как у пикера двери панели
- *  в window_look (шапка min-height 48, узор top 56), рамки чата — точно. */
+/** Меню «+» на кадре `плюс=открыто` (правка владельца 2026-10-10, спека
+ *  приветствия §16): открывается над нижним полем от самого композера — якорь
+ *  композер, не оверлей области чата. Числами, не глазами: зазоры из AddMenu.css —
+ *  24 px от левого края композера, низ меню на 8 px ниже верха поля; шапка и
+ *  рамки чата — границы «целиком на экране». */
 const heroMenuBounds = async (page) =>
   page.evaluate(() => {
     const box = (sel) => {
@@ -179,8 +180,15 @@ const heroMenuBounds = async (page) =>
       menu: box('[data-testid="add-menu"]'),
       chat: box(".chat"),
       header: box('[data-testid="chat-header"]'),
+      composer: box('[data-testid="welcome-composer"] .composer'),
     };
   });
+
+/** Зазоры меню от композера (AddMenu.css): слева --space-5, низ ниже верха поля
+ *  на --space-2. Допуск 2 px — дробные ширины рамок. */
+const MENU_INSET_PX = 24;
+const MENU_GAP_PX = 8;
+const MENU_TOLERANCE_PX = 2;
 
 const { url, stop, ok, port } = await startInterface();
 try {
@@ -231,13 +239,13 @@ try {
       }
       if (shot.heroMenu) {
         const bounds = await heroMenuBounds(page);
-        if (!bounds.menu || !bounds.chat || !bounds.header) {
+        if (!bounds.menu || !bounds.chat || !bounds.header || !bounds.composer) {
           await context.close();
-          done(1, "кадр «плюс=открыто»: меню героя, шапка или область чата не на экране");
+          done(1, "кадр «плюс=открыто»: меню «+», шапка, нижнее поле или область чата не на экране");
         }
-        if (bounds.menu.top < bounds.chat.top + 40) {
+        if (bounds.menu.top < bounds.header.bottom) {
           await context.close();
-          done(1, `меню «+» героя стоит на ${Math.round(bounds.menu.top - bounds.chat.top)} px ниже верха чата — окно выше шапки, оверлей должен открываться под ней`);
+          done(1, `меню «+» заехало под шапку (верх ${Math.round(bounds.menu.top)} при низе шапки ${Math.round(bounds.header.bottom)}) — на экране оно не целиком`);
         }
         if (
           bounds.menu.left < bounds.chat.left - 1 ||
@@ -245,7 +253,15 @@ try {
           bounds.menu.bottom > bounds.chat.bottom + 1
         ) {
           await context.close();
-          done(1, `меню «+» героя выходит за область чата (${Math.round(bounds.menu.left)}…${Math.round(bounds.menu.right)}, низ ${Math.round(bounds.menu.bottom)}) — обрезано краем ленты`);
+          done(1, `меню «+» выходит за область чата (${Math.round(bounds.menu.left)}…${Math.round(bounds.menu.right)}, низ ${Math.round(bounds.menu.bottom)}) — на экране не целиком`);
+        }
+        if (Math.abs(bounds.menu.left - (bounds.composer.left + MENU_INSET_PX)) > MENU_TOLERANCE_PX) {
+          await context.close();
+          done(1, `меню «+» стоит на ${Math.round(bounds.menu.left - bounds.composer.left)} px от нижнего поля, а не ${MENU_INSET_PX} — якорь не композер`);
+        }
+        if (Math.abs(bounds.menu.bottom - (bounds.composer.top + MENU_GAP_PX)) > MENU_TOLERANCE_PX) {
+          await context.close();
+          done(1, `меню «+» открывается не над нижним полем (низ ${Math.round(bounds.menu.bottom)} против верха поля ${Math.round(bounds.composer.top)}) — якорь не композер`);
         }
       }
       if (shot.cutTitle) {

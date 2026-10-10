@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 
 import type { ApprovalDecision, PluginScope } from "../bridge";
 import type { CatalogEntry } from "../catalog";
@@ -242,50 +242,27 @@ export function ChatView({
   );
 
   /** Фокус героя — только по ходу владельца: «Новый чат» переводит ленту в
-   *  пустое состояние, и сборка сразу принимает текст (спека приветствия §4).
-   *  При старте окна автофокуса нет: повтор строк ленты мог вернуть разговор,
-   *  а фокус, снятый его приходом, ломал бы порядок обхода — Tab начинается
-   *  с поиска сайдбара (спека сайдбара §12). Уход героя с первым вопросом
-   *  переносит фокус поля в композер-строку внизу — как вёл себя единственный
-   *  композер до двух видов; снять фокус мало: браузер держит точку входа
-   *  Tab на месте удалённого поля, и первый Tab проскакивал бы сайдбар.
-   *  Был ли фокус в сборке, говорит focusin, а не чтение после коммита:
-   *  владелец фокусирует поле между коммитами. Layout-эффект — до отрисовки. */
+   *  пустое состояние, и поле ввода внизу сразу принимает текст (спека
+   *  приветствия §4). При старте окна автофокуса нет: повтор строк ленты мог
+   *  вернуть разговор, а фокус, снятый его приходом, ломал бы порядок обхода —
+   *  Tab начинается с поиска сайдбара (спека сайдбара §12). Перенос фокуса
+   *  «герой → строка» после первого вопроса не нужен: композер внизу один и
+   *  не перемонтируется (спека приветствия §16), фокус живёт в том же поле.
+   *  Layout-эффект — до отрисовки. */
   const prevRowsRef = useRef(rows.length);
-  const heroFocusRef = useRef(false);
   useLayoutEffect(() => {
     const wasEmpty = prevRowsRef.current === 0;
     prevRowsRef.current = rows.length;
-    if (wasEmpty && rows.length > 0) {
-      if (heroFocusRef.current) {
-        heroFocusRef.current = false;
-        (document.querySelector('[data-testid="composer"]') as HTMLElement | null)?.focus();
-      }
-    } else if (!wasEmpty && rows.length === 0) {
-      (
-        document.querySelector(
-          '[data-testid="welcome-composer"] [data-testid="composer"]',
-        ) as HTMLElement | null
-      )?.focus();
+    if (!wasEmpty && rows.length === 0) {
+      (document.querySelector('[data-testid="composer"]') as HTMLElement | null)?.focus();
     }
-  }, [rows.length]);
-  useEffect(() => {
-    if (rows.length > 0) {
-      return;
-    }
-    heroFocusRef.current = false;
-    const track = (event: FocusEvent) => {
-      const target = event.target;
-      heroFocusRef.current =
-        target instanceof HTMLElement && target.closest('[data-testid="welcome-composer"]') !== null;
-    };
-    document.addEventListener("focusin", track);
-    return () => document.removeEventListener("focusin", track);
   }, [rows.length]);
 
-  /** Композер создаётся один раз: пустой чат передаёт его сборке слотом (герой),
-   *  разговор рисует его внизу строкой — черновик, отправка и оверлеи живут как
-   *  сейчас и переживают смену вида (спека приветствия §3/§7). */
+  /** Композер живёт внизу окна всегда (правка владельца 2026-10-10, спека
+   *  приветствия §16): в пустом чате это герой с крупным полем, в разговоре —
+   *  та же строка; один элемент без перемонтирования — черновик, фокус и
+   *  оверлеи переживают первый вопрос. Слот героя несёт welcome-composer,
+   *  в разговоре метка героя снимается. */
   const composer = (
     <Composer
       hero={!rows.length}
@@ -385,7 +362,6 @@ export function ChatView({
             counts={counts}
             plugins={plugins}
             model={model}
-            hero={composer}
             onOpenProject={project.pick}
             onConnectPlugin={onOpenPluginsPage}
             onCompare={() => setOverlay("compare")}
@@ -393,7 +369,7 @@ export function ChatView({
           />
         )}
       </div>
-      {rows.length ? composer : null}
+      <div data-testid={rows.length ? undefined : "welcome-composer"}>{composer}</div>
     </main>
   );
 }
