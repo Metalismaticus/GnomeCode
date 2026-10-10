@@ -7,7 +7,7 @@
 // Итог: код возврата и последняя строка вывода — как у любой проверки.
 // Ограничение: снимается страница интерфейса, а не окно Tauri — WebView2
 // Playwright не водит (docs/TESTING.md, «Ловушки стека»).
-import { done, startInterface, startShot, openShotPage, connectPlugin, commandButton, INSTALL } from "../lib/ui_lib.mjs";
+import { done, startInterface, startShot, openShotPage, connectPlugin, commandButton, openMore, INSTALL } from "../lib/ui_lib.mjs";
 
 const OUT_DIR = "shots";
 const CARD = '[data-testid="plugin-card"][data-plugin="git"]';
@@ -18,9 +18,12 @@ const THEMES = [
   { suffix: "light", mark: "&тема=светлая" },
 ];
 
-/** Вызов diff, как его делает владелец: кнопка команды в шапке — строка в ленте. */
+/** Вызов diff, как его делает владелец: пункт команды в меню «⋯» — строка в ленте. */
 const runDiff = async (page) => {
   await connectPlugin(page, "git");
+  // Пункты команд живут только в открытом меню «⋯» («тихий хром», §5); клик
+  // по пункту закрывает меню сам — в кадрах оно не остаётся.
+  await openMore(page);
   await page.click(commandButton("git:diff"));
   await page.waitForFunction(
     () => Array.from(document.querySelectorAll('[data-testid="feed"] .feed__row--tool'))

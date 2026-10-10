@@ -6,7 +6,7 @@
 // Страница интерфейса, а не окно Tauri: фикстура зеркалит launch/утечку счётчика
 // (src/fixtureApprovals.ts), счётчик — память страницы, перезагрузка обнуляет,
 // поэтому сценарий в одной странице без reload.
-import { done, connectPlugin, commandButton, openStatePage, startInterface, INSTALL } from "../lib/ui_lib.mjs";
+import { done, connectPlugin, commandButton, openMore, openStatePage, startInterface, INSTALL } from "../lib/ui_lib.mjs";
 
 const CARD = '[data-testid="plugin-card"]';
 
@@ -17,6 +17,9 @@ try {
 
     // а) Вызов команды плагина: строка запуска в ленте ------------------------
     await connectPlugin(page, "git");
+    // Пункты команд живут только в открытом меню «⋯» («тихий хром», §5);
+    // клик по пункту закрывает меню сам — дальше сценарий видит экран владельца.
+    await openMore(page);
     await page.click(commandButton("git:diff"));
     try {
       await page.waitForFunction(

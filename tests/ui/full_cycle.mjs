@@ -39,6 +39,9 @@ try {
   const { browser, page } = await openProjectPage(iface);
   try {
     // 1. Открыть проект и приложить файл к вопросу: чип в композере -----------------
+    // Панель скрыта по умолчанию («тихий хром», §6), дерево живёт в ней —
+    // открываем из меню «⋯», как владелец; после перезапуска — тем же жестом (в).
+    await openContextPanel(page);
     await page.click('[data-testid="tree-toggle"][data-name="components"]');
     await page.click(`[data-testid="tree-row"][data-name="${FILE}"]`);
     try {

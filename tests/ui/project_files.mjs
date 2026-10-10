@@ -6,7 +6,7 @@
 // Итог: код возврата и последняя строка вывода — как у любой проверки (tests/lib/runner_lib.py).
 // Страница интерфейса, а не окно Tauri: WebView2 Playwright не водит, поэтому вне окна
 // интерфейс получает фикстуру (src/fixture.ts, состояние `?состояние=проект`).
-import { done, openProjectPage, startInterface, INSTALL } from "../lib/ui_lib.mjs";
+import { done, openContextPanel, openProjectPage, startInterface, INSTALL } from "../lib/ui_lib.mjs";
 
 const FILE = "bridge.ts";
 const DIR = "components";
@@ -32,6 +32,10 @@ const iface = await startInterface();
 try {
   const { browser, page } = await openProjectPage(iface);
   try {
+    // Панель «Контекст проекта» скрыта по умолчанию («тихий хром», §6), дерево
+    // живёт в ней — открываем из меню «⋯», как владелец.
+    await openContextPanel(page);
+
     // а) В правой панели есть дерево выбранной папки --------------------------------
     if ((await rows(page)).length === 0) {
       done(1, "дерева файлов в правой панели нет: нет [data-testid=tree]");
@@ -93,6 +97,11 @@ try {
       done(1, `крестик не убрал чип: их ${(await chips(page)).length}, а не 0`);
     }
 
+    // Крестик — клик по композеру, снаружи панели: продукт закрывает её сам
+    // («тихий хром», §6). Вкладки и дерево дальше смотрят в панели — открываем
+    // снова тем же жестом; раскрытие дерева при перемонтировке не теряется.
+    await openContextPanel(page);
+
     // д) Вкладки есть, но дерево остаётся «Файлы» ------------------------------------
     const tabs = await page.$$eval('[data-testid="context-tabs"] [role="tab"]', (els) =>
       els.map((el) => el.textContent.trim()),
@@ -118,6 +127,8 @@ try {
     }
 
     // е) Файл в контексте уходит с вопросом: в ленте видно имя файла ------------------
+    // Дерево после возвращения панели не свёрнуто: раскрытие живёт в состоянии
+    // проекта (useProject), панель его не теряет — строка «bridge.ts» на месте.
     await page.click(`[data-testid="tree-row"][data-name="${FILE}"]`);
     await page.fill('[data-testid="composer"]', QUESTION);
     await page.keyboard.press("Control+Enter");
