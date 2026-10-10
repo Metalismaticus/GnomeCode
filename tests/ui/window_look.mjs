@@ -277,13 +277,23 @@ try {
     const keys = await browser.newPage({ viewport: WIDE });
     await keys.goto(url, { waitUntil: "domcontentloaded", timeout: 90_000 });
     await waitReady(keys, '[data-testid="btn-primary"]');
+    // Порядок обхода начинается с поиска сайдбара (спека сайдбара §12), второй —
+    // «+ Новый проект»; обе обводки 2 px.
     await keys.keyboard.press("Tab");
     const firstFocus = await focusRing(keys);
-    if (!firstFocus || !String(firstFocus.cls).includes("primary")) {
-      done(1, `первый Tab дал фокус не главной кнопке, а ${firstFocus ? firstFocus.cls : "ничему"} — порядок обхода нарушен`);
+    if (!firstFocus || !String(firstFocus.cls).includes("sidebar__search-input")) {
+      done(1, `первый Tab дал фокус не полю поиска сайдбара, а ${firstFocus ? firstFocus.cls : "ничему"} — порядок обхода нарушен (спека сайдбара §12)`);
     }
     if (firstFocus.width !== FOCUS_RING_PX) {
-      done(1, `у главной кнопки обводка фокуса ${firstFocus.width}, а не ${FOCUS_RING_PX}`);
+      done(1, `у поля поиска обводка фокуса ${firstFocus.width}, а не ${FOCUS_RING_PX}`);
+    }
+    await keys.keyboard.press("Tab");
+    const secondFocus = await focusRing(keys);
+    if (!secondFocus || !String(secondFocus.cls).includes("primary")) {
+      done(1, `второй Tab дал фокус не главной кнопке, а ${secondFocus ? secondFocus.cls : "ничему"} — порядок обхода нарушен`);
+    }
+    if (secondFocus.width !== FOCUS_RING_PX) {
+      done(1, `у главной кнопки обводка фокуса ${secondFocus.width}, а не ${FOCUS_RING_PX}`);
     }
     if (!(await tabUntil(keys, "composer"))) {
       done(1, "клавиатурой не дошли до поля ввода — порядок обхода нарушен");

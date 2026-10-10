@@ -1,6 +1,7 @@
-/* Строка списка сайдбара: две линии — название 13 px и подпись 11 px приглушённым,
-   высота ~44 px, паддинг 6×8 (спека «Размеры» + приём «Двухстрочная строка»).
-   Длинное имя и путь усекаются с «…», полный текст — в title. */
+/* Строка списка сайдбара: первая линия — название 13 px и время 11 px справа,
+   вторая — подпись 11 px приглушённым; высота ~44 px, паддинг 6×8 (плотность
+   строки принята кадром, docs/specs/2026-10-10-4-сайдбар.md, §4). Длинное имя,
+   путь и превью усекаются с «…», полный текст — в title строки. */
 
 .sidebar-item {
   display: flex;
@@ -18,6 +19,14 @@
   transition: background 0.15s ease, color 0.15s ease;
 }
 
+/* Первая линия — ряд: глиф, название, время справа (спека сайдбара §4). */
+.sidebar-item__line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
 .sidebar-item__title {
   min-width: 0;
   line-height: 1.4;
@@ -27,14 +36,20 @@
   text-overflow: ellipsis;
 }
 
-/* Строка с глифом (вход в настройки): глиф перед названием в одну линию. */
-.sidebar-item__line {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-width: 0;
+/* Время чата — хвост первой линии: не сжимается, название забирает остальное. */
+.sidebar-item__end {
+  flex: none;
+  margin-left: auto;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-faint);
 }
 
+.sidebar-item--active .sidebar-item__end {
+  color: var(--on-accent);
+}
+
+/* Строка с глифом (настройки, аватар проекта): глиф перед названием. */
 .sidebar-item__icon {
   flex: none;
   display: inline-flex;
@@ -55,16 +70,53 @@
   text-overflow: ellipsis;
 }
 
-.sidebar-item:hover {
+/* Наведение, нажатие и фокус — только у кликаемых строк (кнопок): ряды истории
+   и проектов — отображение, у нежатого hover врёт (спека сайдбара §7). */
+button.sidebar-item:hover {
   background: var(--bg-hover);
 }
 
-.sidebar-item:active {
+button.sidebar-item:active {
   background: var(--bg-hover);
+}
+
+button.sidebar-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Аватар проекта — буква в квадрате 24 с точкой состояния движка (спека §6):
+   статусные цвета, не акцент; кольцо — цвет подложки сайдбара. */
+.sidebar-item__avatar {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel-2);
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.sidebar-item__avatar-dot {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  border: 2px solid var(--bg-panel);
+}
+
+.sidebar-item__avatar-dot--down {
+  background: var(--danger);
 }
 
 /* Активный чат — второе из акцентных пятен окна (docs/DESIGN.md, раздел 1):
-   мягкая плашка акцента, вторая линия тоже светлая. */
+   мягкая плашка акцента, обе линии светлые. */
 .sidebar-item--active {
   background: var(--accent-gradient);
 }

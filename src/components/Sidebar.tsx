@@ -1,4 +1,10 @@
+import { useRef, useState, type RefObject } from "react";
+
 import type { Theme } from "../viewparams";
+import { params } from "../viewparams";
+import { chatsWithLive } from "../app/lists";
+import { useChatList } from "../app/useChatList";
+import { panels } from "../fixture";
 import { MONTHS } from "../compare";
 import { Button } from "./Button";
 import { SidebarItem } from "./SidebarItem";
@@ -10,7 +16,7 @@ import logoMark from "../../docs/refs/owner-2026-10-05-3-icon.png";
 import "./Sidebar.css";
 
 export type SidebarProject = { title: string; path?: string; cost?: string };
-export type SidebarChat = { title: string; active?: boolean; time?: number };
+export type SidebarChat = { title: string; active?: boolean; time?: number; preview?: string };
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -38,7 +44,7 @@ export function chatGroupOf(time: number | undefined, now: number): string {
   return passed < 7 ? "НА ЭТОЙ НЕДЕЛЕ" : "РАНЕЕ";
 }
 
-/** Вторая линия строки чата — время (спека «Тексты»): сегодня — часы и минуты,
+/** Хвост первой линии — время (спека сайдбара §4): сегодня — часы и минуты,
  *  вчера — «Вчера», старше — день и месяц кратко. */
 export function chatTimeOf(chat: SidebarChat, now: number): string {
   if (!chat.time) {
@@ -56,7 +62,8 @@ export function chatTimeOf(chat: SidebarChat, now: number): string {
   return `${date.getDate()} ${MONTHS[date.getMonth()]}`;
 }
 
-/** Группы чатов по датам в порядке ленты: группа без чатов не рисуется. */
+/** Группы чатов по датам в порядке ленты: группа без чатов не рисуется —
+ *  и при поиске тоже, дата-контекст найденного сохраняется (спека сайдбара §5). */
 function groupsOf(chats: SidebarChat[], now: number): { title: string; chats: SidebarChat[] }[] {
   const order = ["СЕГОДНЯ", "ВЧЕРА", "НА ЭТОЙ НЕДЕЛЕ", "РАНЕЕ"];
   return order
@@ -64,9 +71,111 @@ function groupsOf(chats: SidebarChat[], now: number): { title: string; chats: Si
     .filter((group) => group.chats.length > 0);
 }
 
-/** Левая колонка: логотип, быстрые действия («+ Новый проект», «Новый чат»,
- *  «Плагины», «Настройки»), разделы «Проекты»/«Чаты» с датами, подвал. Строка
- *  списка и её состояние «активный» — SidebarItem. */
+/** Поиск по чатам — подстрока без регистра по названию и превью (спека §5);
+ *  превью в данных нет — по названию. Проекты и навигацию не трогает. */
+function matches(chat: SidebarChat, query: string): boolean {
+  const needle = query.trim().toLowerCase();
+  if (!needle) {
+    return true;
+  }
+  return chat.title.toLowerCase().includes(needle) || (chat.preview ?? "").toLowerCase().includes(needle);
+}
+
+const SEARCH_PLACEHOLDER = "Поиск по чатам…";
+
+/** Поле поиска по чатам — первый контрол после логотипа (спека сайдбара §3/§5):
+ *  рецепт готового поиска, ✕ видна только при тексте. Esc — жест самого поля:
+ *  чистит текст, повторный снимает фокус. */
+function searchField(query: string, onQuery: (next: string) => void, input: RefObject<HTMLInputElement>) {
+  return (
+    <div className="sidebar__search">
+      <input
+        ref={input}
+        className="sidebar__search-input"
+        data-testid="sidebar-search"
+        type="text"
+        placeholder={SEARCH_PLACEHOLDER}
+        value={query}
+        onChange={(event) => onQuery(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key !== "Escape") {
+            return;
+          }
+          if (query) {
+            onQuery("");
+          } else {
+            input.current?.blur();
+          }
+        }}
+      />
+      {query ? (
+        <button
+          type="button"
+          className="sidebar__search-clear"
+          data-testid="sidebar-search-clear"
+          title="Очистить"
+          aria-label="Очистить"
+          onClick={() => {
+            onQuery("");
+            input.current?.focus();
+          }}
+        >
+          ✕
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+/** Аватар проекта — буква в квадрате с точкой состояния движка (спека сайдбара
+ *  §6): статусные цвета, не акцент; своей второй правды о движке здесь нет. */
+function avatar(title: string, engineDown: boolean) {
+  return (
+    <span className="sidebar-item__avatar" aria-hidden="true">
+      {title.slice(0, 1).toUpperCase()}
+      <span
+        className={`sidebar-item__avatar-dot${engineDown ? " sidebar-item__avatar-dot--down" : ""}`}
+        data-testid="sidebar-project-dot"
+      />
+    </span>
+  );
+}
+
+/** Тело раздела «Чаты» (спека сайдбара §5/§7): группы дат со строками; список
+ *  пуст — «Пока нет чатов», поиск без совпадений — «Ничего не нашлось». */
+function chatRows(all: SidebarChat[], visible: SidebarChat[], now: number, onOpenChat: () => void) {
+  if (!all.length) {
+    return <SidebarItem title="Пока нет чатов" />;
+  }
+  const groups = groupsOf(visible, now);
+  if (!groups.length) {
+    return (
+      <div className="sidebar__none" data-testid="sidebar-search-none">
+        Ничего не нашлось
+      </div>
+    );
+  }
+  return groups.map((group) => (
+    <div key={group.title}>
+      <div className="sidebar__section-title">{group.title}</div>
+      {group.chats.map((chat) => (
+        <SidebarItem
+          key={chat.title}
+          title={chat.title}
+          end={chatTimeOf(chat, now)}
+          sub={chat.preview}
+          active={chat.active}
+          testid={chat.active ? "chat-active" : undefined}
+          onClick={chat.active ? onOpenChat : undefined}
+        />
+      ))}
+    </div>
+  ));
+}
+
+/** Левая колонка: логотип, поиск по чатам, быстрые действия («+ Новый проект»,
+ *  «Новый чат», «Плагины», «Настройки»), разделы «Проекты»/«Чаты» с датами,
+ *  подвал. Строка списка и её состояние «активный» — SidebarItem. */
 export function Sidebar({
   projects,
   chats,
@@ -101,13 +210,27 @@ export function Sidebar({
   onNewChat: () => void;
 }) {
   const now = Date.now();
-  const groups = groupsOf(chats, now);
+  /** Поиск живёт в самом поле: кадры поиска приходят адресом (`?поиск=`),
+   *  дальше поле ведёт себя как обычный ввод. */
+  const [query, setQuery] = useState(params.search);
+  const searchRef = useRef<HTMLInputElement>(null);
+  /** Живой список ядра: строки истории — из загруженных сессий движка одним
+   *  запросом при старте (спека сайдбара §7); не дошёл — сайдбар живёт тем,
+   *  что передало окно. */
+  const live = useChatList();
+  /** Движок не отвечает: точка аватара проекта краснеет (спека сайдбара §6).
+   *  Источник тот же, что у «Не отвечает» правой панели, — panels состояния
+   *  страницы; своего второго правды о движке сайдбар не заводит. */
+  const engineDown = panels(params.feed).engineDown;
+  const all = chatsWithLive(chats, live);
+  const visible = all.filter((chat) => matches(chat, query));
   return (
     <nav className="sidebar" data-testid="sidebar">
       <div className="sidebar__logo">
         <img className="sidebar__logo-mark" src={logoMark} alt="GnomeCode" />
         <span className="sidebar__logo-name">GnomeCode</span>
       </div>
+      {searchField(query, setQuery, searchRef)}
       <Button variant="primary" data-testid="btn-primary" onClick={onPickFolder}>
         + Новый проект
       </Button>
@@ -131,6 +254,7 @@ export function Sidebar({
             <SidebarItem
               key={project.title}
               title={project.title}
+              glyph={avatar(project.title, engineDown)}
               sub={project.path}
               sub2={project.cost ? `Этот проект стоил ${project.cost}` : undefined}
               testid="sidebar-project"
@@ -140,25 +264,7 @@ export function Sidebar({
           <SidebarItem title="Пока нет проектов" />
         )}
         <div className="sidebar__section-title">Чаты</div>
-        {groups.length ? (
-          groups.map((group) => (
-            <div key={group.title}>
-              <div className="sidebar__section-title">{group.title}</div>
-              {group.chats.map((chat) => (
-                <SidebarItem
-                  key={chat.title}
-                  title={chat.title}
-                  sub={chatTimeOf(chat, now)}
-                  active={chat.active}
-                  testid={chat.active ? "chat-active" : undefined}
-                  onClick={chat.active ? onOpenChat : undefined}
-                />
-              ))}
-            </div>
-          ))
-        ) : (
-          <SidebarItem title="Пока нет чатов" />
-        )}
+        {chatRows(all, visible, now, onOpenChat)}
       </div>
       <div className="sidebar__footer">
         <span className="sidebar__avatar">Г</span>

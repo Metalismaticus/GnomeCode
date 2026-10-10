@@ -191,6 +191,12 @@ export type StatsSummary = {
 };
 
 export type Listener = (event: FeedEvent) => void;
+
+/** Строка истории чатов сайдбара из списка ядра (`chat_list`): название и время
+ *  обновления — ровно то, что отдаёт список; превью в нём нет, строки без второй
+ *  линии (спека сайдбара §7). Форму элемента знает только Rust (ADR-0001). */
+export type ChatRow = { title: string; updated?: number };
+
 export type Bridge = {
   /** Вопрос владельца; `files` — пути файлов, которые уйдут с ним движку. */
   send(text: string, files: string[]): Promise<void>;

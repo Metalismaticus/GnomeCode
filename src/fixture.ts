@@ -127,6 +127,42 @@ const hoursAgo = (index: number): number => {
   return 240 + (index - 28) * 96;
 };
 
+/** Строка списка чатов: превью — начало последнего сообщения (спека сайдбара §4);
+ *  чат без сообщений превью не несёт — строка одной линией. */
+const chatRow = (title: string, preview: string | undefined, hours: number, active = false): SidebarChat => ({
+  title,
+  ...(preview ? { preview } : {}),
+  time: Date.now() - hours * HOUR,
+  ...(active ? { active: true } : {}),
+});
+
+/** Дефолтный список чатов (спека сайдбара §8): 16 чатов, все четыре группы —
+ *  4 сегодня (активный, один без сообщений, один с титулом 60+ знаков), 3 вчера,
+ *  5 на этой неделе, 4 ранее; превью — реальные начала сообщений. Поиск «модел»
+ *  находит две строки в двух группах, «ффф» — ничего. */
+const defaultChats = (): SidebarChat[] => [
+  chatRow("Разбор главного окна", "Смотрю структуру папки. Мост на месте, сборка зелёная.", 2, true),
+  chatRow(
+    "Открыть проект из Documents без переименования 2026 и не сломать путь",
+    "Путь и имя папки показывает правая панель, титул — шапка чата",
+    3,
+  ),
+  chatRow("Новый чат без вопросов", undefined, 4),
+  chatRow("Настройки модели по умолчанию", "Своя у чата, иначе — выбор страницы «Настройки»", 6),
+  chatRow("Собери отчёт по панелям окна", "Собрал отчёт по панелям: всё, что видно на срезе проекта src", 26),
+  chatRow("Ползунки прокрутки в цвет", "Дорожка и ползунок на токенах тем, стрелки спрятаны", 30),
+  chatRow("Кнопки окна в один кластер", "Тема, свернуть, развернуть и закрыть — правый край шапки", 34),
+  chatRow("Мост к OpenCode server", "Типизированный клиент в src-tauri, React не зовёт HTTP", 73),
+  chatRow("Плагины в два клика", "Каталог читает index.json, установка спрашивает права", 80),
+  chatRow("Права и скоупы вызовов", "Once, Chat, Project и Global — полоса на строке плагина", 85),
+  chatRow("Статистика расхода", "Число вызовов и деньги по моделям за неделю", 90),
+  chatRow("Здоровье кода и база", "tools/code_check.py считает строки новых файлов", 96),
+  chatRow("Каркас окна на Tauri 2", "React 18 и strict-типы, сборка tsc и vite", 240),
+  chatRow("Окно без рамки", "Своё окно перетаскивается за шапку чата", 336),
+  chatRow("Первый вопрос движку", "opencode serve поднялся, сессия пережила рестарт", 432),
+  chatRow("Стенд снимков интерфейса", "Кадры снимает Playwright на странице фикстуры", 528),
+];
+
 /** Реалистичные часы реплики (спека ленты §8): минут назад от сейчас. */
 const minutesAgo = (minutes: number): number => Date.now() - minutes * 60_000;
 
@@ -304,11 +340,12 @@ export function panels(state: typeof params.feed): PanelData {
     return {
       projects: [{ title: LONG_PROJECT, path: LONG_PATH }],
       chats: [
-        ...Array.from({ length: 99 }, (_, i) => ({
-          title: `Вопрос ${i + 1}`,
-          time: Date.now() - hoursAgo(i) * HOUR,
-        })),
-        { title: ACTIVE_CHAT, active: true, time: Date.now() - 2 * HOUR },
+        // Превью этих чатов — последняя строка ленты (спека сайдбара §8): у всех
+        // ста она «Ответ модели получен», она же превью.
+        ...Array.from({ length: 99 }, (_, i) =>
+          chatRow(`Вопрос ${i + 1}`, DONE, hoursAgo(i)),
+        ),
+        chatRow(ACTIVE_CHAT, DONE, 2, true),
       ],
       sections: [
         {
@@ -325,7 +362,7 @@ export function panels(state: typeof params.feed): PanelData {
   }
   return {
     projects: [{ title: "GnomeCode" }],
-    chats: [{ title: ACTIVE_CHAT, active: true, time: Date.now() - 2 * HOUR }],
+    chats: defaultChats(),
     sections: baseSections(),
     engineDown: state === "error",
     project: project() ?? "",

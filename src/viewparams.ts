@@ -25,6 +25,9 @@ export type ViewParams = {
   menu: boolean;
   /** Обрыв потока по требованию сценария ленты (`?обрыв=1`). */
   breaks: boolean;
+  /** Текст поиска по чатам — предзаполненное поле для кадров без кликов
+   *  (спека сайдбара §13, `?поиск=<текст>`), как `меню=открыто`. */
+  search: string;
 };
 
 const THEMES: Record<string, Theme> = { тёмная: "dark", темная: "dark", светлая: "light" };
@@ -67,6 +70,7 @@ export function viewParams(search: string): ViewParams {
     right: query.get("правая") === "открыта",
     menu: query.get("меню") === "открыто",
     breaks: query.has("обрыв"),
+    search: query.get("поиск") ?? "",
   };
 }
 

@@ -9,6 +9,7 @@ import type { Bridge, Listener } from "./bridge/types";
 export type {
   ApprovalDecision,
   ChatModelChoice,
+  ChatRow,
   FeedEvent,
   FeedRow,
   HeldUpdate,
@@ -27,6 +28,7 @@ export type {
   UpdatesNote,
 } from "./bridge/types";
 export { ENGINE_READY_NOTICES } from "./bridge/tauri";
+export { chatList } from "./bridge/live";
 
 let chosen: Bridge | undefined;
 

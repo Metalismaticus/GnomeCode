@@ -146,6 +146,18 @@ fn chat_new(chat: State<'_, Chat>) -> Result<(), String> {
     chat.new_chat()
 }
 
+/// Живой список чатов ядра для сайдбара: титулы и время обновления одним
+/// запросом (спека сайдбара §7); форму элемента знает только `session.rs`
+/// (ADR-0001). Движок не поднят — ошибка наружу: сайдбар живёт тем, что уже
+/// передало окно, поломки нет.
+#[tauri::command]
+fn chat_list(chat: State<'_, Chat>) -> Result<Vec<opencode::session::ChatRow>, String> {
+    let endpoint = chat
+        .endpoint()
+        .ok_or_else(|| "Движок OpenCode не запущен: список чатов недоступен".to_string())?;
+    opencode::session::chats(&opencode::client::Api::new(&endpoint))
+}
+
 /// Недошедшие до вебвью строки ленты: интерфейс просит их после первой
 /// подписки — движок успел сказать «поднимается…» до того, как окно появилось.
 #[tauri::command]
@@ -205,6 +217,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             app_version,
             catalog_list,
+            chat_list,
             chat_new,
             chat_send,
             compare_list,

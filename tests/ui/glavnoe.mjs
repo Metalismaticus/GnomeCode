@@ -269,6 +269,188 @@ try {
     }
     await project.close();
 
+    // --- Сайдбар живой: поиск, анатомия строки, аватар с точкой (спека сайдбара §4–§6) --
+    const side = await browser.newPage({ viewport: WIDE });
+    await side.goto(iface.url, { waitUntil: "domcontentloaded", timeout: 90_000 });
+    try {
+      await side.waitForSelector('[data-testid="chat-active"]', { timeout: 15000 });
+    } catch {
+      done(1, "в дефолтном сайдбаре нет активного чата — живой список нечем проверить");
+    }
+    // Поиск стоит под логотипом и над кнопками (спека §3): порядок в DOM.
+    const searchPlace = await side.$eval('[data-testid="sidebar"]', (nav) => {
+      const logo = nav.querySelector(".sidebar__logo");
+      const search = nav.querySelector('[data-testid="sidebar-search"]');
+      const primary = nav.querySelector('[data-testid="btn-primary"]');
+      const after = (a, b) => Boolean(a && b && a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+      return after(logo, search) && after(search, primary);
+    });
+    if (!searchPlace) {
+      done(1, "поля поиска нет под логотипом и над кнопками сайдбара — первый контрол колонки не на месте");
+    }
+    // Строка чата двумя линиями: время справа первой, превью второй (спека §4).
+    const rowBox = await side.$eval('[data-testid="chat-active"]', (row) => {
+      const box = (sel) => {
+        const el = row.querySelector(sel);
+        return el ? el.getBoundingClientRect() : null;
+      };
+      return {
+        title: row.querySelector(".sidebar-item__title")?.textContent.trim() ?? "",
+        end: row.querySelector(".sidebar-item__end")?.textContent.trim() ?? "",
+        sub: row.querySelector(".sidebar-item__sub")?.textContent.trim() ?? "",
+        titleBox: box(".sidebar-item__title"),
+        endBox: box(".sidebar-item__end"),
+        subBox: box(".sidebar-item__sub"),
+      };
+    });
+    if (rowBox.title !== "Разбор главного окна") {
+      done(1, `активная строка — «${rowBox.title}», а не «Разбор главного окна»`);
+    }
+    if (!rowBox.end) {
+      done(1, "у строки чата нет времени на первой линии — время не переехало вправо");
+    }
+    if (!rowBox.sub) {
+      done(1, "у строки чата нет превью на второй линии — сайдбар не говорит, о чём чат");
+    }
+    if (rowBox.titleBox && rowBox.endBox) {
+      if (Math.abs(rowBox.endBox.top - rowBox.titleBox.top) > 4) {
+        done(1, "время стоит не на первой линии строки — верх времени и названия расходятся больше 4 px");
+      }
+      if (rowBox.endBox.right <= rowBox.titleBox.right) {
+        done(1, "время стоит не справа от названия");
+      }
+    }
+    if (rowBox.subBox && rowBox.endBox && rowBox.subBox.top <= rowBox.endBox.top) {
+      done(1, "превью стоит не второй линией — верх превью не ниже времени");
+    }
+    // Чат без сообщений — одна линия (спека §4): второй линии нет вовсе.
+    const oneLine = await side.$$eval(".sidebar-item", (rows) => {
+      const row = rows.find((r) => r.querySelector(".sidebar-item__title")?.textContent.trim() === "Новый чат без вопросов");
+      return row === undefined ? null : Boolean(row.querySelector(".sidebar-item__sub"));
+    });
+    if (oneLine === null) {
+      done(1, "чата без сообщений «Новый чат без вопросов» нет в дефолтном списке — крайний случай не показан");
+    }
+    if (oneLine) {
+      done(1, "чат без сообщений рисует пустую вторую линию — строка должна быть одной линией");
+    }
+    // Точка аватара проекта — статусный токен: зелёная у живого движка (спека §6).
+    const tokenColor = (page, token) =>
+      page.evaluate((name) => {
+        const probe = document.createElement("span");
+        probe.style.color = `var(${name})`;
+        document.body.appendChild(probe);
+        const value = getComputedStyle(probe).color;
+        probe.remove();
+        return value;
+      }, token);
+    const dotOf = (page) =>
+      page.$eval('[data-testid="sidebar-project-dot"]', (el) => getComputedStyle(el).backgroundColor).catch(() => null);
+    const dotUp = await dotOf(side);
+    const success = await tokenColor(side, "--success");
+    if (!dotUp || dotUp !== success) {
+      done(1, `точка аватара проекта ${dotUp ?? "не нарисована"}, а не цвет --success (${success}) — состояния движка сайдбар не показывает`);
+    }
+    // Движок не отвечает — точка красная, сайдбар и поиск работают (спека §6/§8).
+    const errorPage = await browser.newPage({ viewport: WIDE });
+    await errorPage.goto(`${iface.url}?состояние=ошибка`, { waitUntil: "domcontentloaded", timeout: 90_000 });
+    await errorPage.waitForSelector('[data-testid="sidebar-project-dot"]', { timeout: 15000 });
+    const dotDown = await dotOf(errorPage);
+    const danger = await tokenColor(errorPage, "--danger");
+    if (!dotDown || dotDown !== danger) {
+      done(1, `точка аватара при ошибке движка ${dotDown ?? "не нарисована"}, а не цвет --danger (${danger})`);
+    }
+    if (!(await errorPage.$('[data-testid="sidebar-search"]'))) {
+      done(1, "при ошибке движка у сайдбара нет поиска — остальной сайдбар должен работать");
+    }
+    await errorPage.close();
+    // Поиск фильтрует только чаты, группы пересобираются (спека §5). Состав строк
+    // запоминаем до поиска: возврат после очистки сверяем с ним, а не с временем суток.
+    const before = await side.$$eval('[data-testid="sidebar"] .sidebar__lists .sidebar-item__title', (els) =>
+      els.map((el) => el.textContent.trim()),
+    );
+    await side.fill('[data-testid="sidebar-search"]', "модел");
+    await side.waitForFunction(
+      () => {
+        const titles = [...document.querySelectorAll('[data-testid="sidebar"] .sidebar-item__title')].map((el) =>
+          el.textContent.trim(),
+        );
+        return titles.includes("Настройки модели по умолчанию") && titles.includes("Статистика расхода");
+      },
+      undefined,
+      { timeout: 5000 },
+    ).catch(() => {
+      done(1, "поиск «модел» не нашёл «Настройки модели по умолчанию» и «Статистика расхода» — фильтр по названию и превью не работает");
+    });
+    // Каждая видимая группа при поиске непуста: группа без совпадений прячется.
+    const found = await side.$$eval('[data-testid="sidebar"] .sidebar__lists > div', (blocks) =>
+      blocks
+        .filter((block) => block.querySelector(".sidebar__section-title"))
+        .map((block) => ({
+          title: block.querySelector(".sidebar__section-title")?.textContent.trim() ?? "",
+          rows: block.querySelectorAll(".sidebar-item").length,
+        })),
+    );
+    if (!found.length) {
+      done(1, "при поиске не осталось ни одной группы — результат потерял дата-контекст");
+    }
+    for (const group of found) {
+      if (!group.rows) {
+        done(1, `при поиске видна пустая группа «${group.title}» — группа без совпадений должна прятаться`);
+      }
+    }
+    const titles = await side.$$eval('[data-testid="sidebar"] .sidebar__lists .sidebar-item__title', (els) =>
+      els.map((el) => el.textContent.trim()),
+    );
+    const matched = titles.filter((t) => t === "Настройки модели по умолчанию" || t === "Статистика расхода").length;
+    if (matched !== 2) {
+      done(1, `поиск «модел» показал ${matched} из двух совпавших строк: ${titles.join(" | ")}`);
+    }
+    const navWhole = await side.$$eval('[data-testid="sidebar"] .sidebar-item__title', (els) =>
+      els.map((el) => el.textContent.trim()),
+    );
+    if (!navWhole.includes("Плагины")) {
+      done(1, "поиск по чатам спрятал навигацию сайдбара — ищет только список «Чаты»");
+    }
+    if (titles.includes("Разбор главного окна")) {
+      done(1, "поиск «модел» оставил несовпавшую строку активного чата — фильтр не работает");
+    }
+    // Пустой результат объяснён словами, поле и ✕ на месте (спека §5).
+    await side.fill('[data-testid="sidebar-search"]', "ффф");
+    try {
+      await side.waitForSelector('[data-testid="sidebar-search-none"]', { timeout: 5000 });
+    } catch {
+      done(1, "пустой результат поиска не объяснён строкой «Ничего не нашлось» ([data-testid=sidebar-search-none] нет)");
+    }
+    const noneText = await side.$eval('[data-testid="sidebar-search-none"]', (el) => el.textContent.trim());
+    if (noneText !== "Ничего не нашлось") {
+      done(1, `пустой результат объяснён «${noneText}», а не «Ничего не нашлось»`);
+    }
+    if (!(await side.$('[data-testid="sidebar-search-clear"]'))) {
+      done(1, "при пустом результате у поиска пропал ✕ — поле и очистка должны остаться на местах");
+    }
+    // ✕ возвращает весь список; Esc чистит текст, повторный снимает фокус.
+    await side.click('[data-testid="sidebar-search-clear"]');
+    await side.waitForFunction(() => !document.querySelector('[data-testid="sidebar-search-clear"]'), undefined, { timeout: 5000 });
+    const restored = await side.$$eval('[data-testid="sidebar"] .sidebar__lists .sidebar-item__title', (els) =>
+      els.map((el) => el.textContent.trim()),
+    );
+    if (restored.join("\n") !== before.join("\n")) {
+      done(1, `после очистки поиска список не вернулся: было ${before.length} строк, стало ${restored.length}`);
+    }
+    await side.fill('[data-testid="sidebar-search"]', "модел");
+    await side.keyboard.press("Escape");
+    const afterEsc = await side.$eval('[data-testid="sidebar-search"]', (el) => el.value);
+    if (afterEsc !== "") {
+      done(1, `Esc не очистил поиск — в поле «${afterEsc}»`);
+    }
+    await side.keyboard.press("Escape");
+    const focused = await side.evaluate(() => document.activeElement?.getAttribute?.("data-testid") ?? "");
+    if (focused === "sidebar-search") {
+      done(1, "повторный Esc не снял фокус с поиска");
+    }
+    await side.close();
+
     // --- Правая панель живая: команды плагинов, тумблеры, «позже» нет ------------------
     const live = await browser.newPage({ viewport: WIDE });
     await live.goto(`${iface.url}?состояние=проект`, { waitUntil: "domcontentloaded", timeout: 90_000 });
@@ -416,7 +598,7 @@ try {
 
     done(
       0,
-      `приветственная сборка: H1 ${H1_PX} px/700, счётчики ${COUNTERS.join("/")} с честными нулями и числами ${NUMBER_PX} px/600 табличные, без ряда провайдеров, порядок H1 → счётчики → сценарии → модели (ряд до ${MODEL_ROW_LIMIT}), 4 сценария с глифами; разбор: ступени с номерами сворачиваются, код-блок «Копировать→Скопировано» с языком и переносом; сайдбар: группы ${GROUPS.join("/")} и двухстрочные строки; панель: тумблер файлов переключает право чата (без папки — выбор папки проекта), интернет выключен с причиной, команды плагинов через одобрение, «позже» нет`,
+      `приветственная сборка: H1 ${H1_PX} px/700, счётчики ${COUNTERS.join("/")} с честными нулями и числами ${NUMBER_PX} px/600 табличные, без ряда провайдеров, порядок H1 → счётчики → сценарии → модели (ряд до ${MODEL_ROW_LIMIT}), 4 сценария с глифами; разбор: ступени с номерами сворачиваются, код-блок «Копировать→Скопировано» с языком и переносом; сайдбар: группы ${GROUPS.join("/")} и двухстрочные строки; панель: тумблер файлов переключает право чата (без папки — выбор папки проекта), интернет выключен с причиной, команды плагинов через одобрение, «позже» нет; сайдбар живой: поиск под логотипом фильтрует только чаты и пересобирает группы, ✕ и Esc очищают, пустой результат — «Ничего не нашлось», время справа первой линии и превью второй, чат без сообщений одной линией, точка проекта --success и --danger при ошибке движка`,
     );
   } finally {
     await browser.close();
