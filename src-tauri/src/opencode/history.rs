@@ -155,8 +155,8 @@ fn row(id: &str, kind: RowKind, text: String, time: u64) -> FeedEvent {
 
 #[cfg(test)]
 mod tests {
-    use super::rows;
-    use serde_json::json;
+    use super::{rows, FeedEvent, RowKind};
+    use serde_json::{json, Value};
 
     /// Формы живого замера v2.0.25: вопрос с текстом полем, ответ с частями
     /// текста и исполненного вызова — строки ленты в порядке частей.
