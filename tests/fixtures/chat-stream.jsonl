@@ -1,0 +1,13 @@
+{"type":"session.step.started","data":{"sessionID":"ses_fixture","assistantMessageID":"msg_1","model":{"id":"glm-5.3","providerID":"zai-coding-plan"},"started":1791550195645}}
+{"type":"session.text.delta","data":{"sessionID":"ses_fixture","assistantMessageID":"msg_1","delta":"Смотрю "}}
+{"type":"session.text.delta","data":{"sessionID":"ses_fixture","assistantMessageID":"msg_1","delta":"структуру "}}
+{"type":"session.text.delta","data":{"sessionID":"ses_fixture","assistantMessageID":"msg_1","delta":"папки. "}}
+{"type":"session.text.delta","data":{"sessionID":"ses_fixture","assistantMessageID":"msg_1","delta":"Мост "}}
+{"type":"session.text.delta","data":{"sessionID":"ses_fixture","assistantMessageID":"msg_1","delta":"на "}}
+{"type":"session.text.delta","data":{"sessionID":"ses_fixture","assistantMessageID":"msg_1","delta":"месте."}}
+{"type":"session.text.ended","data":{"sessionID":"ses_fixture","assistantMessageID":"msg_1","text":"Смотрю структуру папки. Мост на месте."}}
+{"type":"session.tool.input.started","data":{"sessionID":"ses_fixture","id":"tool_1","name":"read"}}
+{"type":"session.tool.input.ended","data":{"sessionID":"ses_fixture","id":"tool_1","text":"{\"filePath\":\"src/bridge.ts\"}"}}
+{"type":"session.tool.called","data":{"sessionID":"ses_fixture","id":"tool_1","input":{"filePath":"src/bridge.ts"}}}
+{"type":"session.tool.success","data":{"sessionID":"ses_fixture","id":"tool_1"}}
+{"type":"session.execution.succeeded","data":{"sessionID":"ses_fixture"}}

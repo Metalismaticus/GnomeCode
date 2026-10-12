@@ -1,0 +1,85 @@
+/* Шапка чата: не ниже 48 px, чтобы строки шапки и правой панели совпали по горизонтали.
+   Фон — фон окна, а не панель: полоса над разговором не светлее содержимого, окно
+   читается одним листом (docs/specs/2026-10-08-1-чат.md, §5). position: relative —
+   якорь меню «⋯» (HeaderMenu.css). */
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 48px;
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  position: relative;
+}
+
+.chat-header__title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Бейдж модели — кнопка входа панели «Сравнение моделей»: те же состояния, что у
+   остальных кнопок шапки — наведение, нажатие, нажатость. Полупрозрачный фон
+   акцента + градиентная рамка — приём образца, состояние выбранного. Единственное
+   акцентное пятно шапки («тихий хром», §4). */
+.chat-header__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background:
+    linear-gradient(var(--badge-bg), var(--badge-bg)) padding-box,
+    var(--accent-gradient) border-box;
+  border: 1px solid transparent;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 40%;
+}
+
+.chat-header__badge:hover,
+.chat-header__badge[aria-pressed="true"] {
+  filter: brightness(1.08);
+}
+
+.chat-header__badge:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* «⋯»: призрачная 32×32, знак приглушённый; наведение и открытость — фон и текст
+   ярче (состояния — спека «тихого хрома», §10). */
+.chat-header__more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.chat-header__more:hover,
+.chat-header__more[aria-expanded="true"] {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.chat-header__more:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

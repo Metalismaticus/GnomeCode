@@ -1,0 +1,19 @@
+/* Центральная колонка: тянется, композер прижат к низу. position: relative —
+   якорь оверлеев области чата (сравнение, пикеры, панель «Plugins in this chat»). */
+
+.chat {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* Переключение чатов в пути: лента чистая, история ещё читается из ядра.
+   Строка вместо приветствия пустого чата — окно не мигает карточками между
+   «reset» и первыми строками открываемого разговора (замечание 2026-10-10). */
+.feed__loading {
+  padding: var(--space-5) var(--space-5);
+  color: var(--text-faint);
+  font-size: 13px;
+}

@@ -1,0 +1,114 @@
+/* Композер: главное действие окна, поэтому он на виду. Подложки и линии-границы
+   нет — композер не панель: его отделяет воздух и рамка самого поля (фон --bg,
+   docs/specs/2026-10-08-1-чат.md, §6). Поле стоит на колонке чтения — вопрос,
+   ответ и ввод читаются одной линией. Композер живёт внизу окна всегда: в пустом
+   чате это герой нового чата (правка владельца 2026-10-10, спека приветствия
+   §16) — тот же слот, крупнее только поле. */
+
+.composer {
+  padding: var(--space-4) var(--space-5);
+  background: var(--bg);
+  /* Меню «+» и список плагинов всплывают над полем ввода — им нужен якорь. */
+  position: relative;
+}
+
+/* Герой — крупность поля (§4): минимум 96 px — «крупный ввод» одной строкой
+   не читается (моё, нет в DESIGN §4 — привести §4 при /studio/done); паддинг
+   12×16; текст и «+» на первой линии, как на кадре образца. Слот и ширина —
+   базовые: подложка и поля как у строки, колонка чтения та же — поле не прыгает
+   шириной после первого вопроса; композер остаётся якорем всплывающих, меню «+»
+   открывается над нижним полем и краем ленты больше не режется (§16). */
+.composer--hero .composer__box {
+  align-items: flex-start;
+  min-height: 96px;
+  padding: var(--space-3) var(--space-4);
+}
+
+/* Колонка чтения: чипы и поле — на одной линии с разговором ленты. */
+.composer__column {
+  width: 100%;
+  max-width: var(--feed-column);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.composer__box {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  background: var(--bg-input);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: var(--space-2) var(--space-3);
+}
+
+.composer__box:focus-within {
+  border-color: var(--accent);
+}
+
+.composer__input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  color: var(--text);
+  resize: none;
+  font-size: 14px;
+  line-height: 1.4;
+  max-height: 160px;
+  padding: var(--space-2) 0;
+}
+
+/* Кнопка отправки — акцентный элемент образца: градиент всегда (docs/specs/
+   2026-10-06-11-glavnoe.md, «Состояния»); на пустом поле кнопки не видно, но место
+   зарезервировано (visibility) — строка не прыгает при появлении («тихий хром», §7).
+   Ореол вокруг кнопки — часть варианта B (токен --glow, только тёмная тема). */
+.composer__send {
+  background: var(--accent-gradient);
+  color: var(--on-accent);
+  border-color: transparent;
+  box-shadow: var(--glow);
+}
+
+.composer__send--hidden {
+  visibility: hidden;
+}
+
+.composer__send:disabled {
+  opacity: 0.55;
+}
+
+.composer__send:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+
+.composer__send:active:not(:disabled) {
+  filter: brightness(1.04);
+}
+
+/* Пилюля модели: тихая — прозрачный фон, рамка и приглушённый текст; полное имя
+   в подсказке, длинное усекается с «…» (спека «тихого хрома», §7). */
+.composer__model {
+  flex: none;
+  max-width: 160px;
+  padding: 2px var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.composer__model:hover,
+.composer__model[aria-pressed="true"] {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.composer__model:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

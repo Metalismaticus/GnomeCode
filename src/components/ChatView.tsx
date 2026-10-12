@@ -1,0 +1,384 @@
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
+
+import type { ApprovalDecision, PluginScope } from "../bridge";
+import type { CatalogEntry } from "../catalog";
+import type { CompareModel } from "../compare";
+import { useFeed } from "../chat";
+import { useCompare } from "../features/compare/useCompare";
+import { useCatalog } from "../features/plugins/useCatalog";
+import { useHeldSummary } from "../features/plugins/usePlugins";
+import { useToolsets } from "../features/plugins/useToolsets";
+import { params } from "../viewparams";
+import { ComparePanel } from "./ComparePanel";
+import { ChatHeader } from "./ChatHeader";
+import { ChatPluginsPanel } from "./ChatPluginsPanel";
+import { Composer } from "./Composer";
+import { EmptyChat } from "./EmptyChat";
+import { Feed } from "./Feed";
+import { PluginApproval } from "./PluginApproval";
+import { PluginPicker } from "./PluginPicker";
+import { PluginSummary } from "./PluginSummary";
+import { MODEL_BADGE } from "./chat/overlay";
+import type { ChatViewProps, Overlay } from "./chat/types";
+import { useOverlayDismiss } from "./chat/useOverlayDismiss";
+
+import "./ChatView.css";
+
+/** Центральная колонка: шапка, лента, композер. Ядро окна — то, что тянется. */
+export function ChatView({
+  title,
+  onTogglePanel,
+  panelOpen,
+  cluster,
+  project,
+  onFirstQuestion,
+  fsAllow,
+  onOpenPluginsPage,
+  onOpenSettings,
+  engineDown,
+  model,
+  onChooseModel,
+  plugins,
+  approval,
+  counts,
+  onNewChat,
+  switching = false,
+  panelPickerOpen,
+  onClosePanelPicker,
+}: ChatViewProps) {
+  const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
+  // Сравнение, меню «⋯» и меню «+» героя на снимках открываются сразу:
+  // `?состояние=сравнение*`, `?меню=открыто`, `?плюс=открыто`; строка
+  // `сравнение-раскрыто` несёт строку с развёрнутыми подробностями. Кадры
+  // снимаются адресом, без кликов (спеки «тихого хрома» §13, приветствия §11).
+  const [overlay, setOverlay] = useState<Overlay>(
+    params.menu
+      ? "more"
+      : params.plus
+        ? "menu"
+        : params.feed.startsWith("сравнение")
+          ? "compare"
+          : "none",
+  );
+  /** Карточка, чью сводку прав открыли: решение ещё не принято. */
+  const [pending, setPending] = useState<CatalogEntry | undefined>(undefined);
+  /** Сводка новых прав удержанного обновления: при старте открывается сама
+   *  (held-записи updates.json, сцена K) — в раздел «Плагины» идти не нужно. */
+  const { summary: heldSummary, allow: allowHeld, cancel: cancelHeld } = useHeldSummary(plugins);
+  const { rows, error, send } = useFeed();
+  const toolsets = useToolsets();
+  const catalog = useCatalog(overlay === "catalog");
+  const compare = useCompare(overlay === "compare");
+  /** Развёрнутая строка снимка: `?состояние=сравнение-раскрыто` открывает панель
+   *  с подробностями North Mini Code вместо клика — кадр без действий владельца. */
+  const initialExpanded = params.feed === "сравнение-раскрыто" ? "cohere/north-mini-code-1-0" : null;
+
+  const ask = useCallback(
+    async (text: string) => {
+      setDraft("");
+      setSending(true);
+      onFirstQuestion?.(text);
+      try {
+        await send(text, fsAllow ? project.files.map((file) => file.path) : []);
+        // Скоуп «Once» (сцена E): следующий вопрос снимает плагин с чата —
+        // кнопки в шапке пересчитываются свежим списком.
+        plugins.refresh();
+      } finally {
+        setSending(false);
+      }
+    },
+    [send, project.files, fsAllow, onFirstQuestion, plugins.refresh],
+  );
+
+  /** Подключение из списка закрывает список: кнопки в шапке — подтверждение,
+   *  и окно списка свою работу сделало. */
+  const connectFromList = useCallback(
+    (id: string, scope?: PluginScope) => {
+      plugins.connect(id, scope);
+      setOverlay((open) => (open === "plugins" ? "none" : open));
+    },
+    [plugins.connect],
+  );
+
+  /** Подключение из пикера двери правой панели: окно чата закрывается тем же
+   *  ходом, что и пикер композера. */
+  const connectFromPanel = useCallback(
+    (id: string, scope?: PluginScope) => {
+      plugins.connect(id, scope);
+      onClosePanelPicker();
+    },
+    [plugins.connect, onClosePanelPicker],
+  );
+
+  /** Снять плагин с чата из панели «Plugins in this chat»: установка и скоупы
+   *  остаются, кнопки уходят из этого окна. */
+  const removeFromChat = useCallback(
+    (id: string) => {
+      plugins.disconnect(id);
+    },
+    [plugins.disconnect],
+  );
+
+  /** Подключение Tool Set кликом строки (или его полосы скоупов): список из
+   *  ответа подключения сам становится состоянием (узор applied, usePlugins) —
+   *  отдельный plugin_list летит параллельно ходам к движку и вернул бы
+   *  прежний реестр раньше записи, кнопки сета не появились бы. */
+  const connectFromToolset = useCallback(
+    (name: string, scope?: PluginScope) => {
+      plugins.apply(toolsets.connect(name, scope));
+      setOverlay((open) => (open === "toolsets" ? "none" : open));
+    },
+    [plugins.apply, toolsets.connect],
+  );
+
+  /** «Save as Tool Set»: сет создаётся из подключённого сейчас — окно сетов
+   *  остаётся, имя и причина ошибки видны в нём самом. */
+  const saveToolset = useCallback(
+    (name: string) => {
+      toolsets.save(name);
+    },
+    [toolsets.save],
+  );
+
+  /** Install карточки каталога: открыть сводку прав — установка без ответа не идёт. */
+  const installFromCatalog = useCallback((entry: CatalogEntry) => {
+    setPending(entry);
+  }, []);
+
+  /** «Разрешить» сводки прав и кнопки скоупа: мост ставит плагин, подключает
+   *  к чату (со скоупом, если выбран) и отдаёт свежий список — каталог и сводка
+   *  свою работу сделали, сценарий разговора возвращён владельцу. */
+  const allowInstall = useCallback(
+    (entry: CatalogEntry, scope?: PluginScope) => {
+      setPending(undefined);
+      plugins.install(entry.id, scope);
+      setOverlay((open) => (open === "catalog" ? "none" : open));
+    },
+    [plugins.install],
+  );
+
+  /** «Отмена» сводки: ничего не ставится, каталог остаётся открытым. */
+  const cancelInstall = useCallback(() => setPending(undefined), []);
+
+  /** «Выбрать» в панели сравнения: модель чата меняется у App (бейдж и состояние
+   *  окна), панель закрывается — как подключение плагина закрывает пикер. */
+  const chooseModel = useCallback(
+    (choice: CompareModel) => {
+      onChooseModel({ name: choice.name, id: choice.id });
+      setOverlay((open) => (open === "compare" ? "none" : open));
+    },
+    [onChooseModel],
+  );
+
+  /** Esc и клик снаружи закрывают и оверлей, и окно одобрения: закрытое без
+   *  ответа окно — не ответ, вызов спросит снова при следующем клике. Пикер
+   *  двери правой панели закрывается тем же жестом — он тоже оверлей чата,
+   *  как и сводка удержанного обновления, открытая сама при старте. */
+  const dismissAll = useCallback(() => {
+    setOverlay("none");
+    setPending(undefined);
+    approval.dismiss();
+    cancelHeld();
+    onClosePanelPicker();
+  }, [approval.dismiss, onClosePanelPicker, cancelHeld]);
+
+  /** Фокус закрытой панели сравнения возвращается бейджу — открыли им, к нему
+   *  и вернулись (спека «Клавиатура»); один помощник на оба пути закрытия. */
+  const focusModelBadge = useCallback(() => {
+    (document.querySelector(MODEL_BADGE) as HTMLElement | null)?.focus();
+  }, []);
+
+  /** Меню «⋯» открыли кнопкой — Esc возвращает фокус ей (спека «тихого хрома», §5). */
+  const focusMoreButton = useCallback(() => {
+    (document.querySelector('[data-testid="header-more"]') as HTMLElement | null)?.focus();
+  }, []);
+
+  /** Esc закрывает то же, что и dismissAll, и панель сравнения возвращает фокус
+   *  бейджу, меню «⋯» — кнопке; остальным оверлеям возврата нет. */
+  const dismissOnEscape = useCallback(() => {
+    if (overlay === "compare") {
+      focusModelBadge();
+    }
+    if (overlay === "more") {
+      focusMoreButton();
+    }
+    dismissAll();
+  }, [overlay, dismissAll, focusModelBadge, focusMoreButton]);
+  useOverlayDismiss(
+    overlay !== "none" || pending !== undefined || panelPickerOpen || heldSummary !== undefined,
+    dismissAll,
+    dismissOnEscape,
+  );
+
+  /** Фокус закрытой панели возвращается бейджу: сравнение открыли им, к нему и
+   *  вернулись (спека «Клавиатура»). Узкий случай — открытые пикеры композера
+   *  ведут свой фокус сами, их не трогаем. */
+  const closeOverlay = useCallback(() => {
+    if (overlay === "compare") {
+      focusModelBadge();
+    }
+    setOverlay("none");
+  }, [overlay, focusModelBadge]);
+
+  /** Клик по источнику-файлу: панель разворачивается (в узком окне она закрыта)
+   *  и файл показан в дереве — источник открыт, а не только назван (phase2.md, 9.1). */
+  const revealSource = useCallback(
+    (path: string) => {
+      if (!panelOpen) {
+        onTogglePanel();
+      }
+      project.reveal(path);
+    },
+    [panelOpen, onTogglePanel, project.reveal],
+  );
+
+  /** Ответ владельца в окне одобрения: решение сохраняет слой прав; «Отказать»
+   *  тоже сообщается — лента получит строку отказа. */
+  const decide = useCallback(
+    (decision: ApprovalDecision) => {
+      void approval.decide(decision);
+    },
+    [approval.decide],
+  );
+
+  /** Фокус героя — только по ходу владельца: «Новый чат» переводит ленту в
+   *  пустое состояние, и поле ввода внизу сразу принимает текст (спека
+   *  приветствия §4). При старте окна автофокуса нет: повтор строк ленты мог
+   *  вернуть разговор, а фокус, снятый его приходом, ломал бы порядок обхода —
+   *  Tab начинается с поиска сайдбара (спека сайдбара §12). Перенос фокуса
+   *  «герой → строка» после первого вопроса не нужен: композер внизу один и
+   *  не перемонтируется (спека приветствия §16), фокус живёт в том же поле.
+   *  Layout-эффект — до отрисовки. */
+  const prevRowsRef = useRef(rows.length);
+  useLayoutEffect(() => {
+    const wasEmpty = prevRowsRef.current === 0;
+    prevRowsRef.current = rows.length;
+    if (!wasEmpty && rows.length === 0) {
+      (document.querySelector('[data-testid="composer"]') as HTMLElement | null)?.focus();
+    }
+  }, [rows.length]);
+
+  /** Композер живёт внизу окна всегда (правка владельца 2026-10-10, спека
+   *  приветствия §16): в пустом чате это герой с крупным полем, в разговоре —
+   *  та же строка; один элемент без перемонтирования — черновик, фокус и
+   *  оверлеи переживают первый вопрос. Слот героя несёт welcome-composer,
+   *  в разговоре метка героя снимается. Герой не возвращается и на время
+   *  переключения чатов: лента «открывается», а не мигает приветствием. */
+  const composer = (
+    <Composer
+      hero={!rows.length && !switching}
+      draft={draft}
+      sending={sending}
+      onDraft={setDraft}
+      onSend={() => void ask(draft)}
+      files={project.files}
+      onDetach={project.detach}
+      model={model}
+      compareOpen={overlay === "compare"}
+      onToggleCompare={() => setOverlay(overlay === "compare" ? "none" : "compare")}
+      plugins={{ ...plugins, connect: connectFromList }}
+      toolsets={toolsets}
+      addOpen={overlay === "menu"}
+      pickerOpen={overlay === "plugins"}
+      toolsetsOpen={overlay === "toolsets"}
+      catalogOpen={overlay === "catalog"}
+      catalog={catalog}
+      onToggleAdd={() => setOverlay(overlay === "menu" ? "none" : "menu")}
+      onConnectPlugins={() => setOverlay("plugins")}
+      onBrowsePlugins={() => setOverlay("catalog")}
+      onClosePlugins={() => setOverlay("none")}
+      onToolsets={() => setOverlay("toolsets")}
+      onConnectToolset={connectFromToolset}
+      onSaveToolset={saveToolset}
+      onInstallCatalog={installFromCatalog}
+    />
+  );
+
+  return (
+    <main className="chat" data-testid="chat">
+      <ChatHeader
+        title={title}
+        cluster={cluster}
+        model={model}
+        plugins={plugins.connected}
+        engineDown={engineDown}
+        panelOpen={panelOpen}
+        onTogglePanel={onTogglePanel}
+        moreOpen={overlay === "more"}
+        onToggleMore={() => setOverlay(overlay === "more" ? "none" : "more")}
+        onRunCommand={(plugin, command) => void approval.run(plugin, command)}
+        onOpenPlugins={() => setOverlay(overlay === "chat-plugins" ? "none" : "chat-plugins")}
+        onOpenSettings={onOpenSettings}
+        onToggleCompare={() => setOverlay(overlay === "compare" ? "none" : "compare")}
+        compareOpen={overlay === "compare"}
+      />
+      {overlay === "chat-plugins" ? (
+        <ChatPluginsPanel
+          plugins={plugins.connected}
+          onRemove={removeFromChat}
+          onAdd={() => setOverlay("plugins")}
+          onClose={() => setOverlay("none")}
+        />
+      ) : null}
+      {overlay === "compare" ? (
+        <ComparePanel
+          compare={compare}
+          currentModel={model}
+          mode="chat"
+          initialExpanded={initialExpanded}
+          onChoose={chooseModel}
+          onClose={closeOverlay}
+        />
+      ) : null}
+      {approval.asked ? (
+        <PluginApproval
+          plugin={approval.asked.plugin}
+          label={approval.asked.label}
+          description={approval.asked.description}
+          onDecide={decide}
+        />
+      ) : null}
+      {pending ? <PluginSummary entry={pending} onAllow={allowInstall} onCancel={cancelInstall}  /> : null}
+      {heldSummary ? <PluginSummary entry={heldSummary} onAllow={allowHeld} onCancel={cancelHeld}  /> : null}
+      {panelPickerOpen ? (
+        <PluginPicker
+          plugins={{ ...plugins, connect: connectFromPanel }}
+          onBrowse={onOpenPluginsPage}
+          onClose={onClosePanelPicker}
+          placement="chat"
+        />
+      ) : null}
+      <div className="feed" data-testid="feed">
+        {rows.length ? (
+          <Feed
+            rows={rows}
+            error={error}
+            chatTitle={title}
+            model={model}
+            onSourceFile={revealSource}
+            onSourcePlugin={onOpenPluginsPage}
+          />
+        ) : switching ? (
+          /* Переключение чатов в пути: история читается из ядра. Приветствие
+             пустого чата тут мигнуло бы между «reset» и первыми строками —
+             лента честно говорит «открывается» (замечание 2026-10-10). */
+          <div className="feed__loading" data-testid="feed-switching">
+            Открываю чат…
+          </div>
+        ) : (
+          <EmptyChat
+            counts={counts}
+            plugins={plugins}
+            model={model}
+            onOpenProject={project.pick}
+            onConnectPlugin={onOpenPluginsPage}
+            onCompare={() => setOverlay("compare")}
+            onNewChat={onNewChat}
+          />
+        )}
+      </div>
+      <div data-testid={rows.length || switching ? undefined : "welcome-composer"}>{composer}</div>
+    </main>
+  );
+}

@@ -1,0 +1,105 @@
+/* Строка сайдбара с меню действий: обёртка держит строку-кнопку и «⋯» у
+   правого края. Кнопка видна при наведении строки и держит фокус с
+   клавиатуры; время строки не заезжает под неё — место занято всегда. */
+
+.sidebar-row {
+  position: relative;
+  display: flex;
+  min-width: 0;
+}
+
+.sidebar-row__more {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0;
+}
+
+.sidebar-row:hover .sidebar-row__more,
+.sidebar-row__more:focus-visible {
+  opacity: 1;
+}
+
+.sidebar-row__more:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+/* Время строки не под кнопкой: «⋯» занимает свои 24 px у правого края. */
+.sidebar-row .sidebar-item__end {
+  padding-right: 26px;
+}
+
+/* Переименование в строке: поле того же размера и того же шрифта, что у
+   названия; Enter или потеря фокуса принимают, Esc отменяет. */
+.sidebar-row__rename {
+  width: 100%;
+  min-width: 0;
+  padding: 6px var(--space-2);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.sidebar-row__rename:focus-visible {
+  outline: none;
+}
+
+/* Раздел «Архив»: строка-заголовок со счётом и строки убранных чатов.
+   Заголовок — та же строка списка нажатием (раскрывает/складывает). */
+.sidebar-archive__head {
+  width: 100%;
+  cursor: pointer;
+}
+
+/* Строка архива: название приглушённым (чат не в списке), справа два малых
+   действия — «Вернуть» и «Удалить». */
+.sidebar-row--archived {
+  align-items: center;
+  gap: var(--space-1);
+  padding: 4px var(--space-2);
+}
+
+.sidebar-row__archived-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-row__mini {
+  flex: none;
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text-dim);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-family: inherit;
+}
+
+.sidebar-row__mini:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.sidebar-row__mini--danger:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}

@@ -1,0 +1,122 @@
+/* Строка «метка — значение»: метка переносится, значение не переносится,
+   при нехватке места значение уходит под метку. Варианты: action — кнопки
+   команд (высота 24, паддинг 4×8, моно 11 — спека «Размеры», моё), toggle —
+   тумблер 32×18 (моё: дорожка --border-strong/--accent, ручка --switch-knob). */
+
+.context-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-1) 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-dim);
+}
+
+.context-row__label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.context-row__value {
+  margin-left: auto;
+  max-width: 100%;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.context-row__value--off,
+.context-row__value--danger {
+  color: var(--danger);
+}
+
+.context-row__value--success {
+  color: var(--success);
+}
+
+.context-row__value--mono {
+  font-family: var(--font-mono);
+}
+
+.context-row__buttons {
+  margin-left: auto;
+  display: inline-flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.context-row__button {
+  height: 24px;
+  padding: 4px var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.context-row__button:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.context-row__button:active:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.context-row__button:disabled {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+/* Тумблер: выключен — дорожка --switch-track, включён — --accent. Ручка:
+   выключенная — --switch-knob (СВОЙ тон на каждую тему: в тёмной чисто белый
+   --on-accent читался владельцем «ползунок белый», замечание 2026-10-06,
+   живая копия 21:46); включённая ручка — цвет подписи на акценте, --on-accent:
+   то, что стоит на акцентной кнопке, читается «ручкой включённого тумблера». */
+.context-row__switch {
+  margin-left: auto;
+  width: 32px;
+  height: 18px;
+  min-width: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--switch-track);
+  position: relative;
+  transition: background 0.15s ease;
+}
+
+.context-row__switch--on {
+  background: var(--accent);
+}
+
+.context-row__switch:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.context-row__switch:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.context-row__knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--switch-knob);
+  transition: transform 0.15s ease;
+}
+
+.context-row__switch--on .context-row__knob {
+  transform: translateX(14px);
+  background: var(--on-accent);
+}

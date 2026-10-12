@@ -1,0 +1,285 @@
+//! Разбор ответа движка о плагинах и командах: единственное место, где известна
+//! форма движка (ADR-0001). Наружу отдаём [`super::Plugin`] — интерфейс формы не знает.
+//!
+//! Форма движка (`GET /api/plugin`, `GET /api/command`):
+//! - плагин — `{ id, source, features, state: { status: "active" | "failed", error? } }`;
+//! - команда — `{ name, description() ? }`, а команда плагина приходит с именем
+//!   `плагин:команда`: префикс приписывает сам движок, поэтому по нему команда
+//!   и относится к плагину.
+
+use serde_json::Value;
+
+use super::install::CatalogEntry;
+use super::model::{Command, Plugin, ACTIVE};
+/// Разделитель, которым движок отделяет имя плагина в имени команды.
+const SEPARATOR: char = ':';
+/// Символы, которые движок заменяет на `_` в именах плагина и команды: префикс
+/// команды сравниваем с тем же правилом, иначе плагин «my-plugin» не совпадёт с «my_plugin».
+const REPLACED: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-";
+
+/// Плагины проекта с их командами и пометкой «подключён к чату».
+///
+/// `connected` и `disabled` — по спискам реестра: подключение делаем мы, у движка его нет.
+pub fn plugins(
+    raw: &[Value],
+    commands: &[Value],
+    connected: &[String],
+    disabled: &[String],
+) -> Vec<Plugin> {
+    raw.iter()
+        .filter_map(|entry| plugin(entry, commands, connected, disabled))
+        .collect()
+}
+
+/// Список с реестром установленного: движок файловые плагины из своей глобальной
+/// папки в `GET /api/plugin` не перечисляет (замер 2026-10-06, opencode v2.0.23),
+/// поэтому установленные из каталога даёт наш реестр — та же форма, что у движка.
+/// Карточные поля и выключенность тоже от реестра (docs/SPEC/plugins.md, сцена A):
+/// у движка их не спросить. Если плагин движка и реестра один — поля реестра ложатся
+/// поверх, состояние движка чище.
+pub fn merged(
+    raw: &[Value],
+    commands: &[Value],
+    connected: &[String],
+    disabled: &[String],
+    installed: &[CatalogEntry],
+) -> Vec<Plugin> {
+    let mut list = plugins(raw, commands, connected, disabled);
+    for entry in installed {
+        // Эффективный список подключения передаёт команда: реестр чата плюс
+        // скоупы, минус снятые с чата (scopes::connected_for).
+        let connected_flag = connected.iter().any(|known| known == &entry.id);
+        if let Some(known) = list.iter().position(|one| one.id == entry.id) {
+            let base = &mut list[known];
+            *base = card(base, connected_flag, entry);
+        } else {
+            list.push(from_entry(entry, connected_flag));
+        }
+    }
+    list
+}
+
+/// Отметить скоуп подключения (сцена E) у подключённых строк списка: полоса
+/// у строки показывает его предвыбранным. Один плагин — один скоуп, порядок
+/// приоритета: once, реестр чата, скоупы проекта, глобальные. Снятому с чата
+/// скоуп не приписывается — он не подключён, пока окно не перезапустилось.
+pub fn with_scopes(
+    mut list: Vec<Plugin>,
+    once: &[String],
+    chat: &[String],
+    project: &[String],
+    global: &[String],
+) -> Vec<Plugin> {
+    for plugin in &mut list {
+        if plugin.connected {
+            plugin.scope = super::scopes::scope_of(once, chat, project, global, &plugin.id);
+        }
+    }
+    list
+}
+
+/// Карточные поля поверх строк плагина: имя, автор, версия, описание, права и
+/// отметка «выключен»; id, состояние и оставшиеся команды — у плагина движка.
+fn card(base: &mut Plugin, connected: bool, entry: &CatalogEntry) -> Plugin {
+    Plugin {
+        connected,
+        commands: base.commands.clone(),
+        state: base.state.clone(),
+        error: base.error.clone(),
+        id: base.id.clone(),
+        name: Some(entry.name.clone()),
+        author: Some(entry.author.clone()),
+        version: Some(entry.version.clone()),
+        description: Some(entry.description.clone()),
+        permissions: permissions_of(entry),
+        disabled: entry.disabled,
+        // Строка реестра — её и удаляет Uninstall (manage::remove по записи).
+        uninstallable: Some(true),
+        rules: None,
+        scope: None,
+        update: None,
+        usage: None,
+    }
+}
+
+/// Строка плагина из одной записи реестра: commands собраны, как их приписывает движок.
+fn from_entry(entry: &CatalogEntry, connected: bool) -> Plugin {
+    Plugin {
+        id: entry.id.clone(),
+        state: ACTIVE.to_string(),
+        error: String::new(),
+        connected,
+        commands: entry
+            .commands
+            .iter()
+            .map(|command| Command {
+                name: format!("{}{SEPARATOR }{}", sanitize(&entry.id), command.name),
+                label: command.name.clone(),
+                description: command.description.clone(),
+            })
+            .collect(),
+        name: Some(entry.name.clone()),
+        author: Some(entry.author.clone()),
+        version: Some(entry.version.clone()),
+        description: Some(entry.description.clone()),
+        permissions: permissions_of(entry),
+        disabled: entry.disabled,
+        // Строка реестра установленного — Uninstall свой.
+        uninstallable: Some(true),
+        rules: None,
+        scope: None,
+        update: None,
+        usage: None,
+    }
+}
+
+/// Права записи на карточку: «Категория: значение», как в сводке прав установки.
+pub fn permissions_of(entry: &CatalogEntry) -> Vec<String> {
+    entry
+        .permissions
+        .iter()
+        .map(|one| format!("{}: {}", one.category, one.value))
+        .collect()
+}
+
+/// Одна строка плагина: состояние — из `state.status`, команды — по префиксу имени.
+fn plugin(entry: &Value, commands: &[Value], connected: &[String], disabled: &[String]) -> Option<Plugin> {
+    let id = text(entry.get("id"));
+    if id.is_empty() {
+        return None;
+    }
+    let state = text(entry.get("state").and_then(|state| state.get("status")));
+    let state = if state.is_empty() {
+        ACTIVE.to_string()
+    } else {
+        state
+    };
+    let prefix = format!("{}{SEPARATOR }", sanitize(&id));
+    Some(Plugin {
+        connected: connected.iter().any(|known| known == &id),
+        disabled: disabled.iter().any(|known| known == &id),
+        error: text(entry.get("state").and_then(|state| state.get("error"))),
+        commands: commands_of(commands, &prefix),
+        id,
+        state,
+        name: None,
+        author: None,
+        version: None,
+        description: None,
+        permissions: vec![],
+        // Плагин движка без записи реестра — Uninstall'а у карточки нет.
+        uninstallable: None,
+        rules: None,
+        scope: None,
+        update: None,
+        usage: None,
+    })
+}
+
+/// Команды одного плагина: имя начинается с `плагин:` — это его команда.
+fn commands_of(commands: &[Value], prefix: &str) -> Vec<Command> {
+    commands
+        .iter()
+        .filter_map(|entry| command(entry, prefix))
+        .collect()
+}
+
+/// Команда плагина: полное имя — для движка, подпись на кнопке — без префикса.
+fn command(entry: &Value, prefix: &str) -> Option<Command> {
+    let name = text(entry.get("name"));
+    let rest = name.strip_prefix(prefix)?;
+    if rest.is_empty() {
+        return None;
+    }
+    Some(Command {
+        description: text(entry.get("description")),
+        label: rest.to_string(),
+        name,
+    })
+}
+
+/// Строковое поле объекта: пусто, если поля нет или оно не строка.
+fn text(value: Option<&Value>) -> String {
+    value.and_then(Value::as_str).unwrap_or_default().to_string()
+}
+
+/// Имя плагина в том виде, в каком движок ставит его в имя команды: всё, кроме
+/// букв, цифр, дефиса и подчёркивания, заменено на `_`.
+fn sanitize(name: &str) -> String {
+    name.chars()
+        .map(|letter| if REPLACED.contains(letter) { letter } else { '_' })
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{CatalogEntry, merged, plugins};
+    use crate::plugins::install::CommandSpec;
+    use crate::plugins::model::ACTIVE;
+
+    use serde_json::json;
+
+    /// Запись реестра установленного: карточные поля и Uninstall на месте.
+    fn entry(id: &str) -> CatalogEntry {
+        CatalogEntry {
+            id: id.to_string(),
+            name: "Git".to_string(),
+            description: "diff/commit".to_string(),
+            author: "владелец".to_string(),
+            version: "1.0.0".to_string(),
+            repo: "Metalismaticus/OpenCode_Plagin".to_string(),
+            entry: "git.ts".to_string(),
+            permissions: vec![],
+            commands: vec![CommandSpec {
+                name: "diff".to_string(),
+                description: "показать diff".to_string(),
+                category: None,
+            }],
+            disabled: false,
+        }
+    }
+
+    /// Строка плагина движка: минимум полей, что живой v2 отдаёт.
+    fn engine(id: &str) -> serde_json::Value {
+        json!({ "id": id, "source": "file", "features": [], "state": { "status": "active" } })
+    }
+
+    /// Uninstall у карточки: запись реестра — кнопка есть, движковый плагин —
+    /// её нет (поле None, карточка в UI Uninstall не показывает) — и у
+    /// "движок + реестр" тоже: реестровая строка перекрывает и она удаляема.
+    #[test]
+    fn uninstallable_follows_registry() {
+        let installed = [entry("git")];
+        // Только реестр (движок файловые не перечисляет): Uninstall есть.
+        let from_registry = merged(&[], &[], &[], &[], &installed);
+        assert_eq!(from_registry.len(), 1, "строка реестра в списке: {from_registry:?}");
+        assert_eq!(
+            from_registry[0].uninstallable,
+            Some(true),
+            "запись реестра удаляема — Uninstall у карточки есть"
+        );
+
+        // Движковый плагин вне реестра: Uninstall нет.
+        let engine_only = plugins(&[engine("docs")], &[], &[], &[]);
+        assert_eq!(
+            engine_only[0].uninstallable,
+            None,
+            "у плагина движка записи нет — удалять его кнопкой нельзя"
+        );
+        assert_eq!(engine_only[0].state, ACTIVE, "состояние движка дошло");
+
+        // Движок + реестр один плагин: поля реестра поверх, удаляем.
+        let both = merged(&[engine("git")], &[], &[], &[], &installed);
+        assert_eq!(both.len(), 1, "слияние не задублировало: {both:?}");
+        assert_eq!(both[0].uninstallable, Some(true), "реестровая строка перекрывает — удаляема");
+        assert_eq!(both[0].name.as_deref(), Some("Git"), "карточные поля реестра поверх");
+
+        // Реестр ещё раз — одно сообщение об ошибке на весь список: движковый
+        // рядом с реестровым не теряется.
+        let together = merged(&[engine("docs")], &[], &[], &[], &installed);
+        assert_eq!(together.len(), 2, "движковый и реестровый соседи: {:?}", together);
+        let docs = together.iter().find(|p| p.id == "docs").expect("docs на месте");
+        assert_eq!(docs.uninstallable, None);
+        assert!(docs.name.is_none(), "у движкового карточных полей нет");
+    }
+}

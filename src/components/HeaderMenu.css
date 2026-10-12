@@ -1,0 +1,75 @@
+/* Меню «⋯» шапки: всплывающая панель 280 px под кнопкой, служебное — под рукой,
+   но не на виду («тихий хром», docs/specs/2026-10-09-2-тихий-хром.md, §5).
+   Тень разрешена — меню всплывающее (docs/DESIGN.md, раздел 7); цвет — только токены. */
+
+.header-menu {
+  position: absolute;
+  top: 52px;
+  right: var(--space-5);
+  z-index: 20;
+  width: 280px;
+  max-height: calc(100vh - 68px);
+  overflow-y: auto;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow);
+}
+
+/* Разделы и заголовки — как в меню «+» (AddMenu.css): caps 11 px, приглушённые. */
+.header-menu__section {
+  padding: var(--space-2) 0;
+}
+
+.header-menu__section + .header-menu__section {
+  border-top: 1px solid var(--border);
+}
+
+.header-menu__section-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: var(--space-1) var(--space-2);
+}
+
+/* Пункт: 14 px, поля 8, радиус 6; справа — тихая пометка («открыта», число). */
+.header-menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font-size: 14px;
+  text-align: left;
+}
+
+.header-menu__item:hover:not(:disabled),
+.header-menu__item:focus-visible {
+  background: var(--bg-hover);
+}
+
+.header-menu__item:disabled {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+.header-menu__item-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-menu__item-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}

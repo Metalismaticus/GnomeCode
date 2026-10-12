@@ -1,0 +1,78 @@
+/* Карточка меню строки сайдбара: поверх окна (портал), фон панели, рамка и
+   тень — те же токены, что у оверлеев чата. Пункты — строки 32 px, опасное
+   действие тревожным цветом. */
+
+.row-menu {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel-2);
+  box-shadow: var(--shadow);
+}
+
+.row-menu__item {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  text-align: left;
+}
+
+.row-menu__item:hover {
+  background: var(--bg-hover);
+}
+
+.row-menu__item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.row-menu__item--danger {
+  color: var(--danger);
+}
+
+/* Подтверждение удаления — телом той же карточки: вопрос и два ответа. */
+.row-menu__ask {
+  padding: var(--space-2);
+  font-size: 13px;
+}
+
+.row-menu__text {
+  padding-bottom: var(--space-2);
+}
+
+.row-menu__actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.row-menu__btn {
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.row-menu__btn:hover {
+  background: var(--bg-hover);
+}
+
+.row-menu__btn--danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}

@@ -1,0 +1,19 @@
+/* Вкладка Updates: пометка проверки каталога, версии «от → до» и статус карточки
+   обновления (контейнер и тело — классы карточки сцены A, PluginsPage.css). */
+
+.plugin-updates__note {
+  color: var(--text-dim);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--badge-border);
+  border-radius: var(--radius-md);
+  background: var(--badge-bg);
+}
+
+.plugin-update__versions {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.plugin-update__status {
+  color: var(--text-dim);
+}

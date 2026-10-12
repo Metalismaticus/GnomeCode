@@ -1,0 +1,134 @@
+/* Каталог «Available»: окно поверх списка плагинов, того же размера и характера —
+   поиск и строки-карточки. Цвет — только токены; акцента здесь нет: каталог —
+   справочник, решение принимает сводка прав (docs/DESIGN.md). */
+
+.catalog-picker {
+  position: absolute;
+  left: var(--space-5);
+  bottom: calc(100% - var(--space-2));
+  z-index: 21;
+  width: 360px;
+  max-height: 62vh;
+  overflow-y: auto;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow);
+}
+
+.catalog-picker__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: var(--space-2);
+}
+
+.catalog-picker__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.catalog-picker__close {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.catalog-picker__close:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.catalog-picker__search {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.catalog-picker__search:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.catalog-card {
+  margin-top: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel-2);
+}
+
+.catalog-card__line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.catalog-card__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.catalog-card__version {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+}
+
+.catalog-card__description {
+  margin-top: var(--space-1);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.catalog-card__meta {
+  margin-top: var(--space-2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.catalog-card__author {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.catalog-card__install {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.catalog-card__install:hover {
+  background: var(--bg-hover);
+}
+
+.catalog-card__install:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.catalog-picker__empty {
+  padding: var(--space-4) var(--space-2);
+  font-size: 13px;
+  color: var(--text-dim);
+  text-align: center;
+}

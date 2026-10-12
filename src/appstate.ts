@@ -1,0 +1,79 @@
+// Состояние окна в интерфейсе («Один полный цикл»): активный чат, папка проекта и
+// тема приезжают при старте окна мостом (`stateGet`) и правятся им же
+// (`statePatch`). Форму полей знает Rust (src-tauri/src/state.rs, ADR-0001) —
+// интерфейс зовёт мост и держит структуру, а не файл и папку данных.
+import { bridge } from "./bridge";
+import type { ChatModelChoice } from "./bridge";
+import type { Theme } from "./viewparams";
+
+/** Что окно помнит о себе: те же поля, что у `state.rs::AppState` (ADR-0001). */
+export type WindowState = {
+  /** Открытая сессия движка: лента на неё вернётся. Интерфейс id не читает. */
+  session: string | null;
+  /** Титул чата для сайдбара: первый вопрос владельца. */
+  chatTitle: string | null;
+  /** Папка проекта, если выбрана. */
+  project: string | null;
+  /** Тема, если владелец переключал. */
+  theme: Theme | null;
+  /** Пины плагинов (⭐ в списке плагинов), порядок — как пиновал. */
+  pluginFavorites: string[] | null;
+  /** Недавние подключения плагинов, порядок — как подключали. */
+  pluginRecent: string[] | null;
+  /** Модель текущего чата, выбранная в панели сравнения; нет — умолчание. */
+  chatModel: ChatModelChoice | null;
+  /** Модель по умолчанию для новых чатов (строка настроек «Модели»); нет — константа. */
+  defaultModel: ChatModelChoice | null;
+  /** Время начала текущего чата: группы дат сайдбара строятся по нему. */
+  chatTime: number | null;
+  /** Чаты, убранные в архив (идентификаторы сессий ядра): в сайдбаре их не
+   *  видно, сами сессии в ядре живы — вернуть можно из раздела «Архив».
+   *  null — архив пуст (старое состояние без поля). */
+  archivedChats: string[] | null;
+};
+
+/** Правка состояния: названные поля меняются, остальное — как было. */
+export type WindowPatch = {
+  session?: string;
+  chatTitle?: string;
+  project?: string;
+  theme?: Theme;
+  pluginFavorites?: string[];
+  pluginRecent?: string[];
+  chatModel?: ChatModelChoice;
+  /** Модель по умолчанию для новых чатов: настройки, «Изменить →» и панель. */
+  defaultModel?: ChatModelChoice;
+  chatTime?: number;
+  /** Архив чатов: весь список идентификаторов — патч меняет его целиком
+   *  (меню сайдбара добавляет или убирает один id, владелец их видит). */
+  archivedChats?: string[];
+};
+
+export function loadState(): Promise<WindowState | null> {
+  return bridge()
+    .stateGet()
+    .catch((reason: unknown) => {
+      console.error("состояние окна не прочитано:", reason);
+      return null;
+    });
+}
+
+export function patchState(patch: WindowPatch): Promise<WindowState | null> {
+  return bridge()
+    .statePatch(patch)
+    .catch((reason: unknown) => {
+      console.error("состояние окна не сохранено:", reason);
+      return null;
+    });
+}
+
+/** Модель чата по умолчанию: бейдж шапки и деталь вызова плагина показывают одно
+ *  и то же имя; выбор в панели сравнения правит поле chatModel состояния окна,
+ *  а без выбора новый чат открывается этой моделью (одно имя — одно место). */
+export const DEFAULT_MODEL = "GLM-5.3 High";
+
+/** Титул чата: первый вопрос до перевода строк, длинный — с обрывом. */
+export function chatTitleOf(question: string): string {
+  const first = question.trim().split("\n")[0] ?? question.trim();
+  return first.length > 60 ? `${first.slice(0, 60)}…` : first;
+}

@@ -1,0 +1,45 @@
+/* Прикреплённые файлы над полем ввода: одна линия без переноса, при переполнении —
+   горизонтальная прокрутка («тихий хром», §7); приглушённые, без акцентного градиента —
+   на экране его ровно два пятна (tests/ui/window_look.mjs). */
+
+.chips {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  overflow-x: auto;
+}
+
+.chip {
+  align-items: center;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  display: inline-flex;
+  flex: none;
+  font-size: 12px;
+  gap: var(--space-1);
+  max-width: 200px;
+  padding: 0 var(--space-1) 0 var(--space-2);
+}
+
+.chip__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip__close {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  font-size: 11px;
+  line-height: 1;
+  padding: var(--space-1);
+}
+
+.chip__close:hover {
+  color: var(--text);
+}
