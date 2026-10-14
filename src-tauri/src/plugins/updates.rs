@@ -54,17 +54,13 @@ pub fn at(file_path: &Path) -> Updates {
         .unwrap_or_default()
 }
 
-/// Файл обновлений: собрать в JSON и записать — обновления живёт в папке данных,
-/// команде окна надо обновить пометку после «Разрешить» сводки обновления.
+/// Файл обновлений: собрать в JSON и записать атомарно (F6, ET6) — обновления
+/// живёт в папке данных, команде окна надо обновить пометку после «Разрешить»
+/// сводки обновления.
 pub fn save(file_path: &Path, updates: &Updates) -> Result<(), String> {
     let json = serde_json::to_string_pretty(updates)
         .map_err(|e| format!("обновления не собрались в JSON: {e}"))?;
-    if let Some(parent) = file_path.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|e| format!("папка данных не создалась {}: {e}", parent.display()))?;
-    }
-    fs::write(file_path, json)
-        .map_err(|e| format!("обновления не записаны {}: {e}", file_path.display()))
+    super::install::atomically(file_path, &json)
 }
 
 /// «Новее» по semver (DX-решение юнита: version в реестре — semver): тройка

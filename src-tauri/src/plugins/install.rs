@@ -113,12 +113,35 @@ pub fn save_records(registry: &Path, records: &BTreeMap<String, Installed>) -> R
 fn write(registry: &Path, records: &BTreeMap<String, Installed>) -> Result<(), String> {
     let json = serde_json::to_string_pretty(records)
         .map_err(|e| format!("реестр установленного не собрался в JSON: {e}"))?;
-    if let Some(parent) = registry.parent() {
+    atomically(registry, &json)
+}
+
+/// Атомарная запись данных владельца (F6, ET6): JSON собирается целиком, кладётся
+/// во временный файл рядом и переименовывается — прерванная запись не оставляет
+/// половину файла, читатель видит либо прежнюю версию, либо новую. Прежнее
+/// содержимое остаётся `.bak`: чтение-модификация-запись переживает сбой между
+/// ними — испорченный основной файл восстанавливается из `.bak` руками владельца.
+/// Для installed.json и updates.json; providers.json и rules.json — отдельные
+/// условия, их не трогает.
+pub fn atomically(target: &Path, json: &str) -> Result<(), String> {
+    if let Some(parent) = target.parent() {
         fs::create_dir_all(parent)
             .map_err(|e| format!("папка данных не создалась {}: {e}", parent.display()))?;
     }
-    fs::write(registry, json)
-        .map_err(|e| format!("реестр установленного не записан {}: {e}", registry.display()))
+    let mut tmp = target.as_os_str().to_owned();
+    tmp.push(".tmp");
+    let tmp = PathBuf::from(tmp);
+    fs::write(&tmp, json)
+        .map_err(|e| format!("временный файл не записан {}: {e}", tmp.display()))?;
+    if target.exists() {
+        let mut bak = target.as_os_str().to_owned();
+        bak.push(".bak");
+        let bak = PathBuf::from(bak);
+        fs::copy(target, &bak)
+            .map_err(|e| format!("запасная копия не снята {}: {e}", bak.display()))?;
+    }
+    fs::rename(&tmp, target)
+        .map_err(|e| format!("запись не встала на место {tmp:?} → {target:?}: {e}"))
 }
 
 /// Индекс каталога по адресу: список записей, ошибки — словами для окна каталога.

@@ -213,6 +213,49 @@ fn removed_permissions_update_quietly_and_are_remembered() {
     assert_eq!(note.removed, vec!["Write: ask"], "убранное записано для карточки diff: {note:?}");
 }
 
+/// Атомарная запись updates.json (F6, ET6): прежнее содержимое остаётся .bak,
+/// временный файл на месте не остаётся, файл читается после каждой записи.
+#[test]
+fn saves_are_atomic_with_a_bak_of_the_previous_version() {
+    let data = TempDir::new("updates-atomic");
+    let file = data.join("updates.json");
+
+    let mut notes = updates::at(&file);
+    notes.records.insert(
+        "a".to_string(),
+        gnomecode_lib::plugins::model::Update {
+            from: "1.0.0".to_string(),
+            to: "2.0.0".to_string(),
+            status: updates::UpdateStatus::Applied,
+            permissions: vec![],
+            removed: vec![],
+        },
+    );
+    updates::save(&file, &notes).expect("первая запись встала");
+
+    notes.records.insert(
+        "b".to_string(),
+        gnomecode_lib::plugins::model::Update {
+            from: "1.0.0".to_string(),
+            to: "3.0.0".to_string(),
+            status: updates::UpdateStatus::Applied,
+            permissions: vec![],
+            removed: vec![],
+        },
+    );
+    updates::save(&file, &notes).expect("вторая запись встала");
+
+    let bak = std::fs::read_to_string(data.join("updates.json.bak"))
+        .expect("запасная копия прошлой записи на месте");
+    assert!(bak.contains("\"a\"") && !bak.contains("\"b\""), "в .bak — прежняя версия файла: {bak}");
+    let held = updates::at(&file);
+    assert!(held.records.contains_key("a") && held.records.contains_key("b"), "файл читается целиком после записей");
+    assert!(
+        !data.join("updates.json.tmp").exists(),
+        "временный файл после переименования не остаётся"
+    );
+}
+
 /// Каталог недоступен: работаем на текущих, файлы нетронуты, пометка в разделе.
 #[test]
 fn an_unavailable_catalog_leaves_everything_and_is_marked() {
