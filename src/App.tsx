@@ -1,6 +1,7 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { bridge } from "./bridge";
+import type { ImportScan } from "./bridge";
 import {
   useChatModels,
   useFeedLoaded,
@@ -12,6 +13,7 @@ import { useThemeToggle } from "./app/theme";
 import { chatsList, projectsList } from "./app/lists";
 import { moneyOf } from "./compare";
 import { ChatView } from "./components/ChatView";
+import { ImportFirstRun } from "./components/ImportFirstRun";
 import { ContextPanel } from "./components/ContextPanel";
 import { PluginsPage } from "./components/PluginsPage";
 import { SettingsPage } from "./components/SettingsPage";
@@ -75,6 +77,42 @@ export default function App() {
   const plugins = usePlugins();
   const approval = useApproval(plugins.refresh);
   const chat = useChatModels();
+  /** Экран первого запуска (DT1): скан конфигурации один на запуск. Есть
+   *  импортированные-выключенные — окно комбинированного одобрения поверх;
+   *  «обработано» только явным действием (Включить выбранные или Пропустить).
+   *  Свежее этого запуска — тост «Найден новый плагин · включить» (F10). */
+  const [importScan, setImportScan] = useState<ImportScan | null>(null);
+  const [importToast, setImportToast] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    bridge()
+      .importScan()
+      .then((scan) => {
+        if (!alive) {
+          return;
+        }
+        if (scan.disabled.length) {
+          setImportScan(scan);
+        }
+        if (scan.fresh.length) {
+          setImportToast(scan.fresh[0]);
+        }
+      })
+      .catch(() => {
+        // Скан не читается — экрана нет, окно работает как раньше (S2).
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  /** «Включить выбранные»: комбинированное одобрение уже дано на экране —
+   *  включение каждой записи тем же путём, что Enable в менеджере. */
+  const enableImported = (ids: string[]) => {
+    for (const id of ids) {
+      plugins.setEnabled(false, id);
+    }
+    setImportScan(null);
+  };
   /** Чаты окна: живой список ядра, архив и действия меню строки
    *  (переименовать, удалить, в архив и вернуть) — одно место, Sidebar
    *  только показывает. */
@@ -336,6 +374,30 @@ export default function App() {
           onRunCommand={approval.run}
           onConnectPlugins={openPanelPicker}
           onClose={() => setPanelOpen(false)}
+        />
+      ) : null}
+      {importToast ? (
+        <div className="action-flash import-toast" data-testid="import-toast">
+          <span>Найден новый плагин {importToast}</span>
+          <button
+            type="button"
+            onClick={() => {
+              plugins.setEnabled(false, importToast);
+              setImportToast(null);
+            }}
+          >
+            включить
+          </button>
+          <button type="button" aria-label="Скрыть" onClick={() => setImportToast(null)}>
+            ✕
+          </button>
+        </div>
+      ) : null}
+      {importScan ? (
+        <ImportFirstRun
+          scan={importScan}
+          onEnable={enableImported}
+          onSkip={() => setImportScan(null)}
         />
       ) : null}
       {actionError ? (

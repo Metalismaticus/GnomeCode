@@ -12,6 +12,7 @@ import {
   disable as disableFixture,
   enable as enableFixture,
   heldUpdates as heldUpdatesFixture,
+  importScan as importScanFixture,
   plugins as fixturePlugins,
   takeOnce as takeOnceFixture,
   uninstall as uninstallFixture,
@@ -256,6 +257,10 @@ export const fixtureBridge = (): Bridge => ({
   async localDetect() {
     // Вместо портов — кадр состояния: «отвечают» те, кого назвал адрес.
     return localServersFixture();
+  },
+  async importScan() {
+    // Кадр «первый-запуск» — конфиг с двумя пакетами и одним пропуском.
+    return importScanFixture();
   },
   async keyStatuses(ids: string[]) {
     return keyFixture(ids);

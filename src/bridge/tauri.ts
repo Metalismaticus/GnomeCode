@@ -11,6 +11,7 @@ import type {
   FeedEvent,
   Listener,
   LocalServer,
+  ImportScan,
   Plugin,
   PluginRun,
   PluginScope,
@@ -161,6 +162,9 @@ export const tauriBridge = (): Bridge => ({
   async localDetect() {
     // Кандидатов карточек собирает Rust: порты и providers.json — движок не нужен.
     return (await invoke<LocalServer[]>("local_detect")) as LocalServer[];
+  },
+  async importScan() {
+    return (await invoke<ImportScan>("import_scan")) as ImportScan;
   },
   async keyStatuses(providers: string[]) {
     // Проверка ключа — по одному провайдеру: мост знает только запись целиком.

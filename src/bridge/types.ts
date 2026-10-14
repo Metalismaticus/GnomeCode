@@ -181,6 +181,17 @@ export type LocalServer = {
   baseUrl: string;
 };
 
+/** Скан конфигурации для экрана первого запуска (DT1): импортированные и всё
+ *  ещё выключенные (чекбоксы), свежее этого запуска (тост), нераспознанные
+ *  записи с причинами — «Распознано N из M». */
+export type ImportScan = {
+  disabled: string[];
+  fresh: string[];
+  skipped: { raw: string; reason: string }[];
+  recognized: number;
+  total: number;
+};
+
 /** Период сводки статистики: последние 7 дней, 30, всё или «за сегодня» (с начала
  *  местных суток — приветственная сборка, спека приветствия §5). */
 export type StatsPeriod = "7" | "30" | "all" | "today";
@@ -317,6 +328,8 @@ export type Bridge = {
   /** Автодетект локальных серверов моделей (Ollama, LM Studio): отвечающие и
    *  ещё не подключённые; нет ни одного — пустой список, не ошибка. */
   localDetect(): Promise<LocalServer[]>;
+  /** Скан конфигурации opencode.json для экрана первого запуска (DT1). */
+  importScan(): Promise<ImportScan>;
   /** Статусы ключей: «задан» у провайдера или нет; секрет наружу не идёт. */
   keyStatuses(providers: string[]): Promise<Record<string, boolean>>;
   /** Сохранить ключ и тихо перезапустить движок — читается только при старте. */

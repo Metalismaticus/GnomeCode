@@ -125,6 +125,19 @@ export function EmptyChat({
       </h1>
       <div className="empty__subtitle">{SUBTITLE}</div>
 
+      {/* N=0 (F9): экрана первого запуска нет без плагинов — пустой чат зовёт
+          установить первый строкой-ссылкой, без модалки. */}
+      {installed === 0 ? (
+        <button
+          type="button"
+          className="empty__first-plugin"
+          data-testid="empty-first-plugin"
+          onClick={onConnectPlugin}
+        >
+          Установите первый плагин →
+        </button>
+      ) : null}
+
       <div className="empty__spend">
         <div className="empty__row empty__row--counters">
           {counters.map((counter) => (

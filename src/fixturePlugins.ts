@@ -15,7 +15,7 @@
 // сцена A): поля карточки — из реестра установленного ([`install.rs`], у плагина
 // движка их нет), а отметка выгрузки — у записи реестра установленного.
 
-import type { HeldUpdate, Plugin, PluginScope } from "./bridge";
+import type { HeldUpdate, ImportScan, Plugin, PluginScope } from "./bridge";
 import { params } from "./viewparams";
 import { rulesMap, usageOf } from "./fixtureApprovals";
 
@@ -251,6 +251,24 @@ export function heldUpdates(): HeldUpdate[] {
       status: one.status,
       ...(one.permissions ? { permissions: one.permissions } : {}),
     }));
+}
+
+/** Скан конфигурации для экрана первого запуска (DT1): состояние
+ *  `?состояние=первый-запуск` — в конфиге владельца два распознанных пакета
+ *  (один из них дописан этим запуском — тост) и один путь с причиной. */
+export function importScan(): ImportScan {
+  if (params.feed !== "первый-запуск") {
+    return { disabled: [], fresh: [], skipped: [], recognized: 0, total: 0 };
+  }
+  return {
+    disabled: ["@zai/notes-sync", "awesome-plugin"],
+    fresh: ["@zai/notes-sync"],
+    skipped: [
+      { raw: "./local/own.ts", reason: "локальный путь — движок грузит его сам" },
+    ],
+    recognized: 2,
+    total: 3,
+  };
 }
 
 /** «Разрешить» сводки новых прав на вкладке Updates: принять обновленную версию —

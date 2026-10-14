@@ -16,7 +16,7 @@ use super::manage;
 use super::model::Plugin;
 use super::permissions::Grants;
 use super::registry::Registry;
-use super::{rules, rules::Decision, scopes, toolsets, updates, usage};
+use super::{import, rules, rules::Decision, scopes, toolsets, updates, usage};
 /// Папка данных: переменную задаёт проверка или копия, иначе — папка данных Tauri.
 pub(crate) fn data_dir(app: &AppHandle) -> std::path::PathBuf {
     app.path()
@@ -370,6 +370,59 @@ pub fn plugin_rollback(
     )?;
     chat.restart()?;
     plugin_list(app, chat, registry, store)
+}
+
+/// Что показать на экране первого запуска (DT1): импортированные, что ещё
+/// выключены (их чекбоксы), свежее этого запуска (тост «Найден новый плагин»)
+/// и нераспознанные записи конфига с причинами — «Распознано N из M».
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkippedEntry {
+    pub raw: String,
+    pub reason: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportScan {
+    /// Импортированные и всё ещё выключенные: чекбоксы экрана.
+    pub disabled: Vec<String>,
+    /// Дописанные при этом запуске: тост «Найден новый плагин · включить».
+    pub fresh: Vec<String>,
+    /// Отброшенные записи конфига с причинами.
+    pub skipped: Vec<SkippedEntry>,
+    /// Сколько записей конфига распознано из скольких.
+    pub recognized: usize,
+    pub total: usize,
+}
+
+#[tauri::command]
+pub fn import_scan(app: AppHandle) -> Result<ImportScan, String> {
+    let folder = data_dir(&app);
+    let registry = install::registry_file(folder);
+    let parsed = import::parse(
+        &std::fs::read_to_string(import::config_path().unwrap_or_default()).unwrap_or_default(),
+    );
+    let held = install::records(&registry);
+    let disabled: Vec<String> = held
+        .iter()
+        .filter(|(_, entry)| entry.source == install::Source::Imported && entry.disabled)
+        .map(|(id, _)| id.clone())
+        .collect();
+    Ok(ImportScan {
+        fresh: import::fresh_disabled(&registry),
+        skipped: parsed
+            .skipped
+            .iter()
+            .map(|(raw, reason)| SkippedEntry {
+                raw: raw.clone(),
+                reason: reason.clone(),
+            })
+            .collect(),
+        recognized: parsed.packages.len(),
+        total: parsed.packages.len() + parsed.skipped.len(),
+        disabled,
+    })
 }
 
 /// Что сказал слой прав клику по кнопке команды (docs/SPEC/plugins.md).

@@ -156,8 +156,30 @@ pub fn record_new(registry: &Path, packages: &[String]) -> Result<usize, String>
     Ok(added)
 }
 
+/// Пакеты, добавленные последним ходом импорта при старте: экран первого
+/// запуска и тост «Найден новый плагин» показывают свежее (при следующем
+/// запуске ре-импорт их не добавляет — признак снимается сам).
+static LAST_ADDED: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+
+/// Пакеты, дописанные при старте этого запуска окна и всё ещё выключенные.
+pub fn fresh_disabled(registry: &Path) -> Vec<String> {
+    let Ok(fresh) = LAST_ADDED.lock() else {
+        return vec![];
+    };
+    fresh
+        .iter()
+        .filter(|id| {
+            install::records(registry)
+                .get(id.as_str())
+                .is_some_and(|entry| entry.source == Source::Imported && entry.disabled)
+        })
+        .cloned()
+        .collect()
+}
+
 /// Ход импорта при старте: конфиг есть — разобрать и дописать новое; нет —
-/// тихий ноль. Ответ для журнала: сколько записей добавлено.
+/// тихий ноль. Ответ для журнала: сколько записей добавлено. Свежим считается
+/// только дописанное — повторный запуск признак снимает.
 pub fn run(config: Option<&Path>, registry: &Path) -> usize {
     let Some(config) = config else {
         return 0;
@@ -166,5 +188,17 @@ pub fn run(config: Option<&Path>, registry: &Path) -> usize {
         return 0;
     };
     let parsed = parse(&text);
-    record_new(registry, &parsed.packages).unwrap_or(0)
+    let known_before: std::collections::BTreeSet<String> =
+        install::records(registry).keys().cloned().collect();
+    let added = record_new(registry, &parsed.packages).unwrap_or(0);
+    let fresh: Vec<String> = parsed
+        .packages
+        .iter()
+        .filter(|id| !known_before.contains(id.as_str()))
+        .cloned()
+        .collect();
+    if let Ok(mut last) = LAST_ADDED.lock() {
+        *last = fresh;
+    }
+    added
 }

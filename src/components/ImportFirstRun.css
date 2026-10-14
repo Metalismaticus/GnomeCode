@@ -1,0 +1,50 @@
+/* Экран первого запуска (DT1): поверх окна целиком — решение про чужой код
+   владелец принимает до всего остального. Плашка сводки шире обычной: строки
+   конфига длинные. */
+
+.import-first {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 460px;
+  max-width: calc(100vw - 48px);
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+  z-index: 40;
+}
+
+.import-first__row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-1) 0;
+}
+
+.import-first__line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 13px;
+  min-width: 0;
+}
+
+.import-first__line input[type="checkbox"] {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+.import-first__line .plugin-summary__value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.import-first__more {
+  align-self: flex-start;
+  height: 22px;
+  padding: 0 var(--space-2);
+  font-size: 11px;
+}
