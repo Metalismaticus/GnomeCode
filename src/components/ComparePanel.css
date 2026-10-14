@@ -184,6 +184,13 @@
   border-radius: var(--radius-sm);
   color: var(--text);
   text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.compare-line__row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .compare-line__row:hover {

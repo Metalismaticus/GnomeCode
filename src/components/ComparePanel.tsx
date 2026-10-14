@@ -265,16 +265,27 @@ function Row({
   onBasePick: (id: string) => void;
 }) {
   const top = model.benchmarks[0];
+  /** Строка — div с ролью button (XT-fix): внутри живёт кнопка «Выбрать», а
+   *  button в button запрещён (React validateDOMNesting). Клавиатура —
+   *  Enter/пробел, как у кнопки. */
+  const rowKey = (event: React.KeyboardEvent) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onToggle();
+    }
+  };
   return (
     <div className={expanded ? "compare-line is-open" : "compare-line"}>
-      <button
-        type="button"
+      <div
         className="compare-line__row"
         data-testid="compare-row"
         data-model={model.id}
+        role="button"
+        tabIndex={0}
         aria-expanded={expanded}
         title={model.name}
         onClick={onToggle}
+        onKeyDown={rowKey}
       >
         <span className="compare-line__name-block">
           <span className="compare-line__name">{model.name}</span>
@@ -329,7 +340,7 @@ function Row({
             {mode === "default" ? "По умолчанию" : "Выбрать"}
           </button>
         )}
-      </button>
+      </div>
       {expanded ? (
         <Expanded
           model={model}
