@@ -1,0 +1,110 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/Metalismaticus/gnomecode-catalog/main/registry.schema.json",
+  "title": "GnomeCode — реестр плагинов",
+  "description": "Курируемый реестр каталога GnomeCode (п.5 юнита «Глубина плагинов»): версии, машинно-читаемые права, команды. Файл публикуется raw-файлом рядом с index.json; клиент проверяет sha256 артефакта перед установкой, обновлением и откатом; version сравнивается по semver. Подача — PR с записью по этой схеме (CI проверяет index.json против схемы).",
+  "type": "object",
+  "required": ["plugins"],
+  "additionalProperties": false,
+  "properties": {
+    "plugins": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/entry" }
+    }
+  },
+  "definitions": {
+    "entry": {
+      "type": "object",
+      "required": ["id", "version", "artifact_url", "sha256", "permissions", "commands"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Имя npm-пакета — тот же идентификатор, что у импортированного из opencode.json (ключ дедупликации).",
+          "pattern": "^(@[a-z0-9-~][a-z0-9-._~]*/)?[a-z0-9-~][a-z0-9-._~]*$"
+        },
+        "version": {
+          "$ref": "#/definitions/semver"
+        },
+        "artifact_url": {
+          "type": "string",
+          "description": "Ссылка на артефакт версии (файл плагина); клиент скачивает и сверяет sha256.",
+          "format": "uri"
+        },
+        "sha256": {
+          "type": "string",
+          "description": "Sha256 артефакта, зафиксированный в реестре; несовпадение — явный отказ установки (CE-3/CE-5).",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "permissions": {
+          "type": "array",
+          "description": "Права декларации: категории сцены H и их значения; без декларации — каждое действие спрашивает.",
+          "items": { "$ref": "#/definitions/permission" }
+        },
+        "scopes": {
+          "type": "array",
+          "description": "Скоупы, которые плагин может запрашивать при подключении к чату (сцена E).",
+          "items": {
+            "enum": ["once", "chat", "project", "global"]
+          }
+        },
+        "commands": {
+          "type": "array",
+          "description": "Команды плагина: кнопки в шапке чата; полное имя у движка — «плагин:команда».",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/command" }
+        },
+        "icon_url": {
+          "type": "string",
+          "description": "Необязательная иконка карточки; sha-проверяемая — клиент сверяет хэш при загрузке, не сошёлся — плитка с инициалами.",
+          "format": "uri"
+        },
+        "permission_descriptions": {
+          "type": "object",
+          "description": "Необязательные человеческие формулировки «зачем» по категориям прав: сводка прав показывает их вместо карты приложения; незнакомая категория — «неизвестное разрешение: <id> · проверить вручную» (F17).",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "permission": {
+      "type": "object",
+      "required": ["category", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "description": "Категория прав слоя прав GnomeCode (rules.json).",
+          "enum": ["Read", "Write", "Network", "Terminal"]
+        },
+        "value": {
+          "type": "string",
+          "description": "Что именно разрешается: адрес, путь, «ask» — всегда спрашивать."
+        }
+      }
+    },
+    "command": {
+      "type": "object",
+      "required": ["name", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Имя команды, как её объявляет плагин (без префикса плагина).",
+          "pattern": "^[a-z0-9_-]+$"
+        },
+        "description": {
+          "type": "string",
+          "description": "Подпись кнопки и строка тултипа."
+        },
+        "category": {
+          "description": "Категория прав команды: по ней слой прав ищет правило; без категории вызов всегда спрашивает.",
+          "enum": ["Read", "Write", "Network", "Terminal"]
+        }
+      }
+    },
+    "semver": {
+      "type": "string",
+      "description": "Семантическая версия (semver 2.0.0): сравнение версий semver-осознанное (2.10.0 > 2.9.0, prerelease младше релиза).",
+      "pattern": "^v?(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
+    }
+  }
+}

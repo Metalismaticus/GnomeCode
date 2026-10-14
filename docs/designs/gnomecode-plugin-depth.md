@@ -864,6 +864,15 @@ NO UNRESOLVED DECISIONS
 
 ### Исполнение — журнал агента
 
+- 2026-10-15: **DT8 JSON-Schema реестра** — сделано. docs/registry/
+  registry.schema.json (draft-07: entry = id (npm-имя), version (semver-
+  pattern), artifact_url, sha256 (64 hex), permissions (категории слоя
+  прав), scopes (once/chat/project/global), commands (minItems 1),
+  icon_url и permission_descriptions — необязательные) +
+  index.example.json (пример записи) + проверка примера против схемы
+  (node-скрипт: обязательные, semver, sha256, npm-id, категории, скоупы,
+  команды — OK). QA на fixture не применим (docs-деливерабл). CI-валидация
+  index.json — при публикации репозитория реестра (XT7/после T5).
 - 2026-10-14 (ночь): **DT7 каталог-состояния** — сделано. catalog_snapshot
   (Rust): живой индекс; не ответил — кэш последнего успешного чтения
   (catalog-cache.json в data dir) с датой файла; кэша нет — причина.
