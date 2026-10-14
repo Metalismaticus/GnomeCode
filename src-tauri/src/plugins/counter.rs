@@ -54,9 +54,14 @@ pub fn is_opted_in(fallback: PathBuf) -> bool {
     optin_file(fallback).is_file()
 }
 
+/// Лимит файла событий (ET10): рост больше лимита — ротация
+/// events.jsonl → events.jsonl.1 (старый .1 перезаписывается).
+const ROTATE_BYTES: u64 = 1024 * 1024;
+
 /// Записать событие, если счётчик включён: одна строка JSON в конец файла
-/// (append — прежние события не читаем и не переписываем). Сбой — тихий:
-/// счётчик не должен ломать жизненный цикл плагинов.
+/// (append — прежние события не читаем и не переписываем). Рост больше лимита —
+/// ротация (ET10). Сбой — тихий: счётчик не должен ломать жизненный цикл
+/// плагинов.
 pub fn record(file_path: &Path, event: &str, plugin: Option<&str>) {
     if !is_opted_in(
         file_path
@@ -80,6 +85,56 @@ pub fn record(file_path: &Path, event: &str, plugin: Option<&str>) {
     if let Some(parent) = file_path.parent() {
         let _ = fs::create_dir_all(parent);
     }
+    rotate_if_large(file_path, ROTATE_BYTES);
+    if let Ok(mut held) = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(file_path)
+    {
+        use std::io::Write;
+        let _ = writeln!(held, "{line}");
+    }
+}
+
+/// Ротация (ET10): файл вырос больше лимита — events.jsonl переезжает в
+/// events.jsonl.1 (прошлый .1 перезаписывается), основной начинается с нуля.
+fn rotate_if_large(file_path: &Path, limit: u64) {
+    let Ok(meta) = fs::metadata(file_path) else {
+        return;
+    };
+    if meta.len() < limit {
+        return;
+    }
+    let mut rotated = file_path.as_os_str().to_owned();
+    rotated.push(".1");
+    let _ = fs::rename(file_path, PathBuf::from(rotated));
+}
+
+/// Та же запись с явным лимитом: для проверки ротации (ET10).
+pub fn record_limited(file_path: &Path, event: &str, plugin: Option<&str>, limit: u64) {
+    if !is_opted_in(
+        file_path
+            .parent()
+            .map(|parent| parent.to_path_buf())
+            .unwrap_or_default(),
+    ) {
+        return;
+    }
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or_default();
+    let line = match plugin {
+        Some(id) => json!({ "ts": ts, "event": event, "plugin": id }),
+        None => json!({ "ts": ts, "event": event }),
+    };
+    let Ok(line) = serde_json::to_string(&line) else {
+        return;
+    };
+    if let Some(parent) = file_path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    rotate_if_large(file_path, limit);
     if let Ok(mut held) = fs::OpenOptions::new()
         .create(true)
         .append(true)

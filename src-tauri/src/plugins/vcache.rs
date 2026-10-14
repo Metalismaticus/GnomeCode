@@ -26,21 +26,29 @@ pub fn file(fallback: PathBuf) -> PathBuf {
 }
 
 /// Кэшированная версия: декларация той поры (права, команды, автор), артефакт
-/// и хэш содержимого, зафиксированный при получении из каталога.
+/// и хэш содержимого, зафиксированный при получении из каталога. `saved_at` —
+/// момент записи (unix-мс): эвикция ET10 выкидывает самые старые версии
+/// плагина сверх лимита.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Cached {
     pub entry: CatalogEntry,
     pub content: String,
     pub sha256: String,
+    #[serde(default)]
+    pub saved_at: u64,
 }
 
-/// Кэш целиком: `id@версия → запись`; BTreeMap — стабильный порядок в файле.
-type Cache = BTreeMap<String, Cached>;
+/// Сколько версий одного плагина держим в кэше (ET10): откат нужен на шаг
+/// назад, а не на всю историю. Новая запись вытесняет самые старые.
+const KEEP_PER_PLUGIN: usize = 3;
 
 /// Ключ записи: у одного плагина кэш держит несколько версий.
 fn key(id: &str, version: &str) -> String {
     format!("{id}@{version}")
 }
+
+/// Кэш целиком: `id@версия → запись`; BTreeMap — стабильный порядок в файле.
+type Cache = BTreeMap<String, Cached>;
 
 /// Кэш с диска: нет файла или форма чужая — пустой (см. шапку модуля).
 pub fn at(file_path: &Path) -> Cache {
@@ -64,16 +72,37 @@ pub fn save(file_path: &Path, cache: &Cache) -> Result<(), String> {
 
 /// Запомнить версию при установке или обновлении: декларация + артефакт +
 /// хэш содержимого. Повторная установка той же версии перезаписывает запись.
+/// Эвикция (ET10): у плагина остаются последние K версий, самые старые уходят.
 pub fn remember(file_path: &Path, entry: &CatalogEntry, content: &str) -> Result<(), String> {
     let mut cache = at(file_path);
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or_default();
+    let id = entry.id.clone();
     cache.insert(
-        key(&entry.id, &entry.version),
+        key(&id, &entry.version),
         Cached {
             entry: entry.clone(),
             content: content.to_string(),
             sha256: sha256_hex(content.as_bytes()),
+            saved_at: now,
         },
     );
+    // Эвикция: версии одного плагина, кроме последних K по времени записи.
+    let mut versions: Vec<(&String, &Cached)> = cache
+        .iter()
+        .filter(|(key, _)| key.split('@').next() == Some(id.as_str()))
+        .collect();
+    versions.sort_by_key(|(_, cached)| cached.saved_at);
+    let evict: Vec<String> = versions
+        .iter()
+        .take(versions.len().saturating_sub(KEEP_PER_PLUGIN))
+        .map(|(key, _)| (*key).clone())
+        .collect();
+    for key in evict {
+        cache.remove(&key);
+    }
     save(file_path, &cache)
 }
 

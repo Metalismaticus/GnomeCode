@@ -864,6 +864,9 @@ NO UNRESOLVED DECISIONS
 
 ### Исполнение — журнал агента
 
+- 2026-10-15: **ET10 капы** — сделано. vcache: remember() хранит saved_at и эвикирует версии плагина сверх K=3 (самые старые по saved_at уходят; соседние плагины не тронуты — тест et10_caps). counter: ротация events.jsonl при росте сверх 1 МБ → events.jsonl.1 (тест с малым лимитом).
+- 2026-10-15: **XT** — README (установка/SmartScreen/данные/удаление/приватность), гайд автора плагина (docs/registry/author-guide.md, поля схемы + подача через PR), XT-fix вложенного button строки сравнения (строка — div[role=button] + Enter/пробел, validateDOMNesting чист).
+
 - 2026-10-15: **Усиление сравнения моделей (запрос владельца)** — сделано.
   Радар пяти осей как на opencode.ai/data/compare (Reasoning, Coding,
   Tool use, Multimodal, Cost efficiency) в раскрытии строки панели
