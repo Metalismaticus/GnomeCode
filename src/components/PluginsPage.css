@@ -56,6 +56,22 @@
   color: var(--text);
 }
 
+/* Бейдж обновлений на вкладке Updates (CE-5, 5.1): только ждущие одобрения
+   прав, при нуле скрывается целиком; точка внимания, не декорация. */
+.plugins-page__tab-badge {
+  margin-left: var(--space-2);
+  padding: 0 var(--space-2);
+  border-radius: 999px;
+  background: var(--warning, #b8860b);
+  color: var(--bg-panel, #111);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  display: inline-block;
+  min-width: 18px;
+  text-align: center;
+}
+
 .plugins-page__body {
   display: flex;
   flex-direction: column;

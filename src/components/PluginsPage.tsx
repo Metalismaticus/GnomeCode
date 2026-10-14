@@ -85,6 +85,19 @@ export function PluginsPage({ plugins, cluster }: { plugins: PluginsState; clust
     setTab("available");
     setCatalogOpen(true);
   }, []);
+  /** Updates по клику вкладки/бейджа (F3): вкладка открывается, первая ждущая
+   *  карточка получает фокус — решение видно сразу, искать глазами не надо.
+   *  Двойной кадр: фокус ставится после коммита и отрисовки вкладки. */
+  const openUpdates = useCallback(() => {
+    setTab("updates");
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        document
+          .querySelector<HTMLElement>('[data-testid="plugin-update-card"][data-held="true"]')
+          ?.focus();
+      });
+    });
+  }, []);
   const closeCatalog = useCallback(() => {
     setCatalogOpen(false);
     setTab("installed");
@@ -163,9 +176,17 @@ export function PluginsPage({ plugins, cluster }: { plugins: PluginsState; clust
               aria-selected={tab === one && !catalogOpen}
               className="plugins-page__tab"
               data-testid={`plugin-tab-${one}`}
-              onClick={one === "available" ? openCatalog : () => setTab(one)}
+              onClick={one === "available" ? openCatalog : one === "updates" ? openUpdates : () => setTab(one)}
             >
               {TITLES[one]}
+              {/* Бейдж обновлений (CE-5, 5.1): только ждущие одобрения прав,
+                  при нуле скрывается; клик открывает вкладку и фокусирует
+                  первую ждущую карточку (F3). */}
+              {one === "updates" && plugins.heldUpdates.length ? (
+                <span className="plugins-page__tab-badge" data-testid="updates-badge">
+                  {plugins.heldUpdates.length}
+                </span>
+              ) : null}
             </button>
           ))}
         </div>

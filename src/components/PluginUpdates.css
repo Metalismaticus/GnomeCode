@@ -17,3 +17,11 @@
 .plugin-update__status {
   color: var(--text-dim);
 }
+
+/* Ждущая прав карточка фокусируется по клику бейджа/вкладки (F3): видимый
+   контур фокуса на article, у обычных карточек его нет. */
+.plugin-update[data-held="true"]:focus-visible,
+.plugin-update[data-held="true"]:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

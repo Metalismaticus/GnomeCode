@@ -57,6 +57,7 @@ function UpdateCard({ plugin, onAllow }: { plugin: Plugin; onAllow: (id: string)
       className="plugin-card plugin-update"
       data-testid="plugin-update-card"
       data-plugin={plugin.id}
+      {...(update.status === "held" ? { "data-held": "true", tabIndex: -1 } : {})}
     >
       <span className="plugin-card__icon" aria-hidden="true">{name.charAt(0).toUpperCase()}</span>
       <div className="plugin-card__body">
