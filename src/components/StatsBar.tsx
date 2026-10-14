@@ -6,8 +6,8 @@
 import { useState } from "react";
 
 import { moneyOf } from "../compare";
-import { tokensOf, useStats } from "../features/stats/useStats";
 import type { StatsPeriod } from "../bridge";
+import { tokensOf, useStats } from "../features/stats/useStats";
 
 import "./StatsBar.css";
 
@@ -95,6 +95,8 @@ function StatCard({ label, value, used, limit, unit, testid }: {
 export function StatsBar({ currentModel }: { currentModel: string }) {
   const [period, setPeriod] = useState<StatsPeriod>("today");
   const { summary } = useStats(period);
+  /** Фильтр по провайдеру (концепт: «Все провайдеры ▾»): пусто — все. */
+  const [providerFilter, setProviderFilter] = useState("");
 
   if (!summary) {
     return null;
@@ -102,12 +104,16 @@ export function StatsBar({ currentModel }: { currentModel: string }) {
   const models = [...summary.models]
     .sort((a, b) => (b.usage.cost ?? 0) - (a.usage.cost ?? 0))
     .slice(0, 6);
-  const totalCost = models.reduce((sum, one) => sum + (one.usage.cost ?? 0), 0);
+  const labs = [...new Set(models.map((one) => one.provider))].sort();
+  const shown = providerFilter
+    ? models.filter((one) => one.provider === providerFilter)
+    : models;
+  const totalCost = shown.reduce((sum, one) => sum + (one.usage.cost ?? 0), 0);
   const byTokens = totalCost === 0;
   const grand = byTokens
-    ? models.reduce((sum, one) => sum + one.usage.input + one.usage.output, 0)
+    ? shown.reduce((sum, one) => sum + one.usage.input + one.usage.output, 0)
     : totalCost;
-  const shares = models
+  const shares = shown
     .map((one, index) => {
       const own = byTokens
         ? one.usage.input + one.usage.output
@@ -123,6 +129,19 @@ export function StatsBar({ currentModel }: { currentModel: string }) {
   return (
     <div className="stats-bar" data-testid="stats-bar">
       <div className="stats-bar__periods">
+        {/* Фильтр «Все провайдеры ▾» (концепт владельца): пусто — все. */}
+        <select
+          className="stats-bar__provider"
+          data-testid="stats-provider-filter"
+          value={providerFilter}
+          onChange={(event) => setProviderFilter(event.target.value)}
+          aria-label="Фильтр по провайдеру"
+        >
+          <option value="">Все провайдеры</option>
+          {labs.map((one) => (
+            <option key={one} value={one}>{one}</option>
+          ))}
+        </select>
         {PERIODS.map((one) => (
           <button
             key={one.key}
