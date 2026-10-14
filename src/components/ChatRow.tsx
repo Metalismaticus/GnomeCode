@@ -9,6 +9,7 @@ import { useState } from "react";
 
 import { chatTimeOf } from "../app/chatTime";
 import type { SidebarChat } from "./Sidebar";
+import { ChatGlyph } from "./glyphs";
 import { SidebarItem } from "./SidebarItem";
 import { MenuItem, RowMenu, type MenuSpot } from "./RowMenu";
 
@@ -104,6 +105,7 @@ export function ChatRow({ chat, now, pinned, onTogglePin, onOpen, onReturn, onRe
         end={chatTimeOf(chat, now)}
         sub={chat.preview}
         active={chat.active}
+        glyph={<ChatGlyph className="chat-row__glyph" />}
         testid={chat.active ? "chat-active" : chat.id ? "chat-row" : undefined}
         onClick={chat.active ? (onReturn ?? onOpen) : onOpen}
       />
