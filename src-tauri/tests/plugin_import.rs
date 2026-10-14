@@ -140,6 +140,7 @@ fn auto_update_skips_imported_records() {
         &plugins,
         &registry,
         &notes,
+        &data.join("vcache.json"),
     )
     .expect("проверка прошла");
 

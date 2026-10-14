@@ -21,5 +21,6 @@ pub mod scopes;
 pub mod toolsets;
 pub mod updates;
 pub mod usage;
+pub mod vcache;
 
 pub use model::{Command, Plugin };

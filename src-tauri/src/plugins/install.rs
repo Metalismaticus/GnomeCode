@@ -128,25 +128,36 @@ pub fn fetch(source: &str) -> Result<Vec<CatalogEntry>, String> {
 }
 
 /// Установить плагин по id: индекс, запись реестра, файл — в папку плагинов движка.
-pub fn install_by_id(id: &str, registry: &Path) -> Result<CatalogEntry, String> {
+pub fn install_by_id(id: &str, registry: &Path, cache: &Path) -> Result<CatalogEntry, String> {
     let found = fetch(CATALOG_URL)?;
     let entry = found
         .into_iter()
         .find(|one| one.id == id)
         .ok_or_else(|| format!("в каталоге нет плагина «{id}»"))?;
-    install(&entry, CATALOG_URL, &plugins_dir(), registry)?;
+    install(&entry, CATALOG_URL, &plugins_dir(), registry, cache)?;
     Ok(entry)
 }
 
 /// Скачать входной файл плагина и записать реестр. Папки создаёт на первом месте.
-pub fn install(entry: &CatalogEntry, source: &str, plugins_dir: &Path, registry: &Path) -> Result<(), String> {
+/// Кэш версий (F5): скачанный артефакт с декларацией запоминается для отката —
+/// сбой кэша установку не ломает, откат лишь скажет «версии нет в кэше».
+pub fn install(entry: &CatalogEntry, source: &str, plugins_dir: &Path, registry: &Path, cache: &Path) -> Result<(), String> {
     let url = format!("{}/{}/main/{}", source, entry.repo, entry.entry);
     let code = get(&url)?;
     fs::create_dir_all(plugins_dir)
         .map_err(|e| format!("папка плагинов не создалась {}: {e}", plugins_dir.display()))?;
     let file = plugins_dir.join(format!("{}.ts", entry.id));
-    fs::write(&file, code).map_err(|e| format!("файл плагина не записан {}: {e}", file.display()))?;
+    fs::write(&file, &code).map_err(|e| format!("файл плагина не записан {}: {e}", file.display()))?;
+    let _ = super::vcache::remember(cache, entry, &code);
     record(registry, entry)
+}
+
+/// Вернуть запись реестра целиком на прежнюю (откат, 1.3): версия, права и
+/// команды той версии — декларацию артефакта несёт кэш (vcache::Cached).
+pub fn restore(registry: &Path, entry: &CatalogEntry) -> Result<(), String> {
+    let mut known = records(registry);
+    known.insert(entry.id.clone(), entry.clone());
+    write(registry, &known)
 }
 
 /// Папка глобальных плагинов движка: XDG_CONFIG_HOME уважается (изоляция проверок),

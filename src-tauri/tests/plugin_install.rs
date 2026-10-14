@@ -65,6 +65,7 @@ fn install_downloads_plugin_file_and_records_it() {
     let plugins = TempDir::new("plugins");
     let data = TempDir::new("data");
     let registry = data.join("installed.json");
+    let cache = data.join("vcache.json");
 
     let found = install::fetch(&fake.index_url())
         .expect("индекс каталога прочитан");
@@ -75,7 +76,7 @@ fn install_downloads_plugin_file_and_records_it() {
     assert_eq!(entry.permissions.len(), 2, "права каталога разобраны: {:?}", entry.permissions);
     assert_eq!(entry.commands.len(), 1, "команды каталога разобраны: {:?}", entry.commands);
 
-    install::install(entry, fake.base(), plugins.path(), &registry).expect("плагин установлен");
+    install::install(entry, fake.base(), plugins.path(), &registry, &cache).expect("плагин установлен");
 
     let file = plugins.join("github.ts");
     let written = std::fs::read_to_string(&file).expect("файл плагина записан в папку плагинов движка");
@@ -93,11 +94,12 @@ fn reinstall_updates_the_record() {
     let plugins = TempDir::new("plugins-2");
     let data = TempDir::new("data-2");
     let registry = data.join("installed.json");
+    let cache = data.join("vcache.json");
 
     for version in ["1.4.2", "1.5.0"] {
         let found = install::fetch(&fake.index_url())
             .expect("индекс каталога прочитан");
-        install::install(&found[0], fake.base(), plugins.path(), &registry)
+        install::install(&found[0], fake.base(), plugins.path(), &registry, &cache)
             .expect("плагин установлен повторно");
         let record = std::fs::read_to_string(&registry).expect("реестр установленного записан");
         assert!(

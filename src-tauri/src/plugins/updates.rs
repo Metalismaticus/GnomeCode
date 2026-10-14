@@ -228,6 +228,7 @@ pub fn check_and_update(
     plugins_dir: &Path,
     registry: &Path,
     file_path: &Path,
+    cache: &Path,
 ) -> Result<Checked, String> {
     let mut notes = at(file_path);
     let index = match install::fetch(source) {
@@ -278,7 +279,7 @@ pub fn check_and_update(
             // Новых прав нет: тихое обновление молча — запасной файл, замена,
             // реестр. Окна одобрения нет ни при каком праве.
             backup(plugins_dir, &entry.id);
-            install::install(fresh, &install::raw_base(source), plugins_dir, registry)?;
+            install::install(fresh, &install::raw_base(source), plugins_dir, registry, cache)?;
             notes.records.insert(
                 entry.id.clone(),
                 Update {
@@ -459,6 +460,32 @@ pub fn rollback(
     install::revert(registry, id, &note.from)?;
     note.status = UpdateStatus::Broken;
     save(file_path, &notes)
+}
+
+/// Откат в клик (CE-3, T3/ET2): версия из кэша GnomeCode возвращается на место
+/// файла с проверкой хэша кэш-записи (F5), а декларация той версии — в реестр:
+/// восстанавливаются и права, не только номер (1.3). Версии до кэша — отказ:
+/// кнопке отката в интерфейсе активна ровно `vcache::has`.
+pub fn rollback_to(
+    id: &str,
+    version: &str,
+    plugins_dir: &Path,
+    registry: &Path,
+    cache: &Path,
+) -> Result<(), String> {
+    let cached = super::vcache::get(cache, id, version).ok_or_else(|| {
+        format!("версии {version} нет в кэше GnomeCode — откат невозможен (версия до кэша)")
+    })?;
+    let actual = super::vcache::sha256_hex(cached.content.as_bytes());
+    if actual != cached.sha256 {
+        return Err(
+            "хэш кэш-записи не сошёлся: файл кэша повреждён — откат отменён".to_string(),
+        );
+    }
+    let ts = plugins_dir.join(format!("{id}.ts"));
+    fs::write(&ts, &cached.content)
+        .map_err(|e| format!("файл отката не записан {}: {e}", ts.display()))?;
+    install::restore(registry, &cached.entry)
 }
 
 #[cfg(test)]

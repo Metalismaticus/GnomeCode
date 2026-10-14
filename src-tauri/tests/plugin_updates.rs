@@ -99,12 +99,13 @@ fn check_updates_the_plugin_silently_when_permissions_unchanged() {
     let data = TempDir::new("updates-data");
     let registry = data.join("installed.json");
     let file = data.join("updates.json");
+    let cache = data.join("vcache.json");
 
     let found = install::fetch(&fake.index_url()).expect("индекс каталога прочитан");
-    install::install(&found[0], fake.base(), plugins.path(), &registry)
+    install::install(&found[0], fake.base(), plugins.path(), &registry, &cache)
         .expect("плагин установлен: реестр и файл на месте до проверки");
 
-    let checked = updates::check_and_update(&fake.index_url(), plugins.path(), &registry, &file)
+    let checked = updates::check_and_update(&fake.index_url(), plugins.path(), &registry, &file, &cache)
         .expect("проверка обновлений прошла");
 
     assert_eq!(checked.applied, vec!["github"], "обновилось молча: {:?}", checked.applied);
@@ -140,12 +141,13 @@ fn changed_permissions_hold_the_update_until_the_summary() {
     let data = TempDir::new("updates-hold-data");
     let registry = data.join("installed.json");
     let file = data.join("updates.json");
+    let cache = data.join("vcache.json");
 
     let found = install::fetch(&fake.index_url()).expect("индекс каталога прочитан");
-    install::install(&found[0], fake.base(), plugins.path(), &registry)
+    install::install(&found[0], fake.base(), plugins.path(), &registry, &cache)
         .expect("плагин установлен до проверки");
 
-    let checked = updates::check_and_update(&fake.index_url(), plugins.path(), &registry, &file)
+    let checked = updates::check_and_update(&fake.index_url(), plugins.path(), &registry, &file, &cache)
         .expect("проверка обновлений прошла");
 
     assert!(checked.applied.is_empty(), "обновление держится до сводки прав: {:?}", checked.applied);
@@ -194,12 +196,13 @@ fn removed_permissions_update_quietly_and_are_remembered() {
     let data = TempDir::new("updates-fewer-data");
     let registry = data.join("installed.json");
     let file = data.join("updates.json");
+    let cache = data.join("vcache.json");
 
     let found = install::fetch(&fake.index_url()).expect("индекс каталога прочитан");
-    install::install(&found[0], fake.base(), plugins.path(), &registry)
+    install::install(&found[0], fake.base(), plugins.path(), &registry, &cache)
         .expect("плагин установлен до проверки");
 
-    let checked = updates::check_and_update(&fake.index_url(), plugins.path(), &registry, &file)
+    let checked = updates::check_and_update(&fake.index_url(), plugins.path(), &registry, &file, &cache)
         .expect("проверка обновлений прошла");
 
     assert_eq!(checked.applied, vec!["github"], "убавление прав — не повод держать обновление");
@@ -221,6 +224,7 @@ fn an_unavailable_catalog_leaves_everything_and_is_marked() {
     let data = TempDir::new("updates-dead-data");
     let registry = data.join("installed.json");
     let file = data.join("updates.json");
+    let cache = data.join("vcache.json");
     std::fs::write(plugins.join("github.ts"), PLUGIN_SRC).expect("файл плагина заранее на месте");
     let record = r#"{"github":{"id":"github","name":"GitHub","description":"d","author":"a","version":"1.4.2","repo":"Metalismaticus/github-plugin","entry":"index.ts","permissions":[],"commands":[],"disabled":false }}"#;
     std::fs::write(&registry, format!("{{\"github\":{record}}}")).expect("реестр установленного на месте");
@@ -230,6 +234,7 @@ fn an_unavailable_catalog_leaves_everything_and_is_marked() {
         plugins.path(),
         &registry,
         &file,
+        &cache,
     )
     .expect("недоступный каталог — не сбой: работаем на текущих");
 
@@ -253,11 +258,12 @@ fn a_missing_catalog_entry_is_skipped_with_a_note() {
     let data = TempDir::new("updates-outside-data");
     let registry = data.join("installed.json");
     let file = data.join("updates.json");
+    let cache = data.join("vcache.json");
     std::fs::write(plugins.join("github.ts"), PLUGIN_SRC).expect("файл плагина заранее на месте");
     let record = r#"{"id":"github","name":"GitHub","description":"d","author":"a","version":"1.4.2","repo":"Metalismaticus/github-plugin","entry":"index.ts","permissions":[],"commands":[],"disabled":false }"#;
     std::fs::write(&registry, format!(r#"{{"github":{record}}}"#)).expect("реестр установленного на месте");
 
-    let checked = updates::check_and_update(&fake.index_url(), plugins.path(), &registry, &file)
+    let checked = updates::check_and_update(&fake.index_url(), plugins.path(), &registry, &file, &cache)
         .expect("пустой каталог — не сбой");
 
     assert!(checked.applied.is_empty(), "вне каталога обновить нечем: {:?}", checked.applied);
@@ -289,10 +295,11 @@ fn a_broken_update_is_rolled_back_and_marked() {
     std::fs::create_dir_all(&plugins).expect("папка плагинов движка создана");
     let registry = data.join("installed.json");
     let file = data.join("updates.json");
+    let cache = data.join("vcache.json");
     let found = install::fetch(&fake.index_url()).expect("индекс каталога прочитан");
-    install::install(&found[0], fake.base(), &plugins, &registry).expect("плагин установлен");
+    install::install(&found[0], fake.base(), &plugins, &registry, &cache).expect("плагин установлен");
 
-    let checked = updates::check_and_update(&fake.index_url(), &plugins, &registry, &file)
+    let checked = updates::check_and_update(&fake.index_url(), &plugins, &registry, &file, &cache)
         .expect("проверка обновлений прошла");
     assert_eq!(checked.applied, vec!["github"], "сломанный файл записан как тихое обновление");
 

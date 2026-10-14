@@ -343,8 +343,33 @@ pub async fn catalog_list() -> Result<Vec<install::CatalogEntry>, String> {
 /// реестр установленного, движок перезапустится тихо (читает плагины при старте).
 #[tauri::command]
 pub fn plugin_install(app: AppHandle, chat: State<'_, Chat>, id: String) -> Result<(), String> {
-    install::install_by_id(&id, &install::registry_file(data_dir(&app)))?;
+    let folder = data_dir(&app);
+    install::install_by_id(&id, &install::registry_file(folder.clone()), &super::vcache::file(folder))?;
     chat.restart()
+}
+
+/// Откат плагина на версию из кэша GnomeCode (CE-3): файл версии — с проверкой
+/// хэша, права и команды той версии — в реестр (1.3); движок после рестарта
+/// читает прежний файл — кнопки и строки ленты живут на откатившейся версии.
+#[tauri::command]
+pub fn plugin_rollback(
+    app: AppHandle,
+    chat: State<'_, Chat>,
+    registry: State<'_, Registry>,
+    store: State<'_, Arc<Store>>,
+    id: String,
+    version: String,
+) -> Result<Vec<Plugin>, String> {
+    let folder = data_dir(&app);
+    updates::rollback_to(
+        &id,
+        &version,
+        &install::plugins_dir(),
+        &install::registry_file(folder.clone()),
+        &super::vcache::file(folder),
+    )?;
+    chat.restart()?;
+    plugin_list(app, chat, registry, store)
 }
 
 /// Что сказал слой прав клику по кнопке команды (docs/SPEC/plugins.md).
