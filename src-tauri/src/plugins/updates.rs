@@ -67,10 +67,112 @@ pub fn save(file_path: &Path, updates: &Updates) -> Result<(), String> {
         .map_err(|e| format!("обновления не записаны {}: {e}", file_path.display()))
 }
 
-/// «Новее» — версии различаются: semver-парсер не заводится, индекс пишет
-/// владелец, у которого это поле — единственное место об изменениях.
+/// «Новее» по semver (DX-решение юнита: version в реестре — semver): тройка
+/// мажор/минор/патч сравнивается численно, prerelease — по правилам semver.
+/// Разобрать не вышло (версия до реестра, кривая запись) — прежнее правило
+/// «различаются»: незнакомая форма не замораживает обновление.
 pub fn newer(from: &str, to: &str) -> bool {
-    from != to
+    match (semver(from), semver(to)) {
+        // Вопрос «новее ли to, чем from» — сравнение в сторону to.
+        (Some(a), Some(b)) => b > a,
+        _ => from != to,
+    }
+}
+
+/// Разобранная версия: числовая тройка и prerelease-идентификаторы.
+/// Порядок — semver §11: тройка численно; релиз старше prerelease той же
+/// тройки; идентификаторы слева направо, числовые младше буквенных.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Semver {
+    numbers: (u64, u64, u64),
+    /// Пусто — релиз.
+    pre: Vec<PreId>,
+}
+
+impl Ord for Semver {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        use std::cmp::Ordering;
+        match self.numbers.cmp(&other.numbers) {
+            Ordering::Equal => {}
+            not_equal => return not_equal,
+        }
+        match (self.pre.is_empty(), other.pre.is_empty()) {
+            // Релиз (без prerelease) старше prerelease той же тройки.
+            (true, true) => Ordering::Equal,
+            (true, false) => Ordering::Greater,
+            (false, true) => Ordering::Less,
+            (false, false) => self.pre.cmp(&other.pre),
+        }
+    }
+}
+
+impl PartialOrd for Semver {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+/// Идентификатор prerelease: числовой или буквенный (semver §9).
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum PreId {
+    Num(u64),
+    Text(String),
+}
+
+impl Ord for PreId {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        use std::cmp::Ordering;
+        match (self, other) {
+            (PreId::Num(a), PreId::Num(b)) => a.cmp(b),
+            // Числовой идентификатор младше буквенного.
+            (PreId::Num(_), PreId::Text(_)) => Ordering::Less,
+            (PreId::Text(_), PreId::Num(_)) => Ordering::Greater,
+            (PreId::Text(a), PreId::Text(b)) => a.cmp(b),
+        }
+    }
+}
+
+impl PartialOrd for PreId {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+/// Разбор semver: `MAJOR.MINOR.PATCH[-pre][+build]`, ведущее «v» прощается,
+/// build-метаданные приоритета не меняют (semver §10) — отбрасываются.
+fn semver(text: &str) -> Option<Semver> {
+    let body = text.trim().trim_start_matches(['v', 'V']);
+    let (body, _build) = body.split_once('+').unwrap_or((body, ""));
+    let (numbers, pre) = body.split_once('-').unwrap_or((body, ""));
+    let mut parts = numbers.split('.');
+    let major = parts.next()?.parse::<u64>().ok()?;
+    let minor = parts.next()?.parse::<u64>().ok()?;
+    let patch = parts.next()?.parse::<u64>().ok()?;
+    if parts.next().is_some() {
+        return None;
+    }
+    let pre = if pre.is_empty() {
+        Vec::new()
+    } else {
+        pre.split('.')
+            .map(|id| {
+                if !id.is_empty() && id.chars().all(|c| c.is_ascii_digit()) {
+                    id.parse::<u64>().map(PreId::Num).map_err(|_| ())
+                } else if id.is_empty()
+                    || !id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
+                {
+                    Err(())
+                } else {
+                    Ok(PreId::Text(id.to_string()))
+                }
+            })
+            .collect::<Result<Vec<PreId>, _>>()
+            .ok()?
+    };
+    Some(Semver {
+        numbers: (major, minor, patch),
+        pre,
+    })
 }
 
 /// Удержанное правами обновление с id плагина — то, что окну нужно от записи
@@ -334,4 +436,44 @@ pub fn rollback(
     install::revert(registry, id, &note.from)?;
     note.status = UpdateStatus::Broken;
     save(file_path, &notes)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::newer;
+
+    /// Граничные пары semver (eng-условие юнита): тройка численно, prerelease
+    /// по правилам semver, неразбираемые версии — прежнее «различаются».
+    #[test]
+    fn semver_newer_boundaries() {
+        // Тройка численно: 2.10 не младше 2.9 — строковое сравнение путало.
+        assert!(newer("2.9.0", "2.10.0"), "2.10.0 новее 2.9.0");
+        assert!(!newer("2.10.0", "2.9.0"), "2.9.0 не новее 2.10.0");
+        // Равные версии обновлением не считаются.
+        assert!(!newer("1.4.2", "1.4.2"), "та же версия — не новее");
+        // Порядок по сегментам: сначала мажор, потом минор, потом патч.
+        assert!(newer("1.9.9", "2.0.0"));
+        assert!(newer("2.0.0", "2.0.1"));
+        // Ведущее «v» прощается: реестр мог записать и так.
+        assert!(newer("v1.2.3", "1.2.4"));
+
+        // Prerelease младше релиза той же тройки (semver §11).
+        assert!(newer("2.1.0-beta.1", "2.1.0"), "релиз новее prerelease");
+        assert!(!newer("2.1.0", "2.1.0-beta.1"));
+        // Prerelease растёт: числа численно, короткий набор младше длинного.
+        assert!(newer("2.1.0-beta.1", "2.1.0-beta.2"));
+        assert!(newer("2.1.0-beta", "2.1.0-beta.1"));
+        // Буквенные идентификаторы лексически, числовые младше буквенных.
+        assert!(newer("1.0.0-alpha", "1.0.0-beta"));
+        assert!(newer("1.0.0-1", "1.0.0-alpha"));
+
+        // Build-метаданные приоритета не меняют.
+        assert!(!newer("1.0.0+build.1", "1.0.0+build.2"));
+
+        // Неразбираемые — прежнее правило «различаются»: версии до реестра
+        // не замораживают обновление.
+        assert!(newer("abc", "def"), "кривые версии: различаются — обновляемся");
+        assert!(newer("1.0.0", "дрянная-версия"));
+        assert!(!newer("abc", "abc"));
+    }
 }
