@@ -26,6 +26,7 @@ export type {
   ProviderRow,
   RowKind,
   RuleEntry,
+  StatsPeriod,
   ToolSet,
   TreeNode,
   UpdatesNote,

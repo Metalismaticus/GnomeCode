@@ -15,6 +15,7 @@ import { ChatPluginsPanel } from "./ChatPluginsPanel";
 import { Composer } from "./Composer";
 import { EmptyChat } from "./EmptyChat";
 import { Feed, isFailoverRow } from "./Feed";
+import { StatsBar } from "./StatsBar";
 import { PluginApproval } from "./PluginApproval";
 import { PluginPicker } from "./PluginPicker";
 import { PluginSummary } from "./PluginSummary";
@@ -23,6 +24,7 @@ import type { ChatViewProps, Overlay } from "./chat/types";
 import { useOverlayDismiss } from "./chat/useOverlayDismiss";
 
 import "./ChatView.css";
+import "./StatsBar.css";
 
 /** Центральная колонка: шапка, лента, композер. Ядро окна — то, что тянется. */
 export function ChatView({
@@ -307,6 +309,7 @@ export function ChatView({
 
   return (
     <main className="chat" data-testid="chat">
+      <StatsBar currentModel={model} />
       <ChatHeader
         title={title}
         cluster={cluster}
