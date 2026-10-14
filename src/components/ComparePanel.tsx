@@ -56,9 +56,14 @@ export function ComparePanel({ compare, currentModel, mode, initialExpanded, onC
   // под своим заголовком: цены у них «—», поиск находит их вместе с каталогом.
   const catalog = compare.models.filter((model) => !model.engine);
   const engine = compare.models.filter((model) => model.engine);
-  /** База радара (усиление сравнения): модель текущего чата, а без неё —
+  /** База радара (усиление сравнения): ручной выбор (владелец 14.10, как в
+   *  образце — ручной выбор); по умолчанию модель текущего чата, без неё —
    *  первая строка каталога. Раскрытая строка сравнивается с ней на радаре. */
-  const baseline = catalog.find((model) => model.name === currentModel) ?? catalog[0];
+  const [radarBaseId, setRadarBaseId] = useState<string | null>(null);
+  const baseline =
+    catalog.find((model) => model.id === radarBaseId) ??
+    catalog.find((model) => model.name === currentModel) ??
+    catalog[0];
   const body = (() => {
     if (compare.error) {
       return (
@@ -84,6 +89,8 @@ export function ComparePanel({ compare, currentModel, mode, initialExpanded, onC
           setExpanded={setExpanded}
           onChoose={onChoose}
           baseline={baseline}
+          baseOptions={catalog}
+          onBasePick={setRadarBaseId}
         />
         {engine.length ? (
           <>
@@ -98,6 +105,8 @@ export function ComparePanel({ compare, currentModel, mode, initialExpanded, onC
               setExpanded={setExpanded}
               onChoose={onChoose}
               baseline={baseline}
+              baseOptions={catalog}
+              onBasePick={setRadarBaseId}
             />
           </>
         ) : null}
@@ -133,6 +142,8 @@ function RowList({
   setExpanded,
   onChoose,
   baseline,
+  baseOptions,
+  onBasePick,
 }: {
   models: CompareModel[];
   currentModel: string;
@@ -142,6 +153,9 @@ function RowList({
   onChoose: (model: CompareModel) => void;
   /** Модель-база радара: текущая или первая строка каталога. */
   baseline?: CompareModel;
+  /** Выбор базы вручную (владелец 14.10, как в образце): список каталога. */
+  baseOptions: CompareModel[];
+  onBasePick: (id: string) => void;
 }) {
   return (
     <>
@@ -155,6 +169,8 @@ function RowList({
           onToggle={() => setExpanded((open) => (open === model.id ? null : model.id))}
           onChoose={() => onChoose(model)}
           baseline={baseline}
+          baseOptions={baseOptions}
+          onBasePick={onBasePick}
         />
       ))}
     </>
@@ -235,6 +251,8 @@ function Row({
   onToggle,
   onChoose,
   baseline,
+  baseOptions,
+  onBasePick,
 }: {
   model: CompareModel;
   current: boolean;
@@ -243,6 +261,8 @@ function Row({
   onToggle: () => void;
   onChoose: () => void;
   baseline?: CompareModel;
+  baseOptions: CompareModel[];
+  onBasePick: (id: string) => void;
 }) {
   const top = model.benchmarks[0];
   return (
@@ -310,7 +330,14 @@ function Row({
           </button>
         )}
       </button>
-      {expanded ? <Expanded model={model} against={baseline} /> : null}
+      {expanded ? (
+        <Expanded
+          model={model}
+          against={baseline}
+          baseOptions={baseOptions}
+          onBasePick={onBasePick}
+        />
+      ) : null}
     </div>
   );
 }
@@ -328,14 +355,40 @@ function pointsOf(series: { name: string; points: { value: number; real: boolean
 
 /** Раскрытие строки: радар пяти осей против модели-базы (усиление сравнения,
  *  как на opencode.ai/data/compare), описание, полный прайс, выпуск, признаки
- *  и бенчмарки. Радара нет, если сравнивать не с кем (база = эта же строка). */
-function Expanded({ model, against }: { model: CompareModel; against?: CompareModel }) {
+ *  и бенчмарки. База выбирается вручную списком (по умолчанию — модель чата);
+ *  радара нет, если база = эта же строка. */
+function Expanded({
+  model,
+  against,
+  baseOptions,
+  onBasePick,
+}: {
+  model: CompareModel;
+  against?: CompareModel;
+  baseOptions: CompareModel[];
+  onBasePick: (id: string) => void;
+}) {
   const features = featuresOf(model);
   const comparable = against !== undefined && against.id !== model.id;
   return (
     <div className="compare-details" data-testid="compare-details">
       {comparable ? (
         <div className="compare-details__radar" data-testid="compare-radar">
+          <label className="compare-details__base">
+            Сравнить с:
+            <select
+              className="compare-details__base-select"
+              data-testid="radar-base-select"
+              value={against.id}
+              onChange={(event) => onBasePick(event.target.value)}
+            >
+              {baseOptions.map((one) => (
+                <option key={one.id} value={one.id}>
+                  {one.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <RadarChart
             axes={[...RADAR_AXES]}
             series={[
