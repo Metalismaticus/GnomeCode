@@ -165,6 +165,18 @@
   background: var(--bg-hover);
 }
 
+/* Зона закрепления (B8): видна при перетаскивании строки чата, бросок —
+   закрепить (раздел «Закреплённые» появится поверх списка). */
+.sidebar__pinzone {
+  margin-bottom: var(--space-2);
+  padding: var(--space-2);
+  border: 1px dashed var(--accent);
+  border-radius: var(--radius-md);
+  color: var(--accent);
+  font-size: 12px;
+  text-align: center;
+}
+
 .sidebar__lists {
   display: flex;
   flex-direction: column;

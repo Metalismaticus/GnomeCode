@@ -172,6 +172,7 @@ function chatRows(
   pinnedIds: string[],
   onTogglePin: (id: string) => void,
   onDragStart: (id: string) => void,
+  onDragEnd: () => void,
 ) {
   if (!all.length) {
     return <SidebarItem title="Пока нет чатов" />;
@@ -196,6 +197,7 @@ function chatRows(
             pinned={pinnedIds.includes(chat.id)}
             onTogglePin={() => onTogglePin(chat.id as string)}
             onDragStart={() => onDragStart(chat.id as string)}
+            onDragEnd={onDragEnd}
             onOpen={() => onOpenChatRow(chat)}
             onReturn={onOpenChat}
             onRename={(title) => onRenameChat(chat.id as string, title, Boolean(chat.active))}
@@ -383,6 +385,24 @@ export function Sidebar({
       </div>
       {searchField(query, setQuery, searchRef)}
       <div className="sidebar__lists">
+        {/* Зона закрепления (B8): видна, пока тащат строку чата. */}
+        {dragId ? (
+          <div
+            className="sidebar__pinzone"
+            data-testid="sidebar-pinzone"
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
+              event.preventDefault();
+              const id = event.dataTransfer.getData("text/plain");
+              if (id) {
+                onTogglePin(id);
+              }
+              setDragId(null);
+            }}
+          >
+            ⬆ Отпустите, чтобы закрепить чат
+          </div>
+        ) : null}
         <div className="sidebar__section-title">Проекты</div>
         {projects.length ? (
           projects.map((project) => (
@@ -400,11 +420,11 @@ export function Sidebar({
         {visiblePinned.length ? (
           <>
             <div className="sidebar__section-title">Закреплённые</div>
-            {chatRows(all, visiblePinned, now, chatActions, onOpenChat, onOpenChatRow, onRenameChat, onDeleteChat, pinnedIds, onTogglePin, setDragId)}
+            {chatRows(all, visiblePinned, now, chatActions, onOpenChat, onOpenChatRow, onRenameChat, onDeleteChat, pinnedIds, onTogglePin, setDragId, () => setDragId(null))}
           </>
         ) : null}
         <div className="sidebar__section-title">Чаты</div>
-        {chatRows(all, visible, now, chatActions, onOpenChat, onOpenChatRow, onRenameChat, onDeleteChat, pinnedIds, onTogglePin, setDragId)}
+        {chatRows(all, visible, now, chatActions, onOpenChat, onOpenChatRow, onRenameChat, onDeleteChat, pinnedIds, onTogglePin, setDragId, () => setDragId(null))}
         {/* Архив — про поиск молчит: поиск ищет чаты, архив своя полка. */}
         {query.trim()
           ? null
