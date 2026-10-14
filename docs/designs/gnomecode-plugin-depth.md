@@ -808,3 +808,14 @@ Methodology: plan-eng-review (601–2235 прочитаны до EOF, sha 44cb24
 - **Unresolved from prior reviews:** 1 (DESIGN.md creation — deferred by design decision, tracked as DT9/TODO)
 
 NO UNRESOLVED DECISIONS
+
+## Backlog additions — 2026-10-14 (gap-анализ PAIR + Claude Desktop)
+
+Владелец утвердил добавление (источник: разбор nvidia.com/en-us/ai-on-rtx/personal-ai-router/ — живая страница; Claude Desktop — знания модели; фильтр — клин плагинов):
+
+- [ ] **B1 (P1, human: ~3h / CC: ~30min)** — providers — Локальные модели в один клик: автодетект Ollama (localhost:11434) и LM Studio (:1234) в настройках, карточка «Найден Ollama — подключить?» (урок PAIR; поверх существующих custom endpoints)
+- [ ] **B2 (P1, human: ~2h / CC: ~15min)** — sidebar — Поиск по чатам: поле сверху сайдбара, фильтр по имени и превью (был в старой карте, не сделан)
+- [ ] **B4 (P2, human: ~2h / CC: ~15min)** — chat — Failover-подсказка: при ошибке/429 модели строка в ленте «Переключиться на X?» с кнопкой (не автопереключение; на базе сравнения моделей; урок PAIR)
+- Кандидат следующего юнита (не в этом): B3 превью-панель артефактов (урок Claude); B5 Ctrl+K палитра — по желанию владельца
+- Сознательно нет: домашний кластер (PAIR), синк устройств, голос — вне клина (ADR-0001, «Чего не делаем»)
+
