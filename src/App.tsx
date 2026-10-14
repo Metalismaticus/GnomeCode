@@ -336,10 +336,8 @@ export default function App() {
         chats={chats}
         pinnedIds={pinnedIds}
         onTogglePin={togglePin}
-        onOpenSettings={() => setPage("settings")}
         onPickFolder={project.pick}
         onRemoveProject={removeProject}
-        onOpenStats={() => setPage("stats")}
         onOpenChat={() => setPage("chat")}
         onOpenChatRow={openChatRow}
         onRenameChat={renameChat}

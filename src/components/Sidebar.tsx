@@ -5,12 +5,10 @@ import { chatsWithLive } from "../app/lists";
 import { chatGroupOf, chatTimeOf } from "../app/chatTime";
 import type { ChatActions } from "../features/chat/useChatActions";
 import { panels } from "../fixture";
-import { Button } from "./Button";
 import { ChatRow } from "./ChatRow";
 import { SidebarItem } from "./SidebarItem";
 import { MenuItem, RowMenu, type MenuSpot } from "./RowMenu";
 
-import logoMark from "../assets/logo.png";
 
 import "./Sidebar.css";
 import "./SidebarRow.css";
@@ -281,14 +279,12 @@ export function Sidebar({
   chats,
   onPickFolder,
   onRemoveProject,
-  onOpenStats,
   onOpenChat,
   onOpenChatRow,
   onRenameChat,
   onDeleteChat,
   onTogglePin,
   pinnedIds,
-  onOpenSettings,
   onNewChat,
   chatActions,
 }: {
@@ -298,8 +294,6 @@ export function Sidebar({
   onPickFolder: () => void;
   /** Убрать проект: меню строки проекта, папка на диске остаётся. */
   onRemoveProject: () => void;
-  /** Раздел «Статистика» из главной левой навигации. */
-  onOpenStats: () => void;
   /** Возврат в чат кликом по строке чата: страница раздела размонтируется. */
   onOpenChat: () => void;
   /** Открыть старый чат кликом по строке истории: сессия переключается,
@@ -316,9 +310,6 @@ export function Sidebar({
   onTogglePin: (id: string) => void;
   /** Закреплённые чаты: идентификаторы из состояния окна. */
   pinnedIds: string[];
-  /** Общие настройки окна: кнопка в подвале сайдбара (владелец 14.10:
-   *  «не могу выйти на настройки, везде только настройки чата»). */
-  onOpenSettings: () => void;
   /** «Новый чат»: лента чистится, движку поднимается новая сессия (замечание
    *  владельца 2026-10-06 — карточку «Новый чат» не нажать). */
   onNewChat: () => void;
@@ -348,18 +339,32 @@ export function Sidebar({
   const visible = loose.filter((chat) => matches(chat, query));
   return (
     <nav className="sidebar" data-testid="sidebar">
-      <div className="sidebar__logo">
-        <img className="sidebar__logo-mark" src={logoMark} alt="GnomeCode" />
-        <span className="sidebar__logo-name">GnomeCode</span>
+      {/* Шапка колонки «Чаты» (B10): заголовок, «+» новый чат и архив-кнопка.
+          Логотип и разделы переехали в icon-rail. */}
+      <div className="sidebar__head">
+        <span className="sidebar__head-title">Чаты</span>
+        <span className="sidebar__head-actions">
+          <button
+            type="button"
+            className="sidebar__head-btn"
+            data-testid="sidebar-new-chat"
+            title="Новый чат"
+            onClick={onNewChat}
+          >
+            +
+          </button>
+          <button
+            type="button"
+            className="sidebar__head-btn"
+            data-testid="sidebar-archive-toggle"
+            title="Показать архив"
+            onClick={() => setArchiveOpen((open) => !open)}
+          >
+            🗄
+          </button>
+        </span>
       </div>
       {searchField(query, setQuery, searchRef)}
-      <Button variant="primary" data-testid="btn-primary" onClick={onPickFolder}>
-        + Новый проект
-      </Button>
-      <Button variant="ghost" data-testid="btn-new-chat" onClick={onNewChat}>
-        Новый чат
-      </Button>
-      <SidebarItem title="Статистика" testid="sidebar-stats" onClick={onOpenStats}  />
       <div className="sidebar__lists">
         <div className="sidebar__section-title">Проекты</div>
         {projects.length ? (
@@ -394,17 +399,6 @@ export function Sidebar({
               chatActions,
             )}
       </div>
-      {/* Подвал: общие настройки окна (владелец 14.10: «не могу выйти на
-          настройки»); темы и аккаунта здесь больше нет — темы живут в шапке,
-          входа в аккаунт у opencode нет. */}
-      <button
-        type="button"
-        className="sidebar__settings"
-        data-testid="sidebar-settings"
-        onClick={onOpenSettings}
-      >
-        ⚙ Настройки
-      </button>
     </nav>
   );
 }
