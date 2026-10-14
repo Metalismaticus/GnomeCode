@@ -50,6 +50,48 @@ function Donut({ shares }: { shares: { name: string; percent: number; color: str
   );
 }
 
+/** Лимиты использования в месяц (концепт: «4.8M / 20M»): владелец задаёт
+ *  в настройках, stats-bar показывает «использовано / лимит» с прогрессом.
+ *  Хранятся в localStorage — движок квоты не отдаёт, это настройка окна. */
+const LIMITS_KEY = "gnomecode-usage-limits";
+
+function readLimits(): { tokens: number; cost: number } {
+  try {
+    const raw = localStorage.getItem(LIMITS_KEY);
+    if (raw) {
+      return JSON.parse(raw);
+    }
+  } catch {}
+  return { tokens: 0, cost: 0 };
+}
+
+/** Карточка статистики с прогресс-баром, если задан лимит (концепт: «4.8M / 20M»
+ *  с зелёной полосой 24%). Без лимита — просто значение и подпись. */
+function StatCard({ label, value, used, limit, unit, testid }: {
+  label: string;
+  value: string;
+  used: number;
+  limit: number;
+  unit: string;
+  testid: string;
+}) {
+  const percent = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : null;
+  return (
+    <div className="stats-bar__card" data-testid={testid}>
+      <span className="stats-bar__value">
+        {value}
+        {limit > 0 ? <span className="stats-bar__limit"> / {limit.toLocaleString("ru-RU")}{unit}</span> : null}
+      </span>
+      <span className="stats-bar__label">{label}</span>
+      {percent !== null ? (
+        <span className="stats-bar__progress" aria-hidden="true">
+          <span className="stats-bar__progress-fill" style={{ width: `${percent}%` }} />
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 export function StatsBar({ currentModel }: { currentModel: string }) {
   const [period, setPeriod] = useState<StatsPeriod>("today");
   const { summary } = useStats(period);
@@ -94,14 +136,8 @@ export function StatsBar({ currentModel }: { currentModel: string }) {
         ))}
       </div>
       <div className="stats-bar__cards">
-        <div className="stats-bar__card" data-testid="stats-tokens">
-          <span className="stats-bar__value">{tokensOf(summary.totals)}</span>
-          <span className="stats-bar__label">Токены</span>
-        </div>
-        <div className="stats-bar__card" data-testid="stats-cost">
-          <span className="stats-bar__value">{moneyOf(summary.totals.cost)}</span>
-          <span className="stats-bar__label">Стоимость, USD</span>
-        </div>
+        <StatCard label="Токены" value={tokensOf(summary.totals)} used={summary.totals.input + summary.totals.output} limit={readLimits().tokens} unit="M" testid="stats-tokens" />
+        <StatCard label="Стоимость, USD" value={moneyOf(summary.totals.cost)} used={summary.totals.cost ?? 0} limit={readLimits().cost} unit="$" testid="stats-cost" />
         <div className="stats-bar__card" data-testid="stats-models">
           <span className="stats-bar__value">{summary.models.length}</span>
           <span className="stats-bar__label">Модели</span>
