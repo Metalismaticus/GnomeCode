@@ -507,6 +507,20 @@ pub fn skills_remove(
     Ok(crate::skills::list())
 }
 
+/// Системный промт (B9): текущий текст инструкций (пусто — не задан).
+#[tauri::command]
+pub fn systemprompt_get(app: AppHandle) -> String {
+    crate::systemprompt::read(&crate::systemprompt::file(data_dir(&app)))
+}
+
+/// Системный промт (B9): сохранить/сбросить (пустой текст сбрасывает);
+/// путь файла уходит в конфиг движка, тихий рестарт применяет.
+#[tauri::command]
+pub fn systemprompt_set(app: AppHandle, chat: State<'_, Chat>, text: String) -> Result<(), String> {
+    crate::systemprompt::write(&crate::systemprompt::file(data_dir(&app)), &text)?;
+    chat.restart()
+}
+
 /// Событийный счётчик (П-3): включён ли тумблер Настроек.
 #[tauri::command]
 pub fn events_status(app: AppHandle) -> bool {

@@ -113,6 +113,12 @@ export const tauriBridge = (): Bridge => ({
   async declinePluginUpdate(id: string) {
     return (await invoke<Plugin[]>("plugin_decline_update", { id })) as Plugin[];
   },
+  async systempromptGet() {
+    return (await invoke<string>("systemprompt_get")) as string;
+  },
+  async systempromptSet(text: string) {
+    await invoke<void>("systemprompt_set", { text });
+  },
   async eventsStatus() {
     return (await invoke<boolean>("events_status")) as boolean;
   },

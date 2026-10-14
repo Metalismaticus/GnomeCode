@@ -6,7 +6,6 @@
 
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-
 import { DEFAULT_MODEL } from "../appstate";
 import { bridge, type ChatModelChoice, type LocalServer, type ProviderRow } from "../bridge";
 import type { CompareState } from "../features/compare/useCompare";
@@ -83,6 +82,10 @@ export function ModelsSection({ defaultModel, settings, compareOpen, compare, fo
           }
         />
       </section>
+      <section className="settings-section" data-testid="settings-systemprompt">
+        <h2 className="settings-section__title">Системный промт — все чаты</h2>
+        <SystemPromptSection />
+      </section>
       <section className="settings-section" data-testid="settings-providers">
         <h2 className="settings-section__title">Провайдеры и ключи</h2>
         {providersBody(compareOpen, settings, form, endpointForm)}
@@ -100,10 +103,71 @@ export function ModelsSection({ defaultModel, settings, compareOpen, compare, fo
   );
 }
 
+/** Системный промт (B9): текст инструкций всем чатам — уходит движку
+ *  ключом `instructions` конфига (файл в папке данных); правка перезапускает
+ *  движок. Пусто — инструкций нет. Индивидуальный промт на чат движком
+ *  пока не поддерживается — честно написано в подсказке. */
+function SystemPromptSection() {
+  const [text, setText] = useState("");
+  const [status, setStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    bridge()
+      .systempromptGet()
+      .then((held) => {
+        if (alive) {
+          setText(held);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const save = () => {
+    bridge()
+      .systempromptSet(text)
+      .then(() => setStatus("Сохранено — применится к новым сообщениям"))
+      .catch((reason: unknown) => setStatus(`Не сохранено: ${String(reason)}`));
+  };
+
+  return (
+    <div className="settings-row" data-testid="settings-systemprompt">
+      <span className="settings-row__value settings-row__value--wide">
+        <textarea
+          className="settings-key-form__input settings-skills__text"
+          data-testid="systemprompt-text"
+          placeholder="Например: отвечай кратко, по-русски, с примерами кода"
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+        />
+        <span className="settings-row__sub">
+          Дополняет AGENTS.md проекта, действует на все чаты. Индивидуальный
+          промт на конкретный чат движком пока не поддерживается.
+        </span>
+        {status ? (
+          <span className="settings-row__sub" data-testid="systemprompt-status">
+            {status}
+          </span>
+        ) : null}
+        <button
+          type="button"
+          className="settings-key-form__save"
+          data-testid="systemprompt-save"
+          onClick={save}
+        >
+          Сохранить
+        </button>
+      </span>
+    </div>
+  );
+}
+
 /** Форма своего endpoint'а: имя, база URL и ключ — тот же узор классов, что у
  *  раскрытого поля ключа; приём закрывает форму, отказ оставляет введённое. */
-function EndpointForm({ form }: { form: ReturnType<typeof useEndpointForm> }): ReactNode {
-  const canSave = form.name.trim() !== "" && form.baseUrl.trim() !== "";
+function EndpointForm({ form }: { form: ReturnType<typeof useEndpointForm> }): ReactNode {  const canSave = form.name.trim() !== "" && form.baseUrl.trim() !== "";
   return (
     <div className="settings-key-form" data-testid="settings-endpoint-form">
       <label className="settings-key-form__label" htmlFor="settings-endpoint-name">

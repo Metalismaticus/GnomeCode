@@ -47,6 +47,8 @@ pub struct Launch {
     /// Переменные окружения с секретами ключей: движок активирует провайдера
     /// по переменной его ключа (models.dev `env`, замер 2026-10-11).
     pub env: Vec<(String, String)>,
+    /// Файл инструкций владельца (B9): уходит в конфиг ключом `instructions`.
+    pub instructions: Option<String>,
 }
 
 /// Конфиг и переменные ключей из providers.json + каталога models.dev:
@@ -59,10 +61,16 @@ fn provider_launch() -> Launch {
     // Каталог только из кэша: сеть на старте окна не зовём. Кэш собирает
     // фоновый поток setup (lib.rs) и «сохранить ключ» — до того переменных
     // нет, ключ доезжает до движка следующим рестартом.
-    let catalog = crate::modelsdev::cached(&crate::modelsdev::file(folder));
+    let catalog = crate::modelsdev::cached(&crate::modelsdev::file(folder.clone()));
+    // Инструкции владельца (B9): файл в папке данных, если заводил.
+    let instructions_path = crate::systemprompt::file(folder.clone());
+    let instructions = instructions_path
+        .is_file()
+        .then(|| instructions_path.to_string_lossy().to_string());
     Launch {
         config: crate::providers_store::engine_config(crate::providers::SERVICE, &held),
         env: crate::providers_store::launch_env(&held, catalog.as_ref(), crate::providers::secret),
+        instructions,
     }
 }
 
@@ -98,6 +106,7 @@ impl Engine {
         Engine::start_with_launch(Arc::new(move || Launch {
             config: config(),
             env: Vec::new(),
+            instructions: None,
         }))
     }
 
@@ -176,7 +185,18 @@ impl Engine {
         // Конфиг провайдеров — переменной окружения, не файлом: ключ endpoint'а
         // не должен появиться на диске (providers_store::engine_config).
         let launch = (self.launch)();
-        if let Some(config) = launch.config {
+        // Инструкции владельца (B9): путь файла добавляется в конфиг ключом
+        // `instructions` — движок включает их в системный промт.
+        let mut config_text = launch.config;
+        if let Some(instructions) = &launch.instructions {
+            let mut value = config_text
+                .as_deref()
+                .and_then(|text| serde_json::from_str::<serde_json::Value>(text).ok())
+                .unwrap_or_else(|| serde_json::json!({}));
+            value["instructions"] = serde_json::json!([instructions]);
+            config_text = Some(value.to_string());
+        }
+        if let Some(config) = config_text {
             command.env("OPENCODE_CONFIG_CONTENT", config);
         }
         // Ключи провайдеров — переменными их тихого доступа: движок активирует

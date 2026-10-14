@@ -200,6 +200,20 @@ export const fixtureBridge = (): Bridge => ({
     declineFixture(id);
     return fixturePlugins();
   },
+  async systempromptGet() {
+    try {
+      return localStorage.getItem("gnomecode-systemprompt") ?? "";
+    } catch {
+      return "";
+    }
+  },
+  async systempromptSet(text: string) {
+    try {
+      localStorage.setItem("gnomecode-systemprompt", text);
+    } catch {
+      // Хранилище страницы не всегда доступно — поле не ломаем.
+    }
+  },
   async eventsStatus() {
     // Тумблер счётчика — память страницы (localStorage): как состояние окна.
     try {
