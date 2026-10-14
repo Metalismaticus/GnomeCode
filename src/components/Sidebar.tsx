@@ -36,7 +36,8 @@ function groupsOf(chats: SidebarChat[], now: number): { title: string; chats: Si
 }
 
 /** Поиск по чатам — подстрока без регистра по названию и превью (спека §5);
- *  превью в данных нет — по названию. Проекты и навигацию не трогает. */
+ *  у живых строк ядра превью нет (спека §7) — там ищет титул, у строк с
+ *  превью — и оно. Проекты и навигацию не трогает. */
 function matches(chat: SidebarChat, query: string): boolean {
   const needle = query.trim().toLowerCase();
   if (!needle) {
