@@ -185,7 +185,9 @@ const UPDATE_FIXTURE: Record<string, NonNullable<Plugin["update"]>> = {
     from: "0.9.0",
     to: "1.0.0",
     status: "held",
-    permissions: ["Read: файлы документации", "Write: ask"],
+    // Diff прав (T2): в записи — только добавленное, у прежней версии был
+    // один Read; новая версия просит ещё и Write.
+    permissions: ["Write: ask"],
   },
   browser: { from: "0.6.2", to: "0.6.3", status: "applied" },
 };

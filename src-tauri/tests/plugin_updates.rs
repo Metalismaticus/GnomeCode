@@ -165,8 +165,49 @@ fn changed_permissions_hold_the_update_until_the_summary() {
         note.status == updates::UpdateStatus::Held,
         "права изменились — ждёт прав: {note:?}"
     );
-    assert_eq!(note.permissions, vec!["Network: api.github.com", "Write: ask", "Terminal: ask"],
-        "новые права — для сводки до включения: {note:?}");
+    assert_eq!(note.permissions, vec!["Terminal: ask"],
+        "в записи — только ДОБАВЛЕННЫЕ права (diff, T2): {note:?}");
+    assert!(note.removed.is_empty(), "убранных прав у обновления с новой категорией нет: {note:?}");
+}
+
+/// Прав стало меньше (T2): запроса на новое нет — обновление едет тихо,
+/// а запись помнит убранное («приглушённо» на карточке diff).
+#[test]
+fn removed_permissions_update_quietly_and_are_remembered() {
+    const INDEX_FEWER: &str = r#"[
+     {
+        "id": "github",
+        "name": "GitHub",
+        "description": "Repository, issues, pull requests",
+        "author": "Metalismaticus",
+        "version": "1.5.0",
+        "repo": "Metalismaticus/github-plugin",
+        "entry": "index.ts",
+        "permissions": [
+         { "category": "Network", "value": "api.github.com" }
+        ],
+        "commands": [{ "name": "issues", "description": "list issues" }]
+      }
+    ]"#;
+    let fake = FakeGithub::start(&[INDEX, INDEX_FEWER], &[PLUGIN_SRC, PLUGIN_SRC_NEXT]);
+    let plugins = TempDir::new("updates-fewer-plugins");
+    let data = TempDir::new("updates-fewer-data");
+    let registry = data.join("installed.json");
+    let file = data.join("updates.json");
+
+    let found = install::fetch(&fake.index_url()).expect("индекс каталога прочитан");
+    install::install(&found[0], fake.base(), plugins.path(), &registry)
+        .expect("плагин установлен до проверки");
+
+    let checked = updates::check_and_update(&fake.index_url(), plugins.path(), &registry, &file)
+        .expect("проверка обновлений прошла");
+
+    assert_eq!(checked.applied, vec!["github"], "убавление прав — не повод держать обновление");
+    let notes = updates::at(&file);
+    let note = notes.records.get("github").expect("запись об обновлении");
+    assert!(note.status == updates::UpdateStatus::Applied, "обновилось тихо: {note:?}");
+    assert!(note.permissions.is_empty(), "добавленных прав нет: {note:?}");
+    assert_eq!(note.removed, vec!["Write: ask"], "убранное записано для карточки diff: {note:?}");
 }
 
 /// Каталог недоступен: работаем на текущих, файлы нетронуты, пометка в разделе.

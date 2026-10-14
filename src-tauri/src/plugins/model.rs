@@ -112,6 +112,10 @@ pub struct Update {
     /// пусты, если права не менялись.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub permissions: Vec<String>,
+    /// Убранные права «Категория: значение» (T2): стало меньше — приглушённо на
+    /// карточке diff; пусты у старых записей (serde default).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub removed: Vec<String>,
 }
 
 /// Состояние движка «плагина работает».

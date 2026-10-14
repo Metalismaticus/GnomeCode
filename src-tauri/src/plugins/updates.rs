@@ -261,6 +261,7 @@ pub fn check_and_update(
                         to: String::new(),
                         status: UpdateStatus::Outside,
                         permissions: vec![],
+                        removed: vec![],
                     },
                 );
             }
@@ -269,8 +270,12 @@ pub fn check_and_update(
         if !newer(&entry.version, &fresh.version) {
             continue;
         }
-        if permissions_of(fresh) == permissions_of(&entry) {
-            // Права не менялись: тихое обновление молча — запасной файл, замена,
+        // Diff прав (T2): что новая версия добавляет и что убирает. Обновление
+        // держится только на ДОБАВЛЕННЫХ правах — появился запрос на новое,
+        // владелец решает до включения (K-1); стало меньше — безопаснее, едет тихо.
+        let (added, removed) = diff(&entry, fresh);
+        if added.is_empty() {
+            // Новых прав нет: тихое обновление молча — запасной файл, замена,
             // реестр. Окна одобрения нет ни при каком праве.
             backup(plugins_dir, &entry.id);
             install::install(fresh, &install::raw_base(source), plugins_dir, registry)?;
@@ -281,11 +286,12 @@ pub fn check_and_update(
                     to: fresh.version.clone(),
                     status: UpdateStatus::Applied,
                     permissions: vec![],
+                    removed,
                 },
             );
             applied.push(entry.id.clone());
         } else {
-            // Права изменились: файл остаётся до сводки (сцена K) — обновление
+            // Права добавились: файл остаётся до сводки (сцена K) — обновление
             // перенесут тем же «Разрешить», что и установку из каталога.
             notes.records.insert(
                 entry.id.clone(),
@@ -293,13 +299,24 @@ pub fn check_and_update(
                     from: entry.version.clone(),
                     to: fresh.version.clone(),
                     status: UpdateStatus::Held,
-                    permissions: permissions_of(fresh),
+                    permissions: added,
+                    removed,
                 },
             );
         }
     }
     save(file_path, &notes)?;
     Ok(Checked { notes, applied })
+}
+
+/// Diff прав версий (T2): что декларация добавила и что убрала — строками
+/// «Категория: значение», как их знает карточка и сводка прав.
+pub fn diff(old: &CatalogEntry, fresh: &CatalogEntry) -> (Vec<String>, Vec<String>) {
+    let was = permissions_of(old);
+    let now = permissions_of(fresh);
+    let added = now.iter().filter(|one| !was.contains(one)).cloned().collect();
+    let removed = was.iter().filter(|one| !now.contains(one)).cloned().collect();
+    (added, removed)
 }
 
 /// Обновление, чью версию уже установили («Разрешить» сводки прав из вкладки
