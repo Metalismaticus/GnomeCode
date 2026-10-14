@@ -67,13 +67,15 @@ export const fixtureBridge = (): Bridge => ({
     // фикстура отвечает своей памятью разговора (src/fixture.ts).
     fixture.open(id);
   },
-  async chatRename(_id: string, _title: string) {
-    // Своего хранилища сессий у фикстуры нет: движок вне окна не поднять,
-    // переименование честно ничего не меняет — пустой свежий список.
-    return [];
+  async chatRename(id: string, title: string) {
+    // Титул меняется в памяти страницы, ответ — свежий список, как у живого
+    // моста (chat_rename отвечает списком ядра).
+    return fixture.rename(id, title);
   },
-  async chatDelete(_id: string) {
-    return [];
+  async chatDelete(id: string) {
+    // Строка уходит из списка страницы, разговор забывается; ответ — свежий
+    // список (баг владельца 14.10: удаление молчало, чат оставался).
+    return fixture.remove(id);
   },
   async listen(listener: Listener) {
     return fixture.play(listener);

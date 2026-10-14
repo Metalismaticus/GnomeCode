@@ -8,7 +8,7 @@
 // Сценарий проверки и снимок окна видят те же данные, что продукт, но не трогают
 // данные владельца.
 
-import type { FeedEvent, RowKind } from "./bridge";
+import type { ChatRow, FeedEvent, RowKind } from "./bridge";
 import type { SidebarChat, SidebarProject } from "./components/Sidebar";
 import type { ContextSection } from "./components/ContextPanel";
 import { ROOT, project } from "./fixtureTree";
@@ -217,6 +217,10 @@ class Fixture {
   /** Чаты, которые здесь спрашивали: строка списка ядра — титул (первый
    *  вопрос) и время, идентификатор ведёт клик. Как ядро помнит сессии. */
   private asked: SidebarChat[] = [];
+  /** Удалённые со страницы (баг владельца 14.10: «чат после удаления
+   *  остаётся»): список панели их больше не показывает, как список ядра
+   *  после DELETE сессии. */
+  private removed = new Set<string>();
   /** История по идентификатору: открытие читает её заново (инвариант карточки —
    *  старые сообщения каждый раз из «ядра»), это память движка, не окна. */
   private talks = new Map<string, FeedEvent[]>();
@@ -371,11 +375,50 @@ class Fixture {
     this.emit({ type: "loaded" });
   }
 
-  /** Спрошенные чаты для списка панели: строка с идентификатором, титулом и
-   *  временем — как ядро помнит сессии владельца; копия массива, панель его
-   *  не меняет. */
-  askedChats(): SidebarChat[] {
-    return [...this.asked];
+  /** Строки списка панели: спрошенные плюс запасные минус удалённые — тот же
+   *  состав, что отдал бы список ядра после DELETE сессии. */
+  chats(): SidebarChat[] {
+    return [
+      ...this.asked.filter((one) => !this.removed.has(one.id ?? "")),
+      ...this.stock.filter((one) => !this.removed.has(one.id ?? "")),
+    ];
+  }
+
+  /** Строки списка как их отдаёт мост после действия (chatDelete/chatRename):
+   *  оставшиеся чаты с идентификаторами — свежий список для сайдбара. */
+  private rowsAfter(): ChatRow[] {
+    return this.chats()
+      .filter((one) => one.id !== undefined)
+      .map((one) => ({
+        id: one.id as string,
+        title: one.title,
+        ...(one.time ? { updated: one.time } : {}),
+      }));
+  }
+
+  /** Удалить чат со страницы (баг владельца 14.10: удаление молчало, строка
+   *  оставалась): список его больше не показывает, разговор забывается; удалили
+   *  открытый — страница начинает новый чат. Ответ — оставшиеся строки. */
+  remove(id: string): ChatRow[] {
+    this.removed.add(id);
+    this.asked = this.asked.filter((one) => one.id !== id);
+    this.talks.delete(id);
+    if (id === this.current) {
+      this.current = `fx-current-${this.removed.size}`;
+      this.emit({ type: "reset" });
+    }
+    return this.rowsAfter();
+  }
+
+  /** Переименовать чат: титул меняется в списке страницы — тот же ход, что у
+   *  живого моста (chatRename отвечает свежим списком). */
+  rename(id: string, title: string): ChatRow[] {
+    for (const one of this.chats()) {
+      if (one.id === id) {
+        one.title = title;
+      }
+    }
+    return this.rowsAfter();
   }
 
   /** Открытая сейчас сессия: её идентификатор несёт активная строка сайдбара —
@@ -464,7 +507,8 @@ export function panels(state: typeof params.feed): PanelData {
     projects: [{ title: "GnomeCode" }],
     // Спрошенные чаты — перед фиксёрными: список помнит их, как ядро помнит
     // сессии владельца; строки с идентификаторами открываются кликом.
-    chats: [...fixture.askedChats(), ...defaultChats()],
+    // Удалённые со страницы в списке не живут (fixture.chats).
+    chats: fixture.chats(),
     sections: baseSections(),
     engineDown: state === "error",
     project: project() ?? "",
