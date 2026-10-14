@@ -256,6 +256,40 @@ fn saves_are_atomic_with_a_bak_of_the_previous_version() {
     );
 }
 
+/// «Оставить текущую» (DT3): ждущее прав обновление уходит в «отклонено»,
+/// повторная проверка каталога его больше не предлагает — ни held, ни тихого
+/// обновления, реестр и файл не трогаются.
+#[test]
+fn declined_update_is_not_offered_again() {
+    let fake = FakeGithub::start(&[INDEX, INDEX_PERMS, INDEX_PERMS], &[PLUGIN_SRC, PLUGIN_SRC]);
+    let plugins = TempDir::new("updates-decline-plugins");
+    let data = TempDir::new("updates-decline-data");
+    let registry = data.join("installed.json");
+    let file = data.join("updates.json");
+    let cache = data.join("vcache.json");
+
+    let found = install::fetch(&fake.index_url()).expect("индекс прочитан");
+    install::install(&found[0], fake.base(), plugins.path(), &registry, &cache)
+        .expect("плагин установлен до проверки");
+
+    let first = updates::check_and_update(&fake.index_url(), plugins.path(), &registry, &file, &cache)
+        .expect("первая проверка прошла");
+    assert!(first.applied.is_empty(), "новая категория — обновление держится");
+
+    updates::decline(&file, "github").expect("обновление отклонено");
+    let notes = updates::at(&file);
+    let note = notes.records.get("github").expect("запись на месте");
+    assert!(note.status == updates::UpdateStatus::Declined, "помечено отклонённым: {note:?}");
+
+    let second = updates::check_and_update(&fake.index_url(), plugins.path(), &registry, &file, &cache)
+        .expect("повторная проверка прошла");
+    assert!(second.applied.is_empty(), "отклонённое не обновляется тихо: {:?}", second.applied);
+    let note = updates::at(&file).records.get("github").expect("запись жива").clone();
+    assert!(note.status == updates::UpdateStatus::Declined, "после повторной проверки всё ещё отклонено: {note:?}");
+    let record = std::fs::read_to_string(&registry).expect("реестр читается");
+    assert!(record.contains("\"1.4.2\""), "версия остаётся прежней: {record}");
+}
+
 /// Каталог недоступен: работаем на текущих, файлы нетронуты, пометка в разделе.
 #[test]
 fn an_unavailable_catalog_leaves_everything_and_is_marked() {

@@ -8,8 +8,9 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 
-import type { CatalogEntry } from "../catalog";
+import { bridge } from "../bridge";
 import type { Plugin, PluginScope } from "../bridge";
+import type { CatalogEntry } from "../catalog";
 import { useCatalog } from "../features/plugins/useCatalog";
 import { useHeldSummary, type PluginsState } from "../features/plugins/usePlugins";
 import { CatalogPicker } from "./CatalogPicker";
@@ -44,8 +45,17 @@ export function PluginsPage({ plugins, cluster }: { plugins: PluginsState; clust
   const [pending, setPending] = useState<CatalogEntry | undefined>(undefined);
   /** Сводка обновления: сама при старте (held-записи, сцена K) или по кнопке
    *  «Обновить» карточки — окно одно, его держит useHeldSummary. */
-  const { summary: heldSummary, allow: allowHeld, cancel: cancelHeld, open: openHeld } =
+  const { summary: heldSummary, allow: allowHeld, cancel: cancelHeld } =
     useHeldSummary(plugins);
+  /** Применить обновление из карточки (DT3): тот же plugin_install, что и
+   *  «Разрешить» сводки; отказ летит в стек «Обновить всё» — он считает K. */
+  const applyUpdate = useCallback(
+    async (id: string) => {
+      await bridge().installPlugin(id);
+      plugins.refresh();
+    },
+    [plugins.refresh],
+  );
   const catalog = useCatalog(catalogOpen);
   /** Окно подтверждения удаления: id карточки, с которой кликнули по Uninstall. */
   const [confirm, setConfirm] = useState<string | undefined>(undefined);
@@ -220,7 +230,8 @@ export function PluginsPage({ plugins, cluster }: { plugins: PluginsState; clust
           <PluginUpdates
             plugins={plugins.plugins}
             note={plugins.updatesNote}
-            onAllow={openHeld}
+            onApply={applyUpdate}
+            onDecline={plugins.declineUpdate}
           />
         ) : null}
         {tab === "disabled" ? (

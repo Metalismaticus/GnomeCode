@@ -25,3 +25,89 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* Diff обновления (DT3): добавленное видно added-цветом, убранное приглушённо;
+   раскрытие «Ещё N» — инлайн, не модалкой (F15). */
+.plugin-update__diff {
+  margin-top: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: 12px;
+}
+
+.plugin-update__diff-title {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.plugin-update__diff-row--added {
+  color: var(--success);
+}
+
+.plugin-update__diff-row--removed {
+  color: var(--text-faint);
+}
+
+.plugin-update__diff-more {
+  align-self: flex-start;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.plugin-update__diff-more:hover {
+  color: var(--text);
+}
+
+/* «Оставить текущую» — тихая кнопка рядом с «Обновить». */
+.plugin-update__decline {
+  color: var(--text-dim);
+}
+
+/* «Обновить всё» (CE-2) и тост итога (F7): строка над стеком карточек,
+   тост сверху по центру — как у тоста импорта. */
+.plugin-updates__all {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.plugin-updates__all-btn {
+  height: 28px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel-2);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.plugin-updates__all-btn:hover {
+  background: var(--bg-hover);
+}
+
+.plugin-updates__all-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.plugin-updates__toast {
+  position: fixed;
+  left: 50%;
+  top: 24px;
+  transform: translateX(-50%);
+  z-index: 60;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-raised, var(--bg-panel));
+  color: var(--text);
+  font-size: 13px;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.35);
+}

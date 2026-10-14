@@ -425,6 +425,21 @@ pub fn import_scan(app: AppHandle) -> Result<ImportScan, String> {
     })
 }
 
+/// Отказ от обновления (DT3, «Оставить текущую»): запись ждущего прав уходит в
+/// «отклонено», свежий список несёт её карточке.
+#[tauri::command]
+pub fn plugin_decline_update(
+    app: AppHandle,
+    chat: State<'_, Chat>,
+    registry: State<'_, Registry>,
+    store: State<'_, Arc<Store>>,
+    id: String,
+) -> Result<Vec<Plugin>, String> {
+    updates::decline(&updates::file(data_dir(&app)), &id)?;
+    chat.restart()?;
+    plugin_list(app, chat, registry, store)
+}
+
 /// Что сказал слой прав клику по кнопке команды (docs/SPEC/plugins.md).
 #[derive(Debug, Serialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]

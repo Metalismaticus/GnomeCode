@@ -23,6 +23,8 @@ export type PluginActions = {
   setRule: (id: string, category: string, value: string) => void;
   /** Uninstall после подтверждения: запись реестра и файл плагина уходят. */
   uninstall: (id: string) => void;
+  /** «Оставить текущую» (DT3): ждущее прав обновление отклоняется. */
+  declineUpdate: (id: string) => void;
 };
 
 /** Действия плагинов, трогающие список одним шагом: ответ моста — свежий список
@@ -112,5 +114,14 @@ export function usePluginActions(
     [applied],
   );
 
-  return { connect, apply, disconnect, install, setEnabled, setRule, uninstall };
+  /** «Оставить текущую» (DT3): ждущее прав обновление отклоняется, список —
+   *  свежий (карточка остаётся в ченджлоге с пометкой «отклонено»). */
+  const declineUpdate = useCallback(
+    (id: string) => {
+      void applied(bridge().declinePluginUpdate(id));
+    },
+    [applied],
+  );
+
+  return { connect, apply, disconnect, install, setEnabled, setRule, uninstall, declineUpdate };
 }

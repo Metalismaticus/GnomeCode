@@ -52,8 +52,8 @@ export type PluginCommand = { name: string; label: string; description: string; 
 
 /** Чем кончилось обновление плагина (src-tauri/src/plugins/updates.rs): обновлено
  *  молча; ждёт решения о новых правах; плагина нет в каталоге; новая версия не
- *  загрузилась — откат на предыдущую. */
-export type PluginUpdateStatus = "applied" | "held" | "outside" | "broken";
+ *  загрузилась — откат на предыдущую; владелец оставил текущую (DT3). */
+export type PluginUpdateStatus = "applied" | "held" | "outside" | "broken" | "declined";
 
 /** Запись обновления из updates.json: версии «от → до» и новые права, если
  *  изменились, — то, что карточка вкладки Updates показывает и что сводка прав
@@ -289,6 +289,9 @@ export type Bridge = {
   /** Сменить правило категории плагина (панель Configure): действует на следующий
    *  вызов без перезапуска — слой прав перечитывает правила на каждом вызове. */
   setPluginRule(plugin: string, category: string, value: string): Promise<Plugin[]>;
+  /** «Оставить текущую» (DT3): ждущее прав обновление отклоняется — до этой
+   *  версии обновление больше не предлагается. Ответ — свежий список. */
+  declinePluginUpdate(id: string): Promise<Plugin[]>;
   /** Карточки каталога «Available» — индекс с GitHub (raw, не api.github.com). */
   catalogList(): Promise<CatalogEntry[]>;
   /** Каталог моделей сравнения: свежий с opencode.ai, недоступный сайт — из кэша

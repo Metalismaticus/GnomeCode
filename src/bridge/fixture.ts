@@ -8,6 +8,7 @@ import { readFixtureState, writeFixtureState } from "../fixtureState";
 import {
   applyUpdate as applyUpdateFixture,
   connect as connectFixture,
+  decline as declineFixture,
   detach as detachFixture,
   disable as disableFixture,
   enable as enableFixture,
@@ -174,6 +175,12 @@ export const fixtureBridge = (): Bridge => ({
     // Правила — память страницы: карточка получит свежие правила тем же списком,
     // каким мост отвечает на Enable/Disable.
     setRule(plugin, category, value);
+    return fixturePlugins();
+  },
+  async declinePluginUpdate(id: string) {
+    // «Оставить текущую» (DT3): запись ждущего прав уходит в «отклонено» —
+    // память страницы, как updates.json в окне.
+    declineFixture(id);
     return fixturePlugins();
   },
   async decidePlugin(

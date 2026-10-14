@@ -109,6 +109,9 @@ export const tauriBridge = (): Bridge => ({
   async setPluginRule(plugin: string, category: string, value: string) {
     return (await invoke<Plugin[]>("plugin_set_rule", { plugin, category, value })) as Plugin[];
   },
+  async declinePluginUpdate(id: string) {
+    return (await invoke<Plugin[]>("plugin_decline_update", { id })) as Plugin[];
+  },
   async catalogList() {
     return (await invoke<CatalogEntry[]>("catalog_list")) as CatalogEntry[];
   },

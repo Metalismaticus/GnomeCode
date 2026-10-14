@@ -175,10 +175,12 @@ const PLUGINS: Plugin[] = [
   ),
 ];
 
-/** Обновления из updates.json в состоянии «плагины-обновления»: git обновился
+/** Обновление из updates.json в состоянии «плагины-обновления»: git обновился
  *  молча (права те же — реестр стоит на новой версии), docs ждёт прав (новая
  *  категория Write — файл прежней версии), browser уже обновился — история.
- *  Та же форма, что у записи updates.json (src-tauri/src/plugins/updates.rs). */
+ *  Та же форма, что у записи updates.json (src-tauri/src/plugins/updates.rs).
+ *  Мутабельные статусы: «Разрешить» ставит applied, «Оставить текущую» —
+ *  declined (DT3), до перезагрузки страницы. */
 const UPDATE_FIXTURE: Record<string, NonNullable<Plugin["update"]>> = {
   git: { from: "1.0.0", to: "1.1.0", status: "applied" },
   docs: {
@@ -283,6 +285,16 @@ export function applyUpdate(id: string): Plugin[] {
   update.status = "applied";
   update.permissions = [];
   return plugins();
+}
+
+/** «Оставить текущую» (DT3): ждущее прав обновление уходит в «отклонено» —
+ *  карточка живёт в ченджлоге, до этой версии обновление не предлагается. */
+export function decline(id: string): void {
+  const update = UPDATE_FIXTURE[id];
+  if (!update || update.status !== "held") {
+    throw new Error(`по плагину «${id}» нет обновления, ждущего прав`);
+  }
+  update.status = "declined";
 }
 
 /** Подключение к чату со скоупом (сцена E): без скоупа — «этот чат», уже

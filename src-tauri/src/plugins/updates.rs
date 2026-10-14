@@ -270,6 +270,14 @@ pub fn check_and_update(
         // Diff прав (T2): что новая версия добавляет и что убирает. Обновление
         // держится только на ДОБАВЛЕННЫХ правах — появился запрос на новое,
         // владелец решает до включения (K-1); стало меньше — безопаснее, едет тихо.
+        // «Оставить текущую» для этой версии уже нажимали — не предлагаем снова (DT3).
+        let declined = notes
+            .records
+            .get(&entry.id)
+            .is_some_and(|note| note.status == UpdateStatus::Declined && note.to == fresh.version);
+        if declined {
+            continue;
+        }
         let (added, removed) = diff(&entry, fresh);
         if added.is_empty() {
             // Новых прав нет: тихое обновление молча — запасной файл, замена,
@@ -434,8 +442,23 @@ pub fn log_file() -> Option<PathBuf> {
     Some(data.join("opencode").join("log").join("opencode.log"))
 }
 
-/// Вернуть обновившемуся плагину прежнюю версию: запасной файл на место, версия
-/// в реестре — та, что была до обновления, и пометка «сломано» (крайний случай).
+/// Отказ от обновления (DT3, «Оставить текущую»): запись ждущего прав уходит в
+/// «отклонено» — карточка живёт в ченджлоге, обновление до этой версии больше
+/// не предлагается (до следующей в каталоге, updates.rs::check_and_update).
+pub fn decline(file_path: &Path, id: &str) -> Result<(), String> {
+    let mut notes = at(file_path);
+    let Some(note) = notes.records.get_mut(id) else {
+        return Err(format!("в updates.json нет записи о плагине «{id}»"));
+    };
+    if note.status != UpdateStatus::Held {
+        return Err(format!("обновление плагина «{id}» не ждёт прав — отклонять нечего"));
+    }
+    note.status = UpdateStatus::Declined;
+    save(file_path, &notes)
+}
+
+/// Вернуть обновившемуся плагину прежнюю версию: запасной файл на место,
+/// версия в реестре — та, что была до обновления, пометка «сломано».
 pub fn rollback(
     id: &str,
     plugins_dir: &Path,
