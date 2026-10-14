@@ -23,7 +23,7 @@ import type {
   TreeNode,
   UpdatesNote,
 } from "./types";
-import type { CatalogSnapshot } from "./types";
+import type { CatalogSnapshot, McpServer } from "./types";
 import type { WindowState, WindowPatch } from "../appstate";
 import type { CatalogEntry } from "../catalog";
 import type { CompareSnapshot } from "../compare";
@@ -118,6 +118,18 @@ export const tauriBridge = (): Bridge => ({
   },
   async eventsOptIn(on: boolean) {
     await invoke<void>("events_opt_in", { on });
+  },
+  async mcpList() {
+    return (await invoke<McpServer[]>("mcp_list")) as McpServer[];
+  },
+  async mcpSetEnabled(name: string, enabled: boolean) {
+    await invoke<void>("mcp_set_enabled", { name, enabled });
+  },
+  async mcpAdd(name: string, kind: "local" | "remote", detail: string) {
+    await invoke<void>("mcp_add", { name, kind, detail });
+  },
+  async mcpRemove(name: string) {
+    await invoke<void>("mcp_remove", { name });
   },
   async catalogList() {
     return (await invoke<CatalogEntry[]>("catalog_list")) as CatalogEntry[];

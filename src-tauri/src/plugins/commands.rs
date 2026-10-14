@@ -436,12 +436,54 @@ pub fn plugin_rollback(
     plugin_list(app, chat, registry, store)
 }
 
+/// MCP-серверы конфигурации (B6): список, тумблер, добавление и удаление.
+/// Каждая правка перезапускает движок — MCP читается при старте.
+#[tauri::command]
+pub fn mcp_list(app: AppHandle) -> Result<Vec<crate::mcpconfig::McpServer>, String> {
+    Ok(crate::mcpconfig::servers(&import::config_path().unwrap_or_default()))
+}
+
+#[tauri::command]
+pub fn mcp_set_enabled(
+    app: AppHandle,
+    chat: State<'_, Chat>,
+    name: String,
+    enabled: bool,
+) -> Result<(), String> {
+    let path = import::config_path().ok_or("конфигурация opencode.json не найдена")?;
+    crate::mcpconfig::set_enabled(&path, &name, enabled)?;
+    chat.restart()
+}
+
+#[tauri::command]
+pub fn mcp_add(
+    app: AppHandle,
+    chat: State<'_, Chat>,
+    name: String,
+    kind: String,
+    detail: String,
+) -> Result<(), String> {
+    let path = import::config_path().ok_or("конфигурация opencode.json не найдена")?;
+    crate::mcpconfig::add(&path, &name, &kind, &detail)?;
+    chat.restart()
+}
+
+#[tauri::command]
+pub fn mcp_remove(
+    app: AppHandle,
+    chat: State<'_, Chat>,
+    name: String,
+) -> Result<(), String> {
+    let path = import::config_path().ok_or("конфигурация opencode.json не найдена")?;
+    crate::mcpconfig::remove(&path, &name)?;
+    chat.restart()
+}
+
 /// Событийный счётчик (П-3): включён ли тумблер Настроек.
 #[tauri::command]
 pub fn events_status(app: AppHandle) -> bool {
     super::counter::is_opted_in(data_dir(&app))
 }
-
 /// Событийный счётчик (П-3): тумблер Настроек — opt-in/opt-out; без сети,
 /// JSONL в папке данных.
 #[tauri::command]

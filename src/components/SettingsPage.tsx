@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { bridge } from "../bridge";
-import type { ChatModelChoice } from "../bridge";
+import type { ChatModelChoice, McpServer } from "../bridge";
 import { useCompare } from "../features/compare/useCompare";
 import { useKeyForm, type KeyFormState } from "../features/settings/useKeyForm";
 import { useSettings, type SettingsState } from "../features/settings/useSettings";
@@ -227,6 +227,7 @@ function RulesSection({ settings }: { settings: SettingsState }) {
         </div>
       ))}
       <EventsCounter />
+      <McpSection />
     </section>
   );
 }
@@ -271,6 +272,162 @@ function EventsCounter() {
           Локальный файл событий в папке данных — установки, обновления, откаты,
           вызовы команд, чат-сессии. Без сети: данные никуда не уходят, помогают
           считать, чем вы пользуетесь.
+        </span>
+      </span>
+    </div>
+  );
+}
+
+/** MCP-серверы конфигурации движка (B6, владелец 14.10: «поддержка mcp
+ *  обязательна»): список из opencode.json с тумблерами, добавление local/
+ *  remote и удаление. Правка перезапускает движок — MCP читается при старте. */
+function McpSection() {
+  const [servers, setServers] = useState<McpServer[] | null>(null);
+  const [error, setError] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState("");
+  const [kind, setKind] = useState<"local" | "remote">("local");
+  const [detail, setDetail] = useState("");
+
+  const load = useCallback(() => {
+    bridge()
+      .mcpList()
+      .then((list) => {
+        setServers(list);
+        setError("");
+      })
+      .catch((reason: unknown) => setError(String(reason)));
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const toggle = (name: string, enabled: boolean) => {
+    bridge()
+      .mcpSetEnabled(name, enabled)
+      .then(load)
+      .catch((reason: unknown) => setError(String(reason)));
+  };
+  const remove = (name: string) => {
+    bridge()
+      .mcpRemove(name)
+      .then(load)
+      .catch((reason: unknown) => setError(String(reason)));
+  };
+  const add = () => {
+    bridge()
+      .mcpAdd(name, kind, detail)
+      .then(() => {
+        setName("");
+        setDetail("");
+        setAdding(false);
+        load();
+      })
+      .catch((reason: unknown) => setError(String(reason)));
+  };
+
+  return (
+    <div className="settings-row settings-mcp" data-testid="settings-mcp">
+      <span className="settings-row__label">MCP-серверы</span>
+      <span className="settings-row__value">
+        {error ? (
+          <span className="settings-row__sub" data-testid="settings-mcp-error">
+            {error}
+          </span>
+        ) : null}
+        {servers === null && !error ? (
+          <span className="settings-row__sub">Читаю серверы…</span>
+        ) : null}
+        {servers?.length ? (
+          servers.map((one) => (
+            <span className="settings-mcp__row" key={one.name} data-testid="settings-mcp-row">
+              <span className="settings-mcp__name">
+                {one.name} · {one.kind}
+              </span>
+              <span className="settings-row__sub">{one.detail}</span>
+              <span className="settings-row__actions">
+                <button
+                  type="button"
+                  className="settings-row__ghost"
+                  data-testid="settings-mcp-toggle"
+                  title={one.enabled ? "Выключить сервер" : "Включить сервер"}
+                  onClick={() => toggle(one.name, !one.enabled)}
+                >
+                  {one.enabled ? "Выключить" : "Включить"}
+                </button>
+                <button
+                  type="button"
+                  className="settings-row__ghost"
+                  data-testid="settings-mcp-remove"
+                  title="Удалить сервер из конфигурации"
+                  onClick={() => remove(one.name)}
+                >
+                  Удалить
+                </button>
+              </span>
+            </span>
+          ))
+        ) : servers !== null ? (
+          <span className="settings-row__sub" data-testid="settings-mcp-empty">
+            MCP-серверов нет — добавьте первый кнопкой ниже
+          </span>
+        ) : null}
+        {adding ? (
+          <span className="settings-mcp__add" data-testid="settings-mcp-add-form">
+            <input
+              className="settings-key-form__input"
+              data-testid="settings-mcp-name"
+              placeholder="Имя сервера"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+            <select
+              className="settings-mcp__kind"
+              data-testid="settings-mcp-kind"
+              value={kind}
+              onChange={(event) => setKind(event.target.value as "local" | "remote")}
+            >
+              <option value="local">local — команда</option>
+              <option value="remote">remote — адрес</option>
+            </select>
+            <input
+              className="settings-key-form__input"
+              data-testid="settings-mcp-detail"
+              placeholder={kind === "remote" ? "https://…" : "команда через пробел"}
+              value={detail}
+              onChange={(event) => setDetail(event.target.value)}
+            />
+            <button
+              type="button"
+              className="settings-key-form__save"
+              data-testid="settings-mcp-save"
+              onClick={add}
+            >
+              Добавить
+            </button>
+            <button
+              type="button"
+              className="settings-row__ghost"
+              data-testid="settings-mcp-add-cancel"
+              onClick={() => setAdding(false)}
+            >
+              Отмена
+            </button>
+          </span>
+        ) : (
+          <button
+            type="button"
+            className="settings-row__ghost"
+            data-testid="settings-mcp-add"
+            onClick={() => setAdding(true)}
+          >
+            Добавить MCP-сервер
+          </button>
+        )}
+        <span className="settings-row__sub">
+          Конфиг пишется каноническим JSON — комментарии в opencode.json не
+          сохранятся. Правка перезапускает движок.
         </span>
       </span>
     </div>

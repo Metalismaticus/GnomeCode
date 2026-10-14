@@ -190,6 +190,16 @@ export type CatalogSnapshot = {
   fetchedAt: number | null;
 };
 
+/** MCP-сервер конфигурации движка (B6): секция `mcp` opencode.json. */
+export type McpServer = {
+  name: string;
+  /** `local` (команда) или `remote` (адрес). */
+  kind: "local" | "remote";
+  enabled: boolean;
+  /** Команда локального или адрес удалённого — одной строкой. */
+  detail: string;
+};
+
 /** Скан конфигурации для экрана первого запуска (DT1): импортированные и всё
  *  ещё выключенные (чекбоксы), свежее этого запуска (тост), нераспознанные
  *  записи с причинами — «Распознано N из M». */
@@ -305,6 +315,14 @@ export type Bridge = {
   eventsStatus(): Promise<boolean>;
   /** Событийный счётчик (П-3): включить или выключить (opt-in, локальный JSONL). */
   eventsOptIn(on: boolean): Promise<void>;
+  /** MCP-серверы конфигурации (B6): список из opencode.json. */
+  mcpList(): Promise<McpServer[]>;
+  /** Включить или выключить MCP-сервер (рестарт движка несёт его MCP). */
+  mcpSetEnabled(name: string, enabled: boolean): Promise<void>;
+  /** Добавить MCP-сервер: remote по адресу или local по команде. */
+  mcpAdd(name: string, kind: "local" | "remote", detail: string): Promise<void>;
+  /** Удалить MCP-сервер из конфигурации. */
+  mcpRemove(name: string): Promise<void>;
   /** Карточки каталога «Available» — индекс с GitHub (raw, не api.github.com). */
   catalogList(): Promise<CatalogEntry[]>;
   /** Каталог моделей сравнения: свежий с opencode.ai, недоступный сайт — из кэша

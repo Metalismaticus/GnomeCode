@@ -15,6 +15,7 @@ export type {
   HeldUpdate,
   ImportScan,
   LocalServer,
+  McpServer,
   Plugin,
   PluginCommand,
   PluginRun,

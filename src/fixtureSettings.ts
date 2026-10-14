@@ -11,9 +11,11 @@ import type { LocalServer, ProviderRow, RuleEntry } from "./bridge";
  *  проверяет перенос по словам (спека «Где снимать»). */
 export const DATA_FOLDER = "C:\\Users\\Metalismatic\\AppData\\Roaming\\com.gnomecode.app\\data";
 
-/** Провайдеры минимальные и настоящие: у ZhipuAI ключ задан (модели отдаёт),
- *  у Anthropic и OpenAI не задан (спека, «Где снимать»). */
+/** Провайдеры минимальные и настоящие: у движка есть свой провайдер из его
+ *  аутентификации (у владельца — opencode-go, ключ НЕ в GnomeCode), ключи
+ *  остальных не заданы — владелец 14.10: «я не подключал ключ от глм ещё». */
 const ROWS: { id: string; name: string; models: number }[] = [
+  { id: "opencode-go", name: "OpenCode Go", models: 7 },
   { id: "zhipuai", name: "ZhipuAI", models: 12 },
   { id: "anthropic", name: "Anthropic", models: 8 },
   { id: "openai", name: "OpenAI", models: 16 },
@@ -27,8 +29,9 @@ const endpoints: EndpointRow[] = [];
 /** Выключенные провайдеры и endpoint'ы: тот же список, что в providers.json. */
 const disabled = new Set<string>();
 
-/** Ключи страницы: «задан» у ZhipuAI с самого начала. */
-const keys = new Map<string, boolean>([["zhipuai", true]]);
+/** Ключи страницы: ключей нет — владелец 14.10: «я не подключал ключ от глм
+ *  ещё» (аутентификация движка — его собственная, мимо GnomeCode). */
+const keys = new Map<string, boolean>();
 
 /** Идентификатор endpoint'а из базы URL — зеркало правила моста
  *  (src-tauri/src/providers_store.rs::id_from): хост нижним регистром,
@@ -60,6 +63,47 @@ function idFrom(baseUrl: string): string {
     candidate = `${slug}-${number}`;
   }
   return candidate;
+}
+
+/** MCP-серверы страницы (B6): память — как opencode.json в окне, до перезагрузки. */
+const mcpServers: { name: string; kind: "local" | "remote"; enabled: boolean; detail: string }[] = [
+  { name: "filesystem", kind: "local", enabled: true, detail: "npx -y @modelcontextprotocol/server-filesystem ." },
+];
+
+export function mcpList(): typeof mcpServers {
+  return mcpServers.map((one) => ({ ...one }));
+}
+
+export function mcpSetEnabled(name: string, enabled: boolean): void {
+  const held = mcpServers.find((one) => one.name === name);
+  if (!held) {
+    throw new Error(`сервера «${name}» нет в конфигурации`);
+  }
+  held.enabled = enabled;
+}
+
+export function mcpAdd(name: string, kind: "local" | "remote", detail: string): void {
+  if (mcpServers.some((one) => one.name === name)) {
+    throw new Error(`сервер «${name}» уже есть в конфигурации`);
+  }
+  if (!name.trim()) {
+    throw new Error("имя сервера пустое");
+  }
+  if (kind === "remote" && !/^https?:\/\//.test(detail.trim())) {
+    throw new Error("адрес remote-сервера должен начинаться с http(s)://");
+  }
+  if (kind === "local" && !detail.trim()) {
+    throw new Error("укажите команду локального сервера");
+  }
+  mcpServers.push({ name: name.trim(), kind, enabled: true, detail: detail.trim() });
+}
+
+export function mcpRemove(name: string): void {
+  const at = mcpServers.findIndex((one) => one.name === name);
+  if (at === -1) {
+    throw new Error(`сервера «${name}» нет в конфигурации`);
+  }
+  mcpServers.splice(at, 1);
 }
 
 /** Умолчания прав: ask везде, у Terminal задан deny (кадр «настройки-плагины»). */

@@ -31,6 +31,10 @@ import {
   providers as settingsProviders,
   keyRows as keyFixture,
   localServers as localServersFixture,
+  mcpAdd as mcpAddFixture,
+  mcpList as mcpListFixture,
+  mcpRemove as mcpRemoveFixture,
+  mcpSetEnabled as mcpToggleFixture,
   providerCatalog as providerCatalogFixture,
   removeEndpoint as removeEndpointFixture,
   saveKey as saveKeyFixture,
@@ -207,6 +211,18 @@ export const fixtureBridge = (): Bridge => ({
     } catch {
       // Хранилище страницы не всегда доступно — тумблер не ломаем.
     }
+  },
+  async mcpList() {
+    return mcpListFixture();
+  },
+  async mcpSetEnabled(name: string, enabled: boolean) {
+    mcpToggleFixture(name, enabled);
+  },
+  async mcpAdd(name: string, kind: "local" | "remote", detail: string) {
+    mcpAddFixture(name, kind, detail);
+  },
+  async mcpRemove(name: string) {
+    mcpRemoveFixture(name);
   },
   async decidePlugin(
     plugin: string,

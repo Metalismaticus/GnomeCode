@@ -3,6 +3,7 @@
 // (docs/TESTING.md, «Здоровье кода»).
 
 pub mod compare;
+pub mod mcpconfig;
 pub mod modelsdev;
 pub mod opencode;
 pub mod plugins;
@@ -16,7 +17,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use opencode::{Chat, Sink, WindowSink};
-use plugins::commands::{catalog_list, catalog_snapshot, data_folder, endpoint_add, endpoint_remove, events_opt_in, events_status, import_scan, key_remove, key_save, key_status, local_detect, plugin_connect, plugin_decide, plugin_decline_update, plugin_disconnect, plugin_install, plugin_list, plugin_rollback, plugin_run, plugin_set_enabled, plugin_set_rule, plugin_toolset_connect, plugin_toolset_delete, plugin_toolset_save, plugin_toolsets, plugin_uninstall, plugin_updates_note, provider_catalog, provider_list, provider_set_enabled, settings_defaults, settings_set_default};
+use plugins::commands::{catalog_list, catalog_snapshot, data_folder, endpoint_add, endpoint_remove, events_opt_in, events_status, import_scan, key_remove, key_save, key_status, local_detect, mcp_add, mcp_list, mcp_remove, mcp_set_enabled, plugin_connect, plugin_decide, plugin_decline_update, plugin_disconnect, plugin_install, plugin_list, plugin_rollback, plugin_run, plugin_set_enabled, plugin_set_rule, plugin_toolset_connect, plugin_toolset_delete, plugin_toolset_save, plugin_toolsets, plugin_uninstall, plugin_updates_note, provider_catalog, provider_list, provider_set_enabled, settings_defaults, settings_set_default};
 use plugins::commands::data_dir;
 use plugins::permissions::Grants;
 use plugins::registry::Registry;
@@ -329,6 +330,10 @@ pub fn run() {
             import_scan,
             events_status,
             events_opt_in,
+            mcp_list,
+            mcp_set_enabled,
+            mcp_add,
+            mcp_remove,
             project_pick_folder,
             project_read_tree,
             project_clear,
