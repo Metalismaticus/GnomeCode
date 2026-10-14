@@ -44,3 +44,21 @@
 ::-webkit-scrollbar-button {
   display: none;
 }
+/* Отказ действия меню строки (удалить/переименовать): полоса внизу по центру,
+   уходит сама через 6 с или по клику — тихий отказ не даёт диагноза. */
+.action-flash {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 60;
+  max-width: 80vw;
+  padding: 8px 14px;
+  border: 1px solid var(--border, #666);
+  border-radius: 8px;
+  background: var(--bg-raised, #2a2a2a);
+  color: var(--text, #eee);
+  font: inherit;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.35);
+}

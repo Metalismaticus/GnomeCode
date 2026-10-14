@@ -78,7 +78,19 @@ export default function App() {
   /** Чаты окна: живой список ядра, архив и действия меню строки
    *  (переименовать, удалить, в архив и вернуть) — одно место, Sidebar
    *  только показывает. */
-  const chatActions = useChatActions();
+  /** Отказ действия меню строки (удалить/переименовать) виден полосой над
+   *  окном 6 секунд и по клику исчезает: молчаливый отказ не даёт диагноза
+   *  (баг владельца 14.10 — «Удалить не работает» без единого слова). */
+  const [actionError, setActionError] = useState<string | null>(null);
+  const actionTimer = useRef<number | null>(null);
+  const onActionError = useCallback((action: string, reason: unknown) => {
+    setActionError(`${action} не удалось: ${String(reason)}`);
+    if (actionTimer.current !== null) {
+      window.clearTimeout(actionTimer.current);
+    }
+    actionTimer.current = window.setTimeout(() => setActionError(null), 6000);
+  }, []);
+  const chatActions = useChatActions(onActionError);
   /** Расход активного проекта для сайдбара («этот проект стоил X»): итог за
    *  всё время — одной командой моста, экран статистики держит свой период. */
   const stats = useStats("all");
@@ -325,6 +337,11 @@ export default function App() {
           onConnectPlugins={openPanelPicker}
           onClose={() => setPanelOpen(false)}
         />
+      ) : null}
+      {actionError ? (
+        <button type="button" className="action-flash" onClick={() => setActionError(null)}>
+          {actionError}
+        </button>
       ) : null}
     </div>
   );

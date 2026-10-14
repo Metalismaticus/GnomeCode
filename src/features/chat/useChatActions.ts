@@ -28,7 +28,11 @@ export type ChatActions = {
   unarchive: (id: string) => void;
 };
 
-export function useChatActions(): ChatActions {
+export function useChatActions(
+  /** Отказ действия виден вызывающему: молчаливый пустой список — нулевой
+   *  тихий отказ (правило gstack: каждый отказ доходит до человека). */
+  onError?: (action: string, reason: unknown) => void,
+): ChatActions {
   const { rows, refresh, replace } = useChatList();
   const [archived, setArchived] = useState<string[]>([]);
   const applyArchived = useCallback((ids: string[] | null) => setArchived(ids ?? []), []);
@@ -38,11 +42,12 @@ export function useChatActions(): ChatActions {
       bridge()
         .chatRename(id, title)
         .then(replace)
-        .catch(() => {
-          // Список не перечитан — сайдбар показывает прежний, чинить нечего.
+        .catch((reason: unknown) => {
+          // Список не перечитан — отказ виден словами, а не молчанием.
+          onError?.("Переименование чата", reason);
         });
     },
-    [replace],
+    [replace, onError],
   );
 
   const remove = useCallback(
@@ -62,11 +67,14 @@ export function useChatActions(): ChatActions {
             return next;
           });
         })
-        .catch(() => {
-          // Удаление не удалось: список как был, чат на месте.
+        .catch((reason: unknown) => {
+          // Удаление не удалось: список как был — причина видна, не тишина
+          // (баг владельца 14.10: «нажимаю Удалить — чат остаётся», отказ
+          // глотался и точку отказа не было видно).
+          onError?.("Удаление чата", reason);
         });
     },
-    [replace],
+    [replace, onError],
   );
 
   const archive = useCallback(
