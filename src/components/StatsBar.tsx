@@ -19,27 +19,28 @@ const PERIODS: { key: StatsPeriod; label: string }[] = [
 
 const DONUT_COLORS = ["#7c5cff", "#34d399", "#fbbf24", "#38bdf8", "#f472b6", "#94a3b8"];
 
-/** Donut разбивки по моделям: дуги по доле стоимости (без цены — по токенам). */
+/** Donut разбивки по моделям: дуги по доле стоимости (без цены — по токенам).
+ *  Компактный (44px), легенда справа — как на концепте владельца. */
 function Donut({ shares }: { shares: { name: string; percent: number; color: string }[] }) {
-  const radius = 26;
+  const radius = 17;
   const circumference = 2 * Math.PI * radius;
   let offset = 0;
   return (
-    <svg className="stats-bar__donut" width={64} height={64} viewBox="0 0 64 64" role="img" aria-label="Доля моделей в расходе">
+    <svg className="stats-bar__donut" width={44} height={44} viewBox="0 0 44 44" role="img" aria-label="Доля моделей в расходе">
       {shares.map((one) => {
         const dash = (one.percent / 100) * circumference;
         const arc = (
           <circle
             key={one.name}
-            cx={32}
-            cy={32}
+            cx={22}
+            cy={22}
             r={radius}
             fill="none"
             stroke={one.color}
-            strokeWidth={7}
+            strokeWidth={5}
             strokeDasharray={`${dash} ${circumference - dash}`}
             strokeDashoffset={-offset}
-            transform="rotate(-90 32 32)"
+            transform="rotate(-90 22 22)"
           />
         );
         offset += dash;
