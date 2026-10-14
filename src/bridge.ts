@@ -13,6 +13,7 @@ export type {
   FeedEvent,
   FeedRow,
   HeldUpdate,
+  LocalServer,
   Plugin,
   PluginCommand,
   PluginRun,

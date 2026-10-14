@@ -164,6 +164,17 @@ export type ProviderRow = {
 /** Строка умолчаний прав (секция «default» rules.json): категория и значение. */
 export type RuleEntry = { category: string; value: string };
 
+/** Найденный локальный сервер моделей (урок PAIR): карточка «Найден … —
+ *  подключить?» добавляет его endpoint'ом существующего пути. */
+export type LocalServer = {
+  /** Устойчивое имя вида: «ollama», «lmstudio». */
+  kind: string;
+  /** Имя для карточки: «Ollama», «LM Studio». */
+  name: string;
+  /** База URL для подключения: `http://localhost:11434/v1`. */
+  baseUrl: string;
+};
+
 /** Период сводки статистики: последние 7 дней, 30, всё или «за сегодня» (с начала
  *  местных суток — приветственная сборка, спека приветствия §5). */
 export type StatsPeriod = "7" | "30" | "all" | "today";
@@ -297,6 +308,9 @@ export type Bridge = {
   endpointAdd(name: string, baseUrl: string, key: string): Promise<ProviderRow[]>;
   /** Удалить свой endpoint: строка и его модели уходят. */
   endpointRemove(id: string): Promise<ProviderRow[]>;
+  /** Автодетект локальных серверов моделей (Ollama, LM Studio): отвечающие и
+   *  ещё не подключённые; нет ни одного — пустой список, не ошибка. */
+  localDetect(): Promise<LocalServer[]>;
   /** Статусы ключей: «задан» у провайдера или нет; секрет наружу не идёт. */
   keyStatuses(providers: string[]): Promise<Record<string, boolean>>;
   /** Сохранить ключ и тихо перезапустить движок — читается только при старте. */

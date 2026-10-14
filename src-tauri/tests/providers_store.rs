@@ -399,3 +399,49 @@ fn file_lives_in_the_data_folder() {
     );
     let _ = install::data_file; // тот же узор папки данных, сосед по коду
 }
+
+/// Детект локальных серверов предлагает только неподключённые: пустое
+/// хранилище — оба кандидата; endpoint с той же базой (хвостовой «/», пара
+/// 127.0.0.1/localhost) убирает своего кандидата — карточка не предлагает
+/// второй раз то, что владелец уже подключил.
+#[test]
+fn local_candidates_skip_connected_bases() {
+    // Пустое хранилище: оба известных сервера — кандидаты.
+    let held = providers_store::Providers::default();
+    let kinds: Vec<&str> = providers_store::local_candidates(&held)
+        .iter()
+        .map(|(kind, _, _)| *kind)
+        .collect();
+    assert_eq!(kinds, vec!["ollama", "lmstudio"], "без endpoint'ов — оба кандидата");
+
+    let data = TempDir::new("local-detect");
+    let file = providers_store::file(data.0.clone());
+    providers_store::add_endpoint(
+        &file,
+        "Ollama",
+        "http://localhost:11434/v1/",
+        vec!["llama".to_string()],
+    )
+    .expect("ollama подключён");
+
+    let held = providers_store::at(&file);
+    let kinds: Vec<&str> = providers_store::local_candidates(&held)
+        .iter()
+        .map(|(kind, _, _)| *kind)
+        .collect();
+    assert_eq!(kinds, vec!["lmstudio"], "подключённый ollama не предлагается вторым");
+
+    // Тот же хост другим именем — тоже подключён: 127.0.0.1 и localhost равны.
+    providers_store::add_endpoint(
+        &file,
+        "LM Studio",
+        "http://127.0.0.1:1234/v1",
+        vec!["studio".to_string()],
+    )
+    .expect("lmstudio подключён");
+    let held = providers_store::at(&file);
+    assert!(
+        providers_store::local_candidates(&held).is_empty(),
+        "оба сервера подключены — кандидатов нет"
+    );
+}

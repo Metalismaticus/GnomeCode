@@ -16,7 +16,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use opencode::{Chat, Sink, WindowSink};
-use plugins::commands::{catalog_list, data_folder, endpoint_add, endpoint_remove, key_remove, key_save, key_status, plugin_connect, plugin_decide, plugin_disconnect, plugin_install, plugin_list, plugin_run, plugin_set_enabled, plugin_set_rule, plugin_toolset_connect, plugin_toolset_delete, plugin_toolset_save, plugin_toolsets, plugin_uninstall, plugin_updates_note, provider_catalog, provider_list, provider_set_enabled, settings_defaults, settings_set_default};
+use plugins::commands::{catalog_list, data_folder, endpoint_add, endpoint_remove, key_remove, key_save, key_status, local_detect, plugin_connect, plugin_decide, plugin_disconnect, plugin_install, plugin_list, plugin_run, plugin_set_enabled, plugin_set_rule, plugin_toolset_connect, plugin_toolset_delete, plugin_toolset_save, plugin_toolsets, plugin_uninstall, plugin_updates_note, provider_catalog, provider_list, provider_set_enabled, settings_defaults, settings_set_default};
 use plugins::commands::data_dir;
 use plugins::permissions::Grants;
 use plugins::registry::Registry;
@@ -329,6 +329,7 @@ pub fn run() {
             project_clear,
             endpoint_add,
             endpoint_remove,
+            local_detect,
             key_save,
             key_remove,
             key_status,

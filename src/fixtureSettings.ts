@@ -5,7 +5,7 @@
 // данных в окне её тоже не меняет), правила — до перезагрузки.
 
 import { params } from "./viewparams";
-import type { ProviderRow, RuleEntry } from "./bridge";
+import type { LocalServer, ProviderRow, RuleEntry } from "./bridge";
 
 /** Полный путь данных фикстуры: длинный Windows-путь — кадр «Папка данных»
  *  проверяет перенос по словам (спека «Где снимать»). */
@@ -69,6 +69,34 @@ const defaults: Record<string, string> = {
   Network: "ask",
   Terminal: "deny",
 };
+
+/** Известные локальные серверы — то же, что у Rust (providers_store.rs
+ *  LOCAL_SERVERS): детект подсказывает их карточкой «Найден … — подключить?». */
+const LOCAL: LocalServer[] = [
+  { kind: "ollama", name: "Ollama", baseUrl: "http://localhost:11434/v1" },
+  { kind: "lmstudio", name: "LM Studio", baseUrl: "http://localhost:1234/v1" },
+];
+
+/** Ключ базы URL для сравнения — зеркало providers_store.rs::base_key. */
+function baseKey(baseUrl: string): string {
+  return baseUrl.trim().replace(/\/+$/, "").replace("127.0.0.1", "localhost");
+}
+
+/** Кадр состояния задаёт, кто из серверов «отвечает»: детект как живой Rust,
+ *  но вместо портов — параметр адреса. Подключённые карточкой не возвращаются. */
+export function localServers(): LocalServer[] {
+  const answering: Record<string, string[]> = {
+    "настройки-ollama": ["ollama"],
+    "настройки-lmstudio": ["lmstudio"],
+    "настройки-локальные": ["ollama", "lmstudio"],
+  };
+  const kinds = answering[params.feed];
+  if (!kinds) {
+    return [];
+  }
+  const connected = endpoints.map((one) => baseKey(one.baseUrl));
+  return LOCAL.filter((one) => kinds.includes(one.kind) && !connected.includes(baseKey(one.baseUrl)));
+}
 
 /** Провайдеры настройками: движок плюс свои endpoint'ы; движок недоступен — ошибка. */
 export function providers(): ProviderRow[] {

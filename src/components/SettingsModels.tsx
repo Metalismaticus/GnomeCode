@@ -8,9 +8,9 @@ import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
 import { DEFAULT_MODEL } from "../appstate";
-import type { ChatModelChoice, ProviderRow } from "../bridge";
+import { bridge, type ChatModelChoice, type LocalServer, type ProviderRow } from "../bridge";
 import type { CompareState } from "../features/compare/useCompare";
-import { ENDPOINT_WAITING, useEndpointForm } from "../features/settings/useEndpointForm";
+import { ENDPOINT_WAITING, reasonText, useEndpointForm } from "../features/settings/useEndpointForm";
 import { WAITING, type KeyFormState } from "../features/settings/useKeyForm";
 import type { SettingsState } from "../features/settings/useSettings";
 import { ComparePanel } from "./ComparePanel";
@@ -181,6 +181,113 @@ function EndpointForm({ form }: { form: ReturnType<typeof useEndpointForm> }): R
   );
 }
 
+/** Найденный локальный сервер — карточка «Найден Ollama — подключить?» поверх
+ *  своих endpoint'ов (урок PAIR). Подключение — тот же путь, что у формы
+ *  endpoint'а: addEndpoint спросит модели, тихо перезапустит движок и обновит
+ *  список; детект подключённое больше не предлагает. «Не сейчас» прячет
+ *  карточку до следующего показа настроек — навязываться она не умеет. */
+function LocalCards({ settings }: { settings: SettingsState }): ReactNode {
+  const [found, setFound] = useState<LocalServer[] | null>(null);
+  const [busy, setBusy] = useState("");
+  const [failed, setFailed] = useState<Record<string, string>>({});
+  const [hidden, setHidden] = useState<string[]>([]);
+
+  // Детект один на показ раздела: список провайдеров прочитан и движок жив —
+  // иначе раздел в своём состоянии загрузки/ошибки и карточки неуместны.
+  useEffect(() => {
+    if (settings.providers === null || settings.error) {
+      return;
+    }
+    let alive = true;
+    bridge()
+      .localDetect()
+      .then((servers) => {
+        if (alive) {
+          setFound(servers);
+        }
+      })
+      .catch(() => {
+        // Детект молчит при провале: нет карточек — как и без запущенных серверов.
+        if (alive) {
+          setFound([]);
+        }
+      });
+    return () => {
+      alive = false;
+    };
+  }, [settings.providers, settings.error]);
+
+  const connect = async (server: LocalServer) => {
+    setBusy(server.kind);
+    try {
+      await settings.addEndpoint(server.name, server.baseUrl, "");
+      setFailed((held) => ({ ...held, [server.kind]: "" }));
+    } catch (reason) {
+      setFailed((held) => ({ ...held, [server.kind]: reasonText(reason) }));
+    } finally {
+      setBusy("");
+    }
+  };
+
+  if (!found?.length) {
+    return null;
+  }
+  return (
+    <>
+      {found
+        .filter((one) => !hidden.includes(one.kind))
+        .map((server) => {
+          const error = failed[server.kind];
+          return (
+            <div className="settings-local" data-testid="settings-local-card" key={server.kind}>
+              <span className="settings-local__label">Найден {server.name}</span>
+              <span className="settings-row__value">
+                <span className="settings-row__sub">
+                  Локальный сервер моделей на {hostOf(server.baseUrl)} — модели появятся в
+                  переключателе чата
+                </span>
+              </span>
+              <span className="settings-row__actions">
+                <button
+                  type="button"
+                  className="settings-row__ghost"
+                  data-testid="settings-local-connect"
+                  title={`Подключить ${server.name} своим endpoint'ом`}
+                  disabled={busy === server.kind}
+                  onClick={() => void connect(server)}
+                >
+                  {busy === server.kind ? "Подключаю…" : "Подключить"}
+                </button>
+                <button
+                  type="button"
+                  className="settings-row__ghost"
+                  data-testid="settings-local-dismiss"
+                  title="Скрыть карточку до следующего показа настроек"
+                  onClick={() => setHidden((held) => [...held, server.kind])}
+                >
+                  Не сейчас
+                </button>
+              </span>
+              {error ? (
+                <div
+                  className="settings-key-form__status settings-key-form__status--danger settings-local__status"
+                  data-testid="settings-local-status"
+                >
+                  {`Не подключилось: ${error}`}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+    </>
+  );
+}
+
+/** Хост базы URL для подписи карточки: «localhost:11434» из полного адреса. */
+function hostOf(baseUrl: string): string {
+  return baseUrl.split("//")[1]?.split("/")[0] ?? baseUrl;
+}
+
 /** Строки провайдеров или их состояния: едут, недоступный движок, список.
  *  Поиск по каталогу models.dev сверху: провайдера, которого движок ещё не
  *  перечисляет (ключа у него нет), здесь находят и задают ему ключ — «вся
@@ -258,6 +365,7 @@ function providersBody(
   );
   return (
     <>
+      <LocalCards settings={settings} />
       <div className="settings-row settings-providers__search">
         <input
           className="settings-providers__search-input"

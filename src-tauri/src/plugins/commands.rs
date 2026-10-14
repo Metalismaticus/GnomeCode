@@ -766,6 +766,51 @@ pub fn endpoint_remove(app: AppHandle, chat: State<'_, Chat>, id: String) -> Res
     provider_list(app, chat)
 }
 
+/// Найденный локальный сервер моделей: карточка «Найден … — подключить?»
+/// добавляет его endpoint'ом тем же путём, что форма «Свой endpoint».
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalServer {
+    /// Устойчивое имя вида: «ollama», «lmstudio».
+    pub kind: String,
+    /// Имя для карточки: «Ollama», «LM Studio».
+    pub name: String,
+    /// База URL для подключения: `http://localhost:11434/v1`.
+    pub base_url: String,
+}
+
+/// Сколько секунд ждать ответа локального сервера: он на той же машине,
+/// молчание — верный знак «не запущен»; долгие паузы настройкам ни к чему.
+const LOCAL_PROBE_SECONDS: u64 = 1;
+
+/// Живой ли локальный сервер: `GET {база}/models` ответил — сервер стоит.
+/// Тело не разбираем: список моделей спросит подключение (endpoint_models).
+fn local_server_alive(base_url: &str) -> bool {
+    let url = format!("{}/models", base_url.trim_end_matches('/'));
+    ureq::get(&url)
+        .timeout(std::time::Duration::from_secs(LOCAL_PROBE_SECONDS))
+        .call()
+        .is_ok()
+}
+
+/// Автодетект локальных серверов (урок PAIR): Ollama и LM Studio, что отвечают
+/// и ещё не подключены. Движок не нужен — провайдеров.json и портов хватает:
+/// карточки видны и до первого запуска ядра. Тишина в ответе — не ошибка:
+/// нет запущенных серверов — карточек нет, как и было.
+#[tauri::command]
+pub fn local_detect(app: AppHandle) -> Result<Vec<LocalServer>, String> {
+    let file = crate::providers_store::file(data_dir(&app));
+    Ok(crate::providers_store::local_candidates(&crate::providers_store::at(&file))
+        .into_iter()
+        .filter(|(_, _, base)| local_server_alive(base))
+        .map(|(kind, name, base_url)| LocalServer {
+            kind: kind.to_string(),
+            name: name.to_string(),
+            base_url: base_url.to_string(),
+        })
+        .collect())
+}
+
 /// «Нет ключа» у выбранного провайдера модели: причина строкой или None —
 /// вопрос можно нести движку.
 pub fn provider_key_missing(app: &AppHandle, chat: &State<'_, Chat>, model_id: &str) -> Option<String> {

@@ -24,6 +24,7 @@ import {
   addEndpoint as addEndpointFixture,
   providers as settingsProviders,
   keyRows as keyFixture,
+  localServers as localServersFixture,
   removeEndpoint as removeEndpointFixture,
   saveKey as saveKeyFixture,
   removeKey as removeKeyFixture,
@@ -249,6 +250,10 @@ export const fixtureBridge = (): Bridge => ({
   },
   async endpointRemove(id: string) {
     return removeEndpointFixture(id);
+  },
+  async localDetect() {
+    // Вместо портов — кадр состояния: «отвечают» те, кого назвал адрес.
+    return localServersFixture();
   },
   async keyStatuses(ids: string[]) {
     return keyFixture(ids);

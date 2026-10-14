@@ -10,6 +10,7 @@ import type {
   ChatRow,
   FeedEvent,
   Listener,
+  LocalServer,
   Plugin,
   PluginRun,
   PluginScope,
@@ -156,6 +157,10 @@ export const tauriBridge = (): Bridge => ({
   },
   async endpointRemove(id: string) {
     return (await invoke<ProviderRow[]>("endpoint_remove", { id })) as ProviderRow[];
+  },
+  async localDetect() {
+    // Кандидатов карточек собирает Rust: порты и providers.json — движок не нужен.
+    return (await invoke<LocalServer[]>("local_detect")) as LocalServer[];
   },
   async keyStatuses(providers: string[]) {
     // Проверка ключа — по одному провайдеру: мост знает только запись целиком.

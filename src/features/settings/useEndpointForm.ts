@@ -6,8 +6,9 @@ import { useCallback, useState } from "react";
 
 import type { SettingsState } from "./useSettings";
 
-/** Причина отказа моста строкой — без служебной обвязки ошибок. */
-const reasonText = (reason: unknown): string =>
+/** Причина отказа моста строкой — без служебной обвязки ошибок. Наружу её
+ *  берёт и карточка локального сервера (SettingsModels). */
+export const reasonText = (reason: unknown): string =>
   String(reason).replace(/^Error: /, "").replace(/^"|"$/g, "");
 
 export const ENDPOINT_WAITING = "Проверяю endpoint…";

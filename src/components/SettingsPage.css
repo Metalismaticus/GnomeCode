@@ -312,6 +312,31 @@
   color: var(--warning);
 }
 
+/* Найденный локальный сервер (урок PAIR): карточка над списком провайдеров —
+   вопрос «подключить?» в один клик; рамка сильнее строки, чтобы спросить
+   внимание, но не модалка: список остаётся на месте. */
+.settings-local {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-3);
+  min-width: 0;
+}
+
+.settings-local__label {
+  flex: none;
+  min-width: 160px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.settings-local__status {
+  flex: 1 0 100%;
+}
+
 .settings-providers__hint,
 .settings-rules__hint {
   padding-top: var(--space-2);

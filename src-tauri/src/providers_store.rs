@@ -194,6 +194,39 @@ pub fn unmark_key(file: &Path, id: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Известные локальные серверы моделей: (вид, имя, база URL) — открытые
+/// OpenAI-совместимые списки `/v1/models`. Детект подсказывает их карточкой
+/// «Найден … — подключить?» поверх своих endpoint'ов (урок PAIR).
+pub const LOCAL_SERVERS: &[(&str, &str, &str)] = &[
+    ("ollama", "Ollama", "http://localhost:11434/v1"),
+    ("lmstudio", "LM Studio", "http://localhost:1234/v1"),
+];
+
+/// Ключ базы URL для сравнения: хвостовой «/» и пара 127.0.0.1/localhost —
+/// одно и то же; подключённый вручную endpoint не предлагать вторым карточкой.
+pub fn base_key(base_url: &str) -> String {
+    base_url
+        .trim()
+        .trim_end_matches('/')
+        .replace("127.0.0.1", "localhost")
+}
+
+/// Базы уже подключённых endpoint'ов, приведённые к ключу сравнения.
+pub fn connected_bases(held: &Providers) -> Vec<String> {
+    held.endpoints.iter().map(|one| base_key(&one.base_url)).collect()
+}
+
+/// Локальные серверы, которых ещё нет среди endpoint'ов: кандидаты карточек
+/// детекта. Сеть не трогает — живость проверяет команда окна.
+pub fn local_candidates(held: &Providers) -> Vec<(&'static str, &'static str, &'static str)> {
+    let connected = connected_bases(held);
+    LOCAL_SERVERS
+        .iter()
+        .filter(|(_, _, base)| !connected.contains(&base_key(base)))
+        .copied()
+        .collect()
+}
+
 /// Переменные окружения ключей для запуска движка: движок активирует
 /// провайдера по переменной его ключа (`env` записи models.dev — замер
 /// 2026-10-11: с `ZHIPU_API_KEY` ядро отдаёт все 7 моделей Z.AI Coding Plan).
