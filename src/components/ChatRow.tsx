@@ -18,6 +18,10 @@ export type ChatRowProps = {
   chat: SidebarChat;
   /** Местное «сейчас» для времени строки — его считает Sidebar (одно на список). */
   now: number;
+  /** Чат закреплён (раздел «Закреплённые»): пункт меню — «Открепить». */
+  pinned?: boolean;
+  /** Закрепить или открепить: раздел сверху / обычные группы дат. */
+  onTogglePin?: () => void;
   /** Клик по строке этого чата: сессия переключается, лента показывает его историю. */
   onOpen: () => void;
   /** Активный чат: клик только возвращает на страницу чата (сессия та же). */
@@ -30,7 +34,7 @@ export type ChatRowProps = {
   onDelete: () => void;
 };
 
-export function ChatRow({ chat, now, onOpen, onReturn, onRename, onArchive, onDelete }: ChatRowProps) {
+export function ChatRow({ chat, now, pinned, onTogglePin, onOpen, onReturn, onRename, onArchive, onDelete }: ChatRowProps) {
   /** Точка открытия меню: правый щелчок по строке или кнопка «⋯». */
   const [spot, setSpot] = useState<MenuSpot | null>(null);
   /** Меню в шаге подтверждения удаления — вопрос вместо пунктов. */
@@ -135,6 +139,13 @@ export function ChatRow({ chat, now, onOpen, onReturn, onRename, onArchive, onDe
             </div>
           ) : (
             <>
+              <MenuItem
+                label={pinned ? "Открепить" : "Закрепить"}
+                onPick={() => {
+                  onTogglePin?.();
+                  close();
+                }}
+              />
               <MenuItem
                 label="Переименовать"
                 onPick={() => {

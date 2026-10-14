@@ -41,7 +41,6 @@ export function ChatView({
   plugins,
   approval,
   counts,
-  onNewChat,
   switching = false,
   panelPickerOpen,
   onClosePanelPicker,
@@ -382,10 +381,10 @@ export function ChatView({
             counts={counts}
             plugins={plugins}
             model={model}
+            onPrompt={setDraft}
             onOpenProject={project.pick}
             onConnectPlugin={onOpenPluginsPage}
             onCompare={() => setOverlay("compare")}
-            onNewChat={onNewChat}
           />
         )}
       </div>

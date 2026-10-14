@@ -78,6 +78,11 @@ pub struct AppState {
     /// serde-умолчание старые state.json без поля не ломает.
     #[serde(default)]
     pub archived_chats: Option<Vec<String>>,
+    /// Закреплённые чаты (замечание владельца 14.10: «сверху избранное — раздел
+    /// для закрепления»): раздел поверх групп дат, строка уходит меню «Закрепить».
+    /// serde-умолчание старые state.json без поля не ломает.
+    #[serde(default)]
+    pub pinned_chats: Option<Vec<String>>,
 }
 
 /// Правка состояния: названные поля меняются, остальные остаются как были.
@@ -97,6 +102,8 @@ pub struct StatePatch {
     /// Архив чатов: весь список идентификаторов — патч меняет его целиком
     /// (добавить или вернуть один id считает интерфейс, владелец их видит).
     pub archived_chats: Option<Vec<String>>,
+    /// Закреплённые чаты: весь список идентификаторов, как архив.
+    pub pinned_chats: Option<Vec<String>>,
 }
 
 impl AppState {
@@ -113,6 +120,7 @@ impl AppState {
             chat_time: patch.chat_time.or(self.chat_time),
             default_model: patch.default_model.clone().or_else(|| self.default_model.clone()),
             archived_chats: patch.archived_chats.clone().or_else(|| self.archived_chats.clone()),
+            pinned_chats: patch.pinned_chats.clone().or_else(|| self.pinned_chats.clone()),
         }
     }
 }

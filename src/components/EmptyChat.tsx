@@ -35,24 +35,38 @@ const MODEL_ROW_LIMIT = 8;
 
 type WelcomeCounts = { chats: number; projects: number };
 
-/** Сценарии: константа — действия реальные, те же, что кнопки шапки сайдбара.
- *  «Новый чат» ведёт себя как кнопка сайдбара: лента чистится, движку
- *  поднимается новая сессия (замечание владельца 2026-10-06). */
+/** Сценарии приветствия (замечание владельца 14.10: «предлагать что-то по
+ *  типу доклад, аналитика и т.д.»): первые два подставляют готовый вопрос
+ *  в композер (`prompt`), остальные ведут себя как кнопки сайдбара.
+ *  «Новый чат» — как кнопка сайдбара: лента чистится, движку поднимается
+ *  новая сессия (замечание владельца 2026-10-06). */
 const SCENARIOS = [
+  {
+    key: "report",
+    title: "Доклад",
+    sub: "Итоги, решения, риски и шаги",
+    Glyph: ChatGlyph,
+    prompt: "Собери доклад по проекту: что сделано, ключевые решения, риски и следующие шаги.",
+  },
+  {
+    key: "analytics",
+    title: "Аналитика",
+    sub: "Разбор кода и горячих точек",
+    Glyph: ScalesGlyph,
+    prompt: "Проанализируй проект: структура, самые сложные места, метрики и что улучшить в первую очередь.",
+  },
   { key: "open-project", title: "Открыть проект", sub: "Выбрать папку с кодом", Glyph: FolderGlyph },
-  { key: "new-chat", title: "Новый чат", sub: "Начать с чистого листа", Glyph: ChatGlyph },
-  { key: "connect-plugin", title: "Подключить плагин", sub: "Каталог и права", Glyph: PuzzleGlyph },
-  { key: "compare-models", title: "Сравнить модели", sub: "Выбрать для этого чата", Glyph: ScalesGlyph },
+  { key: "compare-models", title: "Сравнить модели", sub: "Выбрать для этого чата", Glyph: PuzzleGlyph },
 ] as const;
 
 export function EmptyChat({
   counts,
   plugins,
   model,
+  onPrompt,
   onOpenProject,
   onConnectPlugin,
   onCompare,
-  onNewChat,
 }: {
   counts: WelcomeCounts;
   plugins: PluginsState;
@@ -61,8 +75,9 @@ export function EmptyChat({
   onOpenProject: () => void;
   onConnectPlugin: () => void;
   onCompare: () => void;
-  /** Карточка «Новый чат»: тот же ход, что кнопка сайдбара. */
-  onNewChat: () => void;
+  /** Карточки «Доклад»/«Аналитика»: готовый вопрос уходит в композер —
+   *  владелец правит и отправляет. */
+  onPrompt: (text: string) => void;
 }) {
   const compare = useCompare(true);
   // Расход «за сегодня» — те же данные, что у раздела «Статистика» (спека §5):
@@ -104,14 +119,12 @@ export function EmptyChat({
     },
   ];
   const actionOf = (key: (typeof SCENARIOS)[number]["key"]): (() => void) | undefined => {
+    const scenario = SCENARIOS.find((one) => one.key === key);
+    if (scenario && "prompt" in scenario) {
+      return () => onPrompt(scenario.prompt);
+    }
     if (key === "open-project") {
       return onOpenProject;
-    }
-    if (key === "new-chat") {
-      return onNewChat;
-    }
-    if (key === "connect-plugin") {
-      return onConnectPlugin;
     }
     if (key === "compare-models") {
       return onCompare;

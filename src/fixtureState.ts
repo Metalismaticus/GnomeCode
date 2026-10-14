@@ -26,6 +26,8 @@ export type FixtureState = {
   chatTime: number | null;
   /** Чаты, убранные в архив: идентификаторы сессий ядра (меню строки). */
   archivedChats: string[];
+  /** Закреплённые чаты: идентификаторы сессий ядра (меню строки). */
+  pinnedChats: string[];
 };
 
 const KEY = "gnomecode-fixture-state";
@@ -62,6 +64,7 @@ export function readFixtureState(): FixtureState {
           defaultModel: chatModelOf(held.defaultModel),
           chatTime: typeof held.chatTime === "number" ? held.chatTime : null,
           archivedChats: pluginIds(held.archivedChats),
+          pinnedChats: pluginIds(held.pinnedChats),
         };
       }
     }
@@ -78,6 +81,7 @@ export function readFixtureState(): FixtureState {
     defaultModel: null,
     chatTime: null,
     archivedChats: [],
+    pinnedChats: [],
   };
 }
 

@@ -1,6 +1,5 @@
 import { useRef, useState, type RefObject } from "react";
 
-import type { Theme } from "../viewparams";
 import { params } from "../viewparams";
 import { chatsWithLive } from "../app/lists";
 import { chatGroupOf, chatTimeOf } from "../app/chatTime";
@@ -9,7 +8,6 @@ import { panels } from "../fixture";
 import { Button } from "./Button";
 import { ChatRow } from "./ChatRow";
 import { SidebarItem } from "./SidebarItem";
-import { ThemeSwitch } from "./ThemeSwitch";
 import { MenuItem, RowMenu, type MenuSpot } from "./RowMenu";
 
 import logoMark from "../assets/logo.png";
@@ -173,6 +171,8 @@ function chatRows(
   onOpenChatRow: (chat: SidebarChat) => void,
   onRenameChat: (id: string, title: string, wasActive: boolean) => void,
   onDeleteChat: (id: string, wasActive: boolean) => void,
+  pinnedIds: string[],
+  onTogglePin: (id: string) => void,
 ) {
   if (!all.length) {
     return <SidebarItem title="Пока нет чатов" />;
@@ -194,6 +194,8 @@ function chatRows(
             key={chat.id}
             chat={chat}
             now={now}
+            pinned={pinnedIds.includes(chat.id)}
+            onTogglePin={() => onTogglePin(chat.id as string)}
             onOpen={() => onOpenChatRow(chat)}
             onReturn={onOpenChat}
             onRename={(title) => onRenameChat(chat.id as string, title, Boolean(chat.active))}
@@ -272,14 +274,11 @@ function archiveSection(
 
 /** Левая колонка: логотип, поиск по чатам, быстрые действия («+ Новый проект»,
  *  «Новый чат», «Статистика»), разделы «Проекты»/«Чаты» с датами и архивом,
- *  подвал. Строка списка и её состояние «активный» — SidebarItem. Строк
- *  «Плагины» и «Настройки» здесь нет (правка владельца 2026-10-10, §18 спеки
- *  сайдбара): дублируют «⋯», «+» и приветствие. */
+ *  подвал с общими настройками. Строка списка и её состояние «активный» —
+ *  SidebarItem. */
 export function Sidebar({
   projects,
   chats,
-  theme,
-  onToggleTheme,
   onPickFolder,
   onRemoveProject,
   onOpenStats,
@@ -287,13 +286,14 @@ export function Sidebar({
   onOpenChatRow,
   onRenameChat,
   onDeleteChat,
+  onTogglePin,
+  pinnedIds,
+  onOpenSettings,
   onNewChat,
   chatActions,
 }: {
   projects: SidebarProject[];
   chats: SidebarChat[];
-  theme: Theme;
-  onToggleTheme: () => void;
   /** Выбор папки проекта системным диалогом — кнопка «+ Новый проект». */
   onPickFolder: () => void;
   /** Убрать проект: меню строки проекта, папка на диске остаётся. */
@@ -311,6 +311,14 @@ export function Sidebar({
   /** Удалить чат совсем; был открыт — титул окна снимается, следующий вопрос
    *  начнёт новый чат. */
   onDeleteChat: (id: string, wasActive: boolean) => void;
+  /** Закрепить или открепить чат (замечание владельца 14.10): раздел
+   *  «Закреплённые» поверх групп дат. */
+  onTogglePin: (id: string) => void;
+  /** Закреплённые чаты: идентификаторы из состояния окна. */
+  pinnedIds: string[];
+  /** Общие настройки окна: кнопка в подвале сайдбара (владелец 14.10:
+   *  «не могу выйти на настройки, везде только настройки чата»). */
+  onOpenSettings: () => void;
   /** «Новый чат»: лента чистится, движку поднимается новая сессия (замечание
    *  владельца 2026-10-06 — карточку «Новый чат» не нажать). */
   onNewChat: () => void;
@@ -332,7 +340,12 @@ export function Sidebar({
   const all = merged.filter(
     (chat) => !chat.id || !chatActions.archived.includes(chat.id),
   );
-  const visible = all.filter((chat) => matches(chat, query));
+  /** Закреплённые поверх (замечание владельца 14.10): раздел до групп дат;
+   *  в самих группах закреплённая строка не дублируется. */
+  const pinned = all.filter((chat) => chat.id !== undefined && pinnedIds.includes(chat.id));
+  const loose = all.filter((chat) => chat.id === undefined || !pinnedIds.includes(chat.id));
+  const visiblePinned = pinned.filter((chat) => matches(chat, query));
+  const visible = loose.filter((chat) => matches(chat, query));
   return (
     <nav className="sidebar" data-testid="sidebar">
       <div className="sidebar__logo">
@@ -362,8 +375,14 @@ export function Sidebar({
         ) : (
           <SidebarItem title="Пока нет проектов" />
         )}
+        {visiblePinned.length ? (
+          <>
+            <div className="sidebar__section-title">Закреплённые</div>
+            {chatRows(all, visiblePinned, now, chatActions, onOpenChat, onOpenChatRow, onRenameChat, onDeleteChat, pinnedIds, onTogglePin)}
+          </>
+        ) : null}
         <div className="sidebar__section-title">Чаты</div>
-        {chatRows(all, visible, now, chatActions, onOpenChat, onOpenChatRow, onRenameChat, onDeleteChat)}
+        {chatRows(all, visible, now, chatActions, onOpenChat, onOpenChatRow, onRenameChat, onDeleteChat, pinnedIds, onTogglePin)}
         {/* Архив — про поиск молчит: поиск ищет чаты, архив своя полка. */}
         {query.trim()
           ? null
@@ -375,11 +394,17 @@ export function Sidebar({
               chatActions,
             )}
       </div>
-      <div className="sidebar__footer">
-        <span className="sidebar__avatar">Г</span>
-        <span className="sidebar__owner">Владелец</span>
-        <ThemeSwitch theme={theme} onToggle={onToggleTheme} testid="theme-switch-sidebar" />
-      </div>
+      {/* Подвал: общие настройки окна (владелец 14.10: «не могу выйти на
+          настройки»); темы и аккаунта здесь больше нет — темы живут в шапке,
+          входа в аккаунт у opencode нет. */}
+      <button
+        type="button"
+        className="sidebar__settings"
+        data-testid="sidebar-settings"
+        onClick={onOpenSettings}
+      >
+        ⚙ Настройки
+      </button>
     </nav>
   );
 }

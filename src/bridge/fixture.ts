@@ -208,6 +208,7 @@ export const fixtureBridge = (): Bridge => ({
       defaultModel: saved.defaultModel || null,
       chatTime: saved.chatTime || null,
       archivedChats: saved.archivedChats,
+      pinnedChats: saved.pinnedChats,
     };
   },
   async statePatch(patch: WindowPatch) {
@@ -222,6 +223,7 @@ export const fixtureBridge = (): Bridge => ({
       defaultModel: patch.defaultModel ?? saved.defaultModel,
       chatTime: patch.chatTime ?? saved.chatTime,
       archivedChats: patch.archivedChats ?? saved.archivedChats,
+      pinnedChats: patch.pinnedChats ?? saved.pinnedChats,
     };
     writeFixtureState(next);
     return {
@@ -235,6 +237,7 @@ export const fixtureBridge = (): Bridge => ({
       defaultModel: next.defaultModel || null,
       chatTime: next.chatTime || null,
       archivedChats: next.archivedChats,
+      pinnedChats: next.pinnedChats,
     };
   },
   async providerList() {

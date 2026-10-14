@@ -125,36 +125,30 @@
   margin: var(--space-2) 0 var(--space-1);
 }
 
-/* Подвал: владелец и переключатель темы — переключатель один на два места,
-   поэтому здесь тот же ThemeSwitch, что в шапке чата. */
-.sidebar__footer {
+/* Подвал: общие настройки окна — единственная кнопка подвала (владелец 14.10:
+   «не могу выйти на настройки, везде только настройки чата»). Темы и аккаунта
+   здесь больше нет: переключатель один в шапке, входа в аккаунт у opencode нет. */
+.sidebar__settings {
   margin-top: auto;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: none;
   color: var(--text-dim);
   font-size: 13px;
-  min-width: 0;
+  font-family: inherit;
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  cursor: pointer;
 }
 
-.sidebar__owner {
-  flex: 1;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.sidebar__settings:hover {
+  background: var(--bg-hover);
+  color: var(--text);
 }
 
-.sidebar__avatar {
-  width: 28px;
-  height: 28px;
-  min-width: 28px;
-  border-radius: 50%;
-  background: var(--bg-panel-2);
-  display: grid;
-  place-items: center;
-  font-size: 13px;
-  color: var(--text-dim);
+.sidebar__settings:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 @media (max-width: 1199px) {

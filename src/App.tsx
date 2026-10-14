@@ -171,6 +171,7 @@ export default function App() {
         chatModel: null,
         defaultModel: null,
         archivedChats: null,
+        pinnedChats: null,
       });
       void bridge().openChat(row.id);
     },
@@ -194,6 +195,7 @@ export default function App() {
           chatModel: null,
           defaultModel: null,
           archivedChats: null,
+        pinnedChats: null,
         });
         void patchState({ session: opened.id, chatTitle: opened.title, chatTime: opened.time ?? 0 });
       } else {
@@ -219,11 +221,23 @@ export default function App() {
       // Архив чатов помнится между запусками: убранные строки не возвращаются
       // сами после рестарта (состояние окна, patchState).
       chatActions.applyArchived(saved.archivedChats);
+      // Закреплённые чаты (замечание владельца 14.10) — тоже состояние окна.
+      setPinnedIds(saved.pinnedChats ?? []);
     },
     [chat.applySaved, chatActions.applyArchived],
   );
   useSavedState(applySaved);
 
+  /** Закреплённые чаты (замечание владельца 14.10): раздел «Закреплённые»
+   *  поверх групп дат, пункт «Закрепить» в меню строки; состояние окна. */
+  const [pinnedIds, setPinnedIds] = useState<string[]>([]);
+  const togglePin = useCallback((id: string) => {
+    setPinnedIds((held) => {
+      const next = held.includes(id) ? held.filter((one) => one !== id) : [...held, id];
+      void patchState({ pinnedChats: next });
+      return next;
+    });
+  }, []);
   /** Убрать проект (меню строки проекта): папка на диске остаётся, окно
    *  возвращается в состояние «проект не выбран» — ответ моста несёт новый
    *  корень, по нему список проектов и рисуется заново. */
@@ -254,6 +268,7 @@ export default function App() {
           chatModel: null,
           defaultModel: null,
           archivedChats: null,
+        pinnedChats: null,
         });
         void patchState({ chatTitle: title });
       }
@@ -312,8 +327,9 @@ export default function App() {
       <Sidebar
         projects={projects}
         chats={chats}
-        theme={theme}
-        onToggleTheme={toggleTheme}
+        pinnedIds={pinnedIds}
+        onTogglePin={togglePin}
+        onOpenSettings={() => setPage("settings")}
         onPickFolder={project.pick}
         onRemoveProject={removeProject}
         onOpenStats={() => setPage("stats")}

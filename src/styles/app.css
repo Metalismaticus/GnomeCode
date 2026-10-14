@@ -62,3 +62,35 @@
   cursor: pointer;
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.35);
 }
+
+/* Тост «Найден новый плагин · включить» (DT1): сверху по центру — снизу живёт
+   композер, тост поверх него нечитаем (замечание владельца 14.10). Кнопки
+   «включить» и «✕» — обычного размера, тост сам по себе не кнопка. */
+.import-toast {
+  top: 24px;
+  bottom: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: default;
+}
+
+.import-toast span {
+  min-width: 0;
+}
+
+.import-toast button {
+  flex: none;
+  border: 1px solid var(--border, #666);
+  border-radius: 6px;
+  background: none;
+  color: var(--text, #eee);
+  font: inherit;
+  font-size: 12px;
+  padding: 2px 10px;
+  cursor: pointer;
+}
+
+.import-toast button:hover {
+  background: var(--bg-hover, #333);
+}
