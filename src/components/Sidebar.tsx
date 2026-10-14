@@ -1,4 +1,4 @@
-import { useRef, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 
 import { params } from "../viewparams";
 import { chatsWithLive } from "../app/lists";
@@ -317,6 +317,17 @@ export function Sidebar({
   chatActions: ChatActions;
 }) {
   const now = Date.now();
+  /** Ctrl+K (концепт B10): из любого места окна фокус уходит в поиск чатов. */
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        (document.querySelector('[data-testid="sidebar-search"]') as HTMLElement | null)?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   /** Поиск живёт в самом поле: кадры поиска приходят адресом (`?поиск=`),
    *  дальше поле ведёт себя как обычный ввод. */
   const [query, setQuery] = useState(params.search);
