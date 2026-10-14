@@ -36,6 +36,9 @@ import {
   mcpRemove as mcpRemoveFixture,
   mcpSetEnabled as mcpToggleFixture,
   providerCatalog as providerCatalogFixture,
+  skillsList as skillsListFixture,
+  skillsRemove as skillsRemoveFixture,
+  skillsSave as skillsSaveFixture,
   removeEndpoint as removeEndpointFixture,
   saveKey as saveKeyFixture,
   removeKey as removeKeyFixture,
@@ -223,6 +226,15 @@ export const fixtureBridge = (): Bridge => ({
   },
   async mcpRemove(name: string) {
     mcpRemoveFixture(name);
+  },
+  async skillsList() {
+    return skillsListFixture();
+  },
+  async skillsSave(name: string, description: string, text: string) {
+    return skillsSaveFixture(name, description, text);
+  },
+  async skillsRemove(name: string) {
+    return skillsRemoveFixture(name);
   },
   async decidePlugin(
     plugin: string,

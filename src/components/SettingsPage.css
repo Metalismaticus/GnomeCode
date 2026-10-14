@@ -425,3 +425,10 @@
   font-family: inherit;
   font-size: 12px;
 }
+/* Скиллы (B7): текст инструкции — многострочное поле на всю ширину. */
+.settings-skills__text {
+  flex: 1 0 100%;
+  min-height: 96px;
+  resize: vertical;
+  font-family: var(--font-mono);
+}

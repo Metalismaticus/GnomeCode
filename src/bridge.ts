@@ -30,7 +30,7 @@ export type {
   TreeNode,
   UpdatesNote,
 } from "./bridge/types";
-export type { CatalogSnapshot } from "./bridge/types";
+export type { CatalogSnapshot, Skill } from "./bridge/types";
 export { ENGINE_READY_NOTICES } from "./bridge/tauri";
 export { chatList } from "./bridge/live";
 

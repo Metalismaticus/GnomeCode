@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { bridge } from "../bridge";
-import type { ChatModelChoice, McpServer } from "../bridge";
+import type { ChatModelChoice, McpServer, Skill } from "../bridge";
 import { useCompare } from "../features/compare/useCompare";
 import { useKeyForm, type KeyFormState } from "../features/settings/useKeyForm";
 import { useSettings, type SettingsState } from "../features/settings/useSettings";
@@ -21,16 +21,17 @@ import { ThemeSwitch } from "./ThemeSwitch";
 import "./SettingsPage.css";
 import "./PluginConfig.css";
 
-type Tab = "вид" | "модели" | "плагины" | "данные";
+type Tab = "вид" | "модели" | "плагины" | "скиллы" | "данные";
 
 const TITLES: Record<Tab, string> = {
   вид: "Внешний вид",
   модели: "Модели",
   плагины: "Плагины",
+  скиллы: "Скиллы",
   данные: "Папка данных",
 };
 
-const TABS: Tab[] = ["вид", "модели", "плагины", "данные"];
+const TABS: Tab[] = ["вид", "модели", "плагины", "скиллы", "данные"];
 
 /** Вкладка состояния адреса: «настройки-модели» открывает Модели и т.д. */
 const TAB_OF_STATE: Record<string, Tab> = {
@@ -39,6 +40,7 @@ const TAB_OF_STATE: Record<string, Tab> = {
   "настройки-ключ": "модели",
   "настройки-ключ-ошибка": "модели",
   "настройки-плагины": "плагины",
+  "настройки-скиллы": "скиллы",
   "настройки-данные": "данные",
   "настройки-движок": "модели",
   "настройки-ollama": "модели",
@@ -99,6 +101,7 @@ export function SettingsPage({ theme, onToggleTheme, defaultModel, onChooseDefau
           />
         ) : null}
         {tab === "плагины" ? <RulesSection settings={settings}  /> : null}
+        {tab === "скиллы" ? <SkillsSection /> : null}
         {tab === "данные" ? <DataSection folder={settings.folder}  /> : null}
       </div>
     </main>
@@ -434,8 +437,169 @@ function McpSection() {
   );
 }
 
-/** Вкладка «Папка данных»: полный путь и его копирование; смены пути нет. */
-function DataSection({ folder }: { folder: string }) {
+/** Вкладка «Скиллы» (B7): свои команды-инструкции движку — список, добавление
+ *  и редактирование. Скилл = markdown-файл команды движка (command/*.md):
+ *  имя, описание и текст инструкции; правка перезапускает движок, кнопка
+ *  скилла появляется в шапке чата. */
+function SkillsSection() {
+  const [skills, setSkills] = useState<Skill[] | null>(null);
+  const [error, setError] = useState("");
+  /** Редактируемый скилл: null — список, "new" — новый, иначе — правка по имени. */
+  const [editing, setEditing] = useState<string | "new" | null>(null);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [text, setText] = useState("");
+
+  const load = useCallback(() => {
+    bridge()
+      .skillsList()
+      .then((list) => {
+        setSkills(list);
+        setError("");
+      })
+      .catch((reason: unknown) => setError(String(reason)));
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const startNew = () => {
+    setName("");
+    setDescription("");
+    setText("");
+    setEditing("new");
+  };
+  const startEdit = (skill: Skill) => {
+    setName(skill.name);
+    setDescription(skill.description);
+    setText(skill.text);
+    setEditing(skill.name);
+  };
+  const save = () => {
+    bridge()
+      .skillsSave(name, description, text)
+      .then((list) => {
+        setSkills(list);
+        setError("");
+        setEditing(null);
+      })
+      .catch((reason: unknown) => setError(String(reason)));
+  };
+  const remove = (skill: string) => {
+    bridge()
+      .skillsRemove(skill)
+      .then((list) => {
+        setSkills(list);
+        setError("");
+      })
+      .catch((reason: unknown) => setError(String(reason)));
+  };
+
+  return (
+    <section className="settings-section" data-testid="settings-skills">
+      <h2 className="settings-section__title">Скиллы — свои команды для чата</h2>
+      <div className="settings-row__hint settings-rules__hint">
+        Инструкция, которой следует модель: «научить конвертировать картинку в
+        3D», «собирать доклад по проекту». Скилл появляется кнопкой в шапке чата.
+      </div>
+      {error ? (
+        <div className="settings-row__sub" data-testid="skills-error">
+          {error}
+        </div>
+      ) : null}
+      {skills === null ? (
+        <div className="settings-row__sub">Читаю скиллы…</div>
+      ) : null}
+      {skills?.map((skill) =>
+        editing === skill.name ? null : (
+          <div className="settings-row" key={skill.name} data-testid="skills-row">
+            <span className="settings-row__label">{skill.name}</span>
+            <span className="settings-row__value">
+              <span className="settings-row__sub">{skill.description}</span>
+            </span>
+            <span className="settings-row__actions">
+              <button
+                type="button"
+                className="settings-row__ghost"
+                data-testid="skills-edit"
+                onClick={() => startEdit(skill)}
+              >
+                Редактировать
+              </button>
+              <button
+                type="button"
+                className="settings-row__ghost"
+                data-testid="skills-remove"
+                onClick={() => remove(skill.name)}
+              >
+                Удалить
+              </button>
+            </span>
+          </div>
+        ),
+      )}
+      {skills !== null && !skills.length && editing === null ? (
+        <div className="settings-row__sub" data-testid="skills-empty">
+          Скиллов нет — научите GnomeCode чему-нибудь своему.
+        </div>
+      ) : null}
+      {editing !== null ? (
+        <div className="settings-mcp__add" data-testid="skills-form">
+          <input
+            className="settings-key-form__input"
+            data-testid="skills-name"
+            placeholder="Имя (латиница и дефис)"
+            value={name}
+            disabled={editing !== "new"}
+            onChange={(event) => setName(event.target.value)}
+          />
+          <input
+            className="settings-key-form__input"
+            data-testid="skills-description"
+            placeholder="Описание для списка"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+          />
+          <textarea
+            className="settings-key-form__input settings-skills__text"
+            data-testid="skills-text"
+            placeholder="Инструкция модели: что делать и как"
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+          />
+          <button
+            type="button"
+            className="settings-key-form__save"
+            data-testid="skills-save"
+            onClick={save}
+          >
+            Сохранить
+          </button>
+          <button
+            type="button"
+            className="settings-row__ghost"
+            data-testid="skills-cancel"
+            onClick={() => setEditing(null)}
+          >
+            Отмена
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="settings-row__ghost"
+          data-testid="skills-add"
+          onClick={startNew}
+        >
+          Добавить скилл
+        </button>
+      )}
+    </section>
+  );
+}
+
+/** Вкладка «Папка данных»: полный путь и его копирование; смены пути нет. */function DataSection({ folder }: { folder: string }) {
   const [copied, setCopied] = useState(false);
   const copyTimer = useRef<number | null>(null);
 

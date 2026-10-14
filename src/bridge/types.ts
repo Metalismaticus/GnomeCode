@@ -200,6 +200,13 @@ export type McpServer = {
   detail: string;
 };
 
+/** Скилл владельца (B7): своя команда-инструкция движку. */
+export type Skill = {
+  name: string;
+  description: string;
+  text: string;
+};
+
 /** Скан конфигурации для экрана первого запуска (DT1): импортированные и всё
  *  ещё выключенные (чекбоксы), свежее этого запуска (тост), нераспознанные
  *  записи с причинами — «Распознано N из M». */
@@ -323,6 +330,12 @@ export type Bridge = {
   mcpAdd(name: string, kind: "local" | "remote", detail: string): Promise<void>;
   /** Удалить MCP-сервер из конфигурации. */
   mcpRemove(name: string): Promise<void>;
+  /** Скиллы владельца (B7): список своих команд-инструкций. */
+  skillsList(): Promise<Skill[]>;
+  /** Сохранить скилл (создать или править): движок перезапускается. */
+  skillsSave(name: string, description: string, text: string): Promise<Skill[]>;
+  /** Удалить скилл. */
+  skillsRemove(name: string): Promise<Skill[]>;
   /** Карточки каталога «Available» — индекс с GitHub (raw, не api.github.com). */
   catalogList(): Promise<CatalogEntry[]>;
   /** Каталог моделей сравнения: свежий с opencode.ai, недоступный сайт — из кэша

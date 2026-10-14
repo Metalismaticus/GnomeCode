@@ -106,6 +106,48 @@ export function mcpRemove(name: string): void {
   mcpServers.splice(at, 1);
 }
 
+/** Скиллы страницы (B7): память — как command/*.md в окне, до перезагрузки. */
+const skills: { name: string; description: string; text: string }[] = [
+  {
+    name: "img-to-3d",
+    description: "Конвертировать картинку в 3D модель",
+    text: "Инструкция: получив изображение, конвертируй его в 3D модель через внешний инструмент и верни путь к результату.",
+  },
+  {
+    name: "weekly-report",
+    description: "Недельный доклад по проекту",
+    text: "Инструкция: собери доклад — что сделано за неделю, ключевые решения, риски и следующие шаги.",
+  },
+];
+
+export function skillsList(): typeof skills {
+  return skills.map((one) => ({ ...one }));
+}
+
+export function skillsSave(name: string, description: string, text: string): typeof skills {
+  const clean = name.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
+  if (!clean) {
+    throw new Error("имя скилла — латиница, цифры и дефис");
+  }
+  const held = skills.find((one) => one.name === clean);
+  if (held) {
+    held.description = description.trim();
+    held.text = text;
+  } else {
+    skills.push({ name: clean, description: description.trim(), text });
+  }
+  return skillsList();
+}
+
+export function skillsRemove(name: string): typeof skills {
+  const at = skills.findIndex((one) => one.name === name);
+  if (at === -1) {
+    throw new Error(`скилла «${name}» нет`);
+  }
+  skills.splice(at, 1);
+  return skillsList();
+}
+
 /** Умолчания прав: ask везде, у Terminal задан deny (кадр «настройки-плагины»). */
 const defaults: Record<string, string> = {
   Read: "ask",

@@ -439,13 +439,12 @@ pub fn plugin_rollback(
 /// MCP-серверы конфигурации (B6): список, тумблер, добавление и удаление.
 /// Каждая правка перезапускает движок — MCP читается при старте.
 #[tauri::command]
-pub fn mcp_list(app: AppHandle) -> Result<Vec<crate::mcpconfig::McpServer>, String> {
+pub fn mcp_list() -> Result<Vec<crate::mcpconfig::McpServer>, String> {
     Ok(crate::mcpconfig::servers(&import::config_path().unwrap_or_default()))
 }
 
 #[tauri::command]
 pub fn mcp_set_enabled(
-    app: AppHandle,
     chat: State<'_, Chat>,
     name: String,
     enabled: bool,
@@ -457,7 +456,6 @@ pub fn mcp_set_enabled(
 
 #[tauri::command]
 pub fn mcp_add(
-    app: AppHandle,
     chat: State<'_, Chat>,
     name: String,
     kind: String,
@@ -470,13 +468,43 @@ pub fn mcp_add(
 
 #[tauri::command]
 pub fn mcp_remove(
-    app: AppHandle,
     chat: State<'_, Chat>,
     name: String,
 ) -> Result<(), String> {
     let path = import::config_path().ok_or("конфигурация opencode.json не найдена")?;
     crate::mcpconfig::remove(&path, &name)?;
     chat.restart()
+}
+
+/// Скиллы владельца (B7): список своих команд-инструкций.
+#[tauri::command]
+pub fn skills_list() -> Result<Vec<crate::skills::Skill>, String> {
+    Ok(crate::skills::list())
+}
+
+/// Сохранить скилл (создать или править): движок перезапускается — команды
+/// читаются при старте, кнопка скилла появляется в шапке чата.
+#[tauri::command]
+pub fn skills_save(
+    chat: State<'_, Chat>,
+    name: String,
+    description: String,
+    text: String,
+) -> Result<Vec<crate::skills::Skill>, String> {
+    crate::skills::save(&name, &description, &text)?;
+    chat.restart()?;
+    Ok(crate::skills::list())
+}
+
+/// Удалить скилл: файл команды уходит, движок после рестарта её больше не даёт.
+#[tauri::command]
+pub fn skills_remove(
+    chat: State<'_, Chat>,
+    name: String,
+) -> Result<Vec<crate::skills::Skill>, String> {
+    crate::skills::remove(&name)?;
+    chat.restart()?;
+    Ok(crate::skills::list())
 }
 
 /// Событийный счётчик (П-3): включён ли тумблер Настроек.

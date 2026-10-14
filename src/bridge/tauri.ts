@@ -23,7 +23,7 @@ import type {
   TreeNode,
   UpdatesNote,
 } from "./types";
-import type { CatalogSnapshot, McpServer } from "./types";
+import type { CatalogSnapshot, McpServer, Skill } from "./types";
 import type { WindowState, WindowPatch } from "../appstate";
 import type { CatalogEntry } from "../catalog";
 import type { CompareSnapshot } from "../compare";
@@ -130,6 +130,15 @@ export const tauriBridge = (): Bridge => ({
   },
   async mcpRemove(name: string) {
     await invoke<void>("mcp_remove", { name });
+  },
+  async skillsList() {
+    return (await invoke<Skill[]>("skills_list")) as Skill[];
+  },
+  async skillsSave(name: string, description: string, text: string) {
+    return (await invoke<Skill[]>("skills_save", { name, description, text })) as Skill[];
+  },
+  async skillsRemove(name: string) {
+    return (await invoke<Skill[]>("skills_remove", { name })) as Skill[];
   },
   async catalogList() {
     return (await invoke<CatalogEntry[]>("catalog_list")) as CatalogEntry[];
