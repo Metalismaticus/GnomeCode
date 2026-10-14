@@ -98,9 +98,29 @@ export function localServers(): LocalServer[] {
   return LOCAL.filter((one) => kinds.includes(one.kind) && !connected.includes(baseKey(one.baseUrl)));
 }
 
-/** Провайдеры настройками: движок плюс свои endpoint'ы; движок недоступен — ошибка. */
-export function providers(): ProviderRow[] {
+/** Каталог провайдеров models.dev для списка «как у опенкода» (владелец
+ *  14.10): узнаваемые имена, у каждого можно задать ключ. Вне настроек — пусто. */
+const CATALOG_ROWS: ProviderRow[] = [
+  { id: "deepseek", name: "DeepSeek", models: 6, endpoint: false, catalog: true, enabled: true },
+  { id: "anthropic", name: "Anthropic", models: 8, endpoint: false, catalog: true, enabled: true },
+  { id: "openai", name: "OpenAI", models: 16, endpoint: false, catalog: true, enabled: true },
+  { id: "google", name: "Google", models: 12, endpoint: false, catalog: true, enabled: true },
+  { id: "xai", name: "xAI", models: 5, endpoint: false, catalog: true, enabled: true },
+  { id: "mistral", name: "Mistral", models: 9, endpoint: false, catalog: true, enabled: true },
+  { id: "groq", name: "Groq", models: 7, endpoint: false, catalog: true, enabled: true },
+  { id: "openrouter", name: "OpenRouter", models: 40, endpoint: false, catalog: true, enabled: true },
+];
+
+/** Каталог для раздела провайдеров: вне настроек пусто. */
+export function providerCatalog(): ProviderRow[] {
   if (!params.feed.startsWith("настройки")) {
+    return [];
+  }
+  return CATALOG_ROWS;
+}
+
+/** Провайдеры настройками: движок плюс свои endpoint'ы; движок недоступен — ошибка. */
+export function providers(): ProviderRow[] {  if (!params.feed.startsWith("настройки")) {
     return [];
   }
   if (params.feed === "настройки-движок") {

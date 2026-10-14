@@ -31,6 +31,7 @@ import {
   providers as settingsProviders,
   keyRows as keyFixture,
   localServers as localServersFixture,
+  providerCatalog as providerCatalogFixture,
   removeEndpoint as removeEndpointFixture,
   saveKey as saveKeyFixture,
   removeKey as removeKeyFixture,
@@ -275,9 +276,9 @@ export const fixtureBridge = (): Bridge => ({
     return settingsProviders();
   },
   async providerCatalog() {
-    // Своего каталога провайдеров у фикстуры нет: моделей-список настроек
-    // живёт на движке, страница честно скажет «каталог не читается».
-    return [];
+    // Список «как у опенкода»: узнаваемые провайдеры фикстуры — каждому можно
+    // задать ключ (в окне их отдаёт models.dev через provider_catalog).
+    return providerCatalogFixture();
   },
   async providerSetEnabled(id: string, enabled: boolean) {
     return setEnabledFixture(id, enabled);

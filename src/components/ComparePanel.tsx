@@ -355,8 +355,8 @@ function pointsOf(series: { name: string; points: { value: number; real: boolean
 
 /** Раскрытие строки: радар пяти осей против модели-базы (усиление сравнения,
  *  как на opencode.ai/data/compare), описание, полный прайс, выпуск, признаки
- *  и бенчмарки. База выбирается вручную списком (по умолчанию — модель чата);
- *  радара нет, если база = эта же строка. */
+ *  и бенчмарки. База выбирается комбобоксом с поиском по названию (по
+ *  умолчанию — модель чата); радара нет, если база = эта же строка. */
 function Expanded({
   model,
   against,
@@ -370,24 +370,61 @@ function Expanded({
 }) {
   const features = featuresOf(model);
   const comparable = against !== undefined && against.id !== model.id;
+  /** Комбобокс базы: поиск по подстроке имени/id, выбор кликом из списка. */
+  const [baseQuery, setBaseQuery] = useState("");
+  const [baseOpen, setBaseOpen] = useState(false);
+  const needle = baseQuery.trim().toLowerCase();
+  const baseMatches = baseOptions.filter(
+    (one) =>
+      one.name.toLowerCase().includes(needle) || one.id.toLowerCase().includes(needle),
+  );
   return (
     <div className="compare-details" data-testid="compare-details">
       {comparable ? (
         <div className="compare-details__radar" data-testid="compare-radar">
           <label className="compare-details__base">
             Сравнить с:
-            <select
-              className="compare-details__base-select"
-              data-testid="radar-base-select"
-              value={against.id}
-              onChange={(event) => onBasePick(event.target.value)}
-            >
-              {baseOptions.map((one) => (
-                <option key={one.id} value={one.id}>
-                  {one.name}
-                </option>
-              ))}
-            </select>
+            <span className="compare-combo">
+              <input
+                className="compare-combo__input"
+                data-testid="radar-base-search"
+                type="text"
+                placeholder={against.name}
+                aria-label="Модель для сравнения — поиск по названию"
+                value={baseQuery}
+                onFocus={() => setBaseOpen(true)}
+                onBlur={() => setBaseOpen(false)}
+                onChange={(event) => {
+                  setBaseQuery(event.target.value);
+                  setBaseOpen(true);
+                }}
+              />
+              {baseOpen ? (
+                <div className="compare-combo__list" data-testid="radar-base-list">
+                  {baseMatches.length ? (
+                    baseMatches.slice(0, 30).map((one) => (
+                      <button
+                        type="button"
+                        key={one.id}
+                        className="compare-combo__option"
+                        data-testid="radar-base-option"
+                        // onMouseDown раньше blur: клик по варианту успевает выбрать.
+                        onMouseDown={(event) => {
+                          event.preventDefault();
+                          onBasePick(one.id);
+                          setBaseQuery("");
+                          setBaseOpen(false);
+                        }}
+                      >
+                        {one.name}
+                      </button>
+                    ))
+                  ) : (
+                    <div className="compare-combo__empty">Ничего не нашлось</div>
+                  )}
+                </div>
+              ) : null}
+            </span>
           </label>
           <RadarChart
             axes={[...RADAR_AXES]}

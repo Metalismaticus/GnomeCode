@@ -311,6 +311,23 @@ function providersBody(
       settings.keysFor(found.slice(0, 12).map((one) => one.id));
     }
   }, [found.map((one) => one.id).join(","), settings.keysFor, found]);
+  // Полный список провайдеров виден сразу (владелец 14.10: «нужен список как
+  // у опенкода»): каталог models.dev грузится при показе раздела, а не только
+  // по поиску. Пометки ключей — для первых сорока строк, дальше по поиску.
+  useEffect(() => {
+    settings.loadCatalog();
+  }, [settings.loadCatalog]);
+  const catalogOnly = (settings.catalog ?? []).filter(
+    (one) => !settings.providers?.some((known) => known.id === one.id),
+  );
+  useEffect(() => {
+    const shown = needle
+      ? found
+      : catalogOnly.slice(0, 40);
+    if (shown.length) {
+      settings.keysFor(shown.slice(0, 40).map((one) => one.id));
+    }
+  }, [needle, found, catalogOnly, settings.keysFor]);
 
   if (compareOpen) {
     return null;
@@ -390,7 +407,22 @@ function providersBody(
           </div>
         )
       ) : (
-        settings.providers!.map(lineOf)
+        <>
+          {settings.providers!.map(lineOf)}
+          {catalogOnly.length ? (
+            <>
+              <div className="settings-row__hint settings-rules__hint">
+                Все провайдеры — задайте ключ любому, модели появятся у движка
+              </div>
+              {catalogOnly.slice(0, 40).map(lineOf)}
+              {catalogOnly.length > 40 ? (
+                <div className="settings-row__hint" data-testid="settings-catalog-more">
+                  И ещё {catalogOnly.length - 40} — найдите поиском по названию
+                </div>
+              ) : null}
+            </>
+          ) : null}
+        </>
       )}
       <div className="settings-row">
         <span className="settings-row__label">Свой endpoint</span>

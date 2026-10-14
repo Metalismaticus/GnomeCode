@@ -303,7 +303,8 @@
   margin-bottom: var(--space-2);
 }
 
-/* Выбор базы сравнения (владелец 14.10): строка «Сравнить с: [список]». */
+/* Выбор базы сравнения (владелец 14.10): комбобокс с поиском — «Сравнить с:
+   [поиск модели]», список вариантов под полем на время фокуса. */
 .compare-details__base {
   display: inline-flex;
   align-items: center;
@@ -313,14 +314,64 @@
   margin-bottom: var(--space-2);
 }
 
-.compare-details__base-select {
+.compare-combo {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.compare-combo__input {
+  width: 200px;
   height: 26px;
-  max-width: 220px;
+  padding: 0 var(--space-2);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--bg-input);
   color: var(--text);
   font-family: inherit;
+  font-size: 12px;
+}
+
+.compare-combo__input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.compare-combo__list {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+}
+
+.compare-combo__option {
+  border: none;
+  background: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  text-align: left;
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+}
+
+.compare-combo__option:hover {
+  background: var(--bg-hover);
+}
+
+.compare-combo__empty {
+  padding: var(--space-1) var(--space-2);
+  color: var(--text-dim);
   font-size: 12px;
 }
 
