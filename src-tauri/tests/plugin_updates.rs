@@ -290,6 +290,53 @@ fn declined_update_is_not_offered_again() {
     assert!(record.contains("\"1.4.2\""), "версия остаётся прежней: {record}");
 }
 
+/// Испорченный updates.json (F6/ET7): файл-мусор читается как пустой —
+/// проверка идёт с чистого листа, .bak от атомарной записи хранит прошлую
+/// версию для восстановления вручную.
+#[test]
+fn corrupt_updates_file_reads_empty_and_bak_holds_the_past() {
+    let data = TempDir::new("updates-corrupt");
+    let file = data.join("updates.json");
+
+    // Первая запись атомарная: .bak ещё нет (файла не было).
+    let mut notes = updates::at(&file);
+    notes.records.insert(
+        "a".to_string(),
+        gnomecode_lib::plugins::model::Update {
+            from: "1.0.0".to_string(),
+            to: "2.0.0".to_string(),
+            status: updates::UpdateStatus::Applied,
+            permissions: vec![],
+            removed: vec![],
+        },
+    );
+    updates::save(&file, &notes).expect("первая запись встала");
+    let past = std::fs::read_to_string(data.join("updates.json.bak"));
+    assert!(past.is_err() || past.unwrap().contains("\"a\"") == false, "первая запись без .bak допустима");
+
+    // Вторая запись: .bak теперь хранит первую версию файла.
+    notes.records.insert(
+        "docs".to_string(),
+        gnomecode_lib::plugins::model::Update {
+            from: "0.9.0".to_string(),
+            to: "1.0.0".to_string(),
+            status: updates::UpdateStatus::Held,
+            permissions: vec!["Write: ask".to_string()],
+            removed: vec![],
+        },
+    );
+    updates::save(&file, &notes).expect("вторая запись встала");
+
+    // Владелец портит файл — читается пусто, но .bak хранит прошлое.
+    std::fs::write(&file, "{ поломанный json").expect("файл испорчен");
+    assert!(updates::at(&file).records.is_empty(), "испорченный файл — пусто, не паника");
+    let bak = std::fs::read_to_string(data.join("updates.json.bak")).expect(".bak на месте");
+    assert!(
+        bak.contains("\"a\"") && !bak.contains("\"docs\""),
+        ".bak хранит прошлую версию (до второй записи): {bak}"
+    );
+}
+
 /// Каталог недоступен: работаем на текущих, файлы нетронуты, пометка в разделе.
 #[test]
 fn an_unavailable_catalog_leaves_everything_and_is_marked() {
