@@ -14,6 +14,7 @@ import { useCatalog } from "../features/plugins/useCatalog";
 import { useHeldSummary, type PluginsState } from "../features/plugins/usePlugins";
 import { CatalogPicker } from "./CatalogPicker";
 import { PluginConfig } from "./PluginConfig";
+import { PluginEnableGate } from "./PluginEnableGate";
 import { PluginSummary } from "./PluginSummary";
 import { PluginUpdates } from "./PluginUpdates";
 import { params } from "../viewparams";
@@ -50,6 +51,33 @@ export function PluginsPage({ plugins, cluster }: { plugins: PluginsState; clust
   const [confirm, setConfirm] = useState<string | undefined>(undefined);
   /** Панель правил Configure: id карточки, с которой кликнули по Configure. */
   const [config, setConfig] = useState<string | undefined>(undefined);
+  /** Сводка прав первого включения (сцена H): плагин из вкладки Disabled,
+   *  чей Enable ещё не проходил сводку. */
+  const [enableGate, setEnableGate] = useState<Plugin | undefined>(undefined);
+
+  /** Включение из вкладки Disabled: у плагина уже есть запись правил — сводку
+   *  показывали, включаем сразу; нет — первый раз через сцену H (T1). */
+  const askEnable = (plugin: Plugin) => {
+    if (plugin.rules !== undefined) {
+      plugins.setEnabled(false, plugin.id);
+      return;
+    }
+    setEnableGate(plugin);
+  };
+
+  /** «Разрешить и включить» (сцена H): выбор действует на первый вызов —
+   *  объявленные категории становятся правилами allow (слой прав читает их
+   *  без перезапуска); дальше само включение. */
+  const allowEnable = (plugin: Plugin) => {
+    for (const one of plugin.permissions ?? []) {
+      const category = one.split(":")[0]?.trim();
+      if (category) {
+        plugins.setRule(plugin.id, category, "allow");
+      }
+    }
+    plugins.setEnabled(false, plugin.id);
+    setEnableGate(undefined);
+  };
 
   /** Available открывает каталог оверлеем; после его закрытия владелец снова
    *  видит Installed. */
@@ -180,7 +208,7 @@ export function PluginsPage({ plugins, cluster }: { plugins: PluginsState; clust
               <Card
                 key={one.id}
                 plugin={one}
-                onEnable={() => plugins.setEnabled(false, one.id)}
+                onEnable={() => askEnable(one)}
                 onUninstall={() => setConfirm(one.id)}
               />
             ))}
@@ -216,6 +244,13 @@ export function PluginsPage({ plugins, cluster }: { plugins: PluginsState; clust
       ) : null}
       {pending ? <PluginSummary entry={pending} onAllow={allowInstall} onCancel={() => setPending(undefined)} /> : null}
       {heldSummary ? <PluginSummary entry={heldSummary} onAllow={allowHeld} onCancel={cancelHeld}  /> : null}
+      {enableGate ? (
+        <PluginEnableGate
+          plugin={enableGate}
+          onAllow={allowEnable}
+          onCancel={() => setEnableGate(undefined)}
+        />
+      ) : null}
     </main>
   );
 }

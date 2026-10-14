@@ -51,6 +51,11 @@ pub struct Plugin {
     /// Выключен владельцем: кнопки команд уходят из чатов, установка не тронута.
     /// Плагин движка не выключен никогда: его реестр не задевает.
     pub disabled: bool,
+    /// Откуда запись реестра (F11): `registry` — каталог, `imported` — пакет
+    /// из opencode.json владельца; у плагина движка без записи поля нет
+    /// (serde skip) — сводке прав нечего про источник говорить.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
     /// Правила категорий из rules.json: `категория → allow/ask/deny`; нет — все
     /// категории по умолчанию `ask` (src-tauri/src/plugins/rules.rs).
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -9,7 +9,7 @@
 
 use serde_json::Value;
 
-use super::install::CatalogEntry;
+use super::install::{CatalogEntry, Source};
 use super::model::{Command, Plugin, ACTIVE};
 /// Разделитель, которым движок отделяет имя плагина в имени команды.
 const SEPARATOR: char = ':';
@@ -93,12 +93,21 @@ fn card(base: &mut Plugin, connected: bool, entry: &CatalogEntry) -> Plugin {
         description: Some(entry.description.clone()),
         permissions: permissions_of(entry),
         disabled: entry.disabled,
+        source: Some(source_of(entry)),
         // Строка реестра — её и удаляет Uninstall (manage::remove по записи).
         uninstallable: Some(true),
         rules: None,
         scope: None,
         update: None,
         usage: None,
+    }
+}
+
+/// Источник записи словами карточки: сводке прав нечего говорить о движковом.
+fn source_of(entry: &CatalogEntry) -> String {
+    match entry.source {
+        Source::Imported => "imported".to_string(),
+        Source::Registry => "registry".to_string(),
     }
 }
 
@@ -124,6 +133,7 @@ fn from_entry(entry: &CatalogEntry, connected: bool) -> Plugin {
         description: Some(entry.description.clone()),
         permissions: permissions_of(entry),
         disabled: entry.disabled,
+        source: Some(source_of(entry)),
         // Строка реестра установленного — Uninstall свой.
         uninstallable: Some(true),
         rules: None,
@@ -169,6 +179,7 @@ fn plugin(entry: &Value, commands: &[Value], connected: &[String], disabled: &[S
         permissions: vec![],
         // Плагин движка без записи реестра — Uninstall'а у карточки нет.
         uninstallable: None,
+        source: None,
         rules: None,
         scope: None,
         update: None,

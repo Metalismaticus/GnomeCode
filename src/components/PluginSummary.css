@@ -24,6 +24,17 @@
   color: var(--warning);
 }
 
+/* Источник и версия над списком прав (сцена H юнита): мелкая строка,
+   честно называет, откуда плагин — у импортированных без sha-проверки. */
+.plugin-summary__meta {
+  margin-top: var(--space-1);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
 .plugin-summary__list {
   margin-top: var(--space-2);
   display: flex;
