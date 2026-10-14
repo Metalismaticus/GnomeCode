@@ -121,13 +121,19 @@ pub fn plugin_set_enabled(
     id: String,
 ) -> Result<Vec<Plugin>, String> {
     let folder = data_dir(&app);
-    if !manage::set_disabled(&id, disabled, &install::registry_file(folder))? {
+    if !manage::set_disabled(&id, disabled, &install::registry_file(folder.clone()))? {
         if disabled {
             registry.disable(&id);
         } else {
             registry.enable(&id);
         }
     }
+    // Счётчик событий (П-3): enable/disable — строки JSONL.
+    super::counter::record(
+        &super::counter::file(folder),
+        if disabled { "disable" } else { "enable" },
+        Some(&id),
+    );
     plugin_list(app, chat, registry, store)
 }
 
@@ -394,7 +400,13 @@ pub async fn catalog_snapshot() -> Result<CatalogSnapshot, String> {
 #[tauri::command]
 pub fn plugin_install(app: AppHandle, chat: State<'_, Chat>, id: String) -> Result<(), String> {
     let folder = data_dir(&app);
-    install::install_by_id(&id, &install::registry_file(folder.clone()), &super::vcache::file(folder))?;
+    install::install_by_id(
+        &id,
+        &install::registry_file(folder.clone()),
+        &super::vcache::file(folder.clone()),
+    )?;
+    // Счётчик событий (П-3): установка — строка JSONL.
+    super::counter::record(&super::counter::file(folder), "install", Some(&id));
     chat.restart()
 }
 
@@ -416,10 +428,30 @@ pub fn plugin_rollback(
         &version,
         &install::plugins_dir(),
         &install::registry_file(folder.clone()),
-        &super::vcache::file(folder),
+        &super::vcache::file(folder.clone()),
     )?;
+    // Счётчик событий (П-3): откат — строка JSONL.
+    super::counter::record(&super::counter::file(folder), "rollback", Some(&id));
     chat.restart()?;
     plugin_list(app, chat, registry, store)
+}
+
+/// Событийный счётчик (П-3): включён ли тумблер Настроек.
+#[tauri::command]
+pub fn events_status(app: AppHandle) -> bool {
+    super::counter::is_opted_in(data_dir(&app))
+}
+
+/// Событийный счётчик (П-3): тумблер Настроек — opt-in/opt-out; без сети,
+/// JSONL в папке данных.
+#[tauri::command]
+pub fn events_opt_in(app: AppHandle, on: bool) -> Result<(), String> {
+    let folder = data_dir(&app);
+    if on {
+        super::counter::opt_in(folder)
+    } else {
+        super::counter::opt_out(folder)
+    }
 }
 
 /// Что показать на экране первого запуска (DT1): импортированные, что ещё
@@ -543,7 +575,9 @@ pub fn plugin_run(
         Decision::Run => {
             let sent = chat.command(&plugin, &label, &command);
             if sent.is_ok() {
-                usage::record(&usage::file(folder), &plugin);
+                usage::record(&usage::file(folder.clone()), &plugin);
+                // Счётчик событий (П-3): исполненный вызов — строка JSONL.
+                super::counter::record(&super::counter::file(folder), "command", Some(&plugin));
             }
             sent.map(|_| PluginRun::Started)
         }

@@ -301,6 +301,10 @@ export type Bridge = {
   /** «Оставить текущую» (DT3): ждущее прав обновление отклоняется — до этой
    *  версии обновление больше не предлагается. Ответ — свежий список. */
   declinePluginUpdate(id: string): Promise<Plugin[]>;
+  /** Событийный счётчик (П-3): включён ли (тумблер Настроек). */
+  eventsStatus(): Promise<boolean>;
+  /** Событийный счётчик (П-3): включить или выключить (opt-in, локальный JSONL). */
+  eventsOptIn(on: boolean): Promise<void>;
   /** Карточки каталога «Available» — индекс с GitHub (raw, не api.github.com). */
   catalogList(): Promise<CatalogEntry[]>;
   /** Каталог моделей сравнения: свежий с opencode.ai, недоступный сайт — из кэша

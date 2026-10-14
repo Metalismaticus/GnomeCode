@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
+import { bridge } from "../bridge";
 import type { ChatModelChoice } from "../bridge";
 import { useCompare } from "../features/compare/useCompare";
 import { useKeyForm, type KeyFormState } from "../features/settings/useKeyForm";
@@ -197,7 +198,8 @@ function LookSection({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: ()
   );
 }
 
-/** Вкладка «Плагины»: умолчания категорий теми же кнопками, что у Configure. */
+/** Вкладка «Плагины»: умолчания категорий теми же кнопками, что у Configure,
+ *  и событийный счётчик (П-3) — opt-in тумблером. */
 function RulesSection({ settings }: { settings: SettingsState }) {
   return (
     <section className="settings-section" data-testid="settings-rules">
@@ -224,7 +226,54 @@ function RulesSection({ settings }: { settings: SettingsState }) {
           </span>
         </div>
       ))}
+      <EventsCounter />
     </section>
+  );
+}
+
+/** Событийный счётчик (П-3, T6/T8): opt-in тумблером — локальный JSONL в папке
+ *  данных, без сети. Данные для проверки предпосылки №1: жизненный цикл
+ *  плагинов против чат-сессий. Выключен — строк не пишет вовсе. */
+function EventsCounter() {
+  const [on, setOn] = useState<boolean | null>(null);
+  useEffect(() => {
+    let alive = true;
+    bridge()
+      .eventsStatus()
+      .then((held) => {
+        if (alive) {
+          setOn(held);
+        }
+      })
+      .catch(() => {
+        if (alive) {
+          setOn(false);
+        }
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const toggle = () => {
+    const next = !(on ?? false);
+    setOn(next);
+    void bridge().eventsOptIn(next);
+  };
+  return (
+    <div className="settings-row" data-testid="settings-events">
+      <span className="settings-row__label">Счётчик событий</span>
+      <span className="settings-row__value">
+        <label className="settings-events" data-testid="settings-events-toggle">
+          <input type="checkbox" checked={on ?? false} onChange={toggle} />
+          <span>{on ? "включён" : "выключен"}</span>
+        </label>
+        <span className="settings-row__sub">
+          Локальный файл событий в папке данных — установки, обновления, откаты,
+          вызовы команд, чат-сессии. Без сети: данные никуда не уходят, помогают
+          считать, чем вы пользуетесь.
+        </span>
+      </span>
+    </div>
   );
 }
 

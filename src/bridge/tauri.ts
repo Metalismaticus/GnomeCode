@@ -113,6 +113,12 @@ export const tauriBridge = (): Bridge => ({
   async declinePluginUpdate(id: string) {
     return (await invoke<Plugin[]>("plugin_decline_update", { id })) as Plugin[];
   },
+  async eventsStatus() {
+    return (await invoke<boolean>("events_status")) as boolean;
+  },
+  async eventsOptIn(on: boolean) {
+    await invoke<void>("events_opt_in", { on });
+  },
   async catalogList() {
     return (await invoke<CatalogEntry[]>("catalog_list")) as CatalogEntry[];
   },

@@ -864,6 +864,14 @@ NO UNRESOLVED DECISIONS
 
 ### Исполнение — журнал агента
 
+- 2026-10-15: **T6/T8 событийный счётчик** — сделано. plugins/counter.rs:
+  events.jsonl в папке данных, opt-in маркером events.optin (тумблер
+  Настроек → вкладка «Плагины», подпись «без сети»), record — одна JSONL-
+  строка {ts, event, plugin?}; выключен — строк не пишет вовсе
+  (cargo-тест). События: install (plugin_install), update (применённые
+  тихие при старте), rollback (plugin_rollback), enable/disable
+  (plugin_set_enabled), command (исполненный вызов), chat-session (старт
+  окна). Ротация JSONL — ET10.
 - 2026-10-15: **DT8 JSON-Schema реестра** — сделано. docs/registry/
   registry.schema.json (draft-07: entry = id (npm-имя), version (semver-
   pattern), artifact_url, sha256 (64 hex), permissions (категории слоя

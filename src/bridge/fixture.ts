@@ -192,6 +192,21 @@ export const fixtureBridge = (): Bridge => ({
     declineFixture(id);
     return fixturePlugins();
   },
+  async eventsStatus() {
+    // Тумблер счётчика — память страницы (localStorage): как состояние окна.
+    try {
+      return localStorage.getItem("gnomecode-events-optin") === "1";
+    } catch {
+      return false;
+    }
+  },
+  async eventsOptIn(on: boolean) {
+    try {
+      localStorage.setItem("gnomecode-events-optin", on ? "1" : "0");
+    } catch {
+      // Хранилище страницы не всегда доступно — тумблер не ломаем.
+    }
+  },
   async decidePlugin(
     plugin: string,
     command: string,

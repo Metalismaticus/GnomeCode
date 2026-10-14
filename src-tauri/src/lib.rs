@@ -16,7 +16,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use opencode::{Chat, Sink, WindowSink};
-use plugins::commands::{catalog_list, catalog_snapshot, data_folder, endpoint_add, endpoint_remove, import_scan, key_remove, key_save, key_status, local_detect, plugin_connect, plugin_decide, plugin_decline_update, plugin_disconnect, plugin_install, plugin_list, plugin_rollback, plugin_run, plugin_set_enabled, plugin_set_rule, plugin_toolset_connect, plugin_toolset_delete, plugin_toolset_save, plugin_toolsets, plugin_uninstall, plugin_updates_note, provider_catalog, provider_list, provider_set_enabled, settings_defaults, settings_set_default};
+use plugins::commands::{catalog_list, catalog_snapshot, data_folder, endpoint_add, endpoint_remove, events_opt_in, events_status, import_scan, key_remove, key_save, key_status, local_detect, plugin_connect, plugin_decide, plugin_decline_update, plugin_disconnect, plugin_install, plugin_list, plugin_rollback, plugin_run, plugin_set_enabled, plugin_set_rule, plugin_toolset_connect, plugin_toolset_delete, plugin_toolset_save, plugin_toolsets, plugin_uninstall, plugin_updates_note, provider_catalog, provider_list, provider_set_enabled, settings_defaults, settings_set_default};
 use plugins::commands::data_dir;
 use plugins::permissions::Grants;
 use plugins::registry::Registry;
@@ -327,6 +327,8 @@ pub fn run() {
             plugin_rollback,
             plugin_decline_update,
             import_scan,
+            events_status,
+            events_opt_in,
             project_pick_folder,
             project_read_tree,
             project_clear,
@@ -429,6 +431,10 @@ pub fn run() {
                 if imported > 0 {
                     crate::opencode::log_startup(&format!("импортировано плагинов: {imported}"));
                 }
+                // Счётчик событий (П-3): старт окна с чатом — строка chat-session;
+                // тихо применённые обновления — строки update.
+                let events = plugins::counter::file(folder.clone());
+                plugins::counter::record(&events, "chat-session", None);
                 let done = updates::check_and_update(
                     plugins::install::CATALOG_URL,
                     &plugins::install::plugins_dir(),
@@ -438,6 +444,9 @@ pub fn run() {
                 );
                 // Сбой проверки (каталог, диск) — молча: работаем на текущих.
                 let Ok(done) = done else { return };
+                for id in &done.applied {
+                    plugins::counter::record(&events, "update", Some(id));
+                }
                 let _ = updates::follow_restart(
                     &done.applied,
                     &plugins::install::plugins_dir(),

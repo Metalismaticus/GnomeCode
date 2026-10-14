@@ -10,6 +10,7 @@
 
 pub mod catalog;
 pub mod commands;
+pub mod counter;
 pub mod import;
 pub mod install;
 pub mod manage;
