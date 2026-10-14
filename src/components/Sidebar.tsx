@@ -171,6 +171,7 @@ function chatRows(
   onDeleteChat: (id: string, wasActive: boolean) => void,
   pinnedIds: string[],
   onTogglePin: (id: string) => void,
+  onDragStart: (id: string) => void,
 ) {
   if (!all.length) {
     return <SidebarItem title="Пока нет чатов" />;
@@ -194,6 +195,7 @@ function chatRows(
             now={now}
             pinned={pinnedIds.includes(chat.id)}
             onTogglePin={() => onTogglePin(chat.id as string)}
+            onDragStart={() => onDragStart(chat.id as string)}
             onOpen={() => onOpenChatRow(chat)}
             onReturn={onOpenChat}
             onRename={(title) => onRenameChat(chat.id as string, title, Boolean(chat.active))}
@@ -348,6 +350,10 @@ export function Sidebar({
   const loose = all.filter((chat) => chat.id === undefined || !pinnedIds.includes(chat.id));
   const visiblePinned = pinned.filter((chat) => matches(chat, query));
   const visible = loose.filter((chat) => matches(chat, query));
+  /** DnD-корзина (B8): пока тащат строку чата, внизу показана корзина —
+   *  бросок удаляет чат сразу (концепт владельца: «удобное удаление»). */
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [trashHot, setTrashHot] = useState(false);
   return (
     <nav className="sidebar" data-testid="sidebar">
       {/* Шапка колонки «Чаты» (B10): заголовок, «+» новый чат и архив-кнопка.
@@ -394,11 +400,11 @@ export function Sidebar({
         {visiblePinned.length ? (
           <>
             <div className="sidebar__section-title">Закреплённые</div>
-            {chatRows(all, visiblePinned, now, chatActions, onOpenChat, onOpenChatRow, onRenameChat, onDeleteChat, pinnedIds, onTogglePin)}
+            {chatRows(all, visiblePinned, now, chatActions, onOpenChat, onOpenChatRow, onRenameChat, onDeleteChat, pinnedIds, onTogglePin, setDragId)}
           </>
         ) : null}
         <div className="sidebar__section-title">Чаты</div>
-        {chatRows(all, visible, now, chatActions, onOpenChat, onOpenChatRow, onRenameChat, onDeleteChat, pinnedIds, onTogglePin)}
+        {chatRows(all, visible, now, chatActions, onOpenChat, onOpenChatRow, onRenameChat, onDeleteChat, pinnedIds, onTogglePin, setDragId)}
         {/* Архив — про поиск молчит: поиск ищет чаты, архив своя полка. */}
         {query.trim()
           ? null
@@ -409,6 +415,28 @@ export function Sidebar({
               () => setArchiveOpen((open) => !open),
               chatActions,
             )}
+        {dragId ? (
+          <div
+            className={`sidebar__trash${trashHot ? " sidebar__trash--hot" : ""}`}
+            data-testid="sidebar-trash"
+            onDragOver={(event) => {
+              event.preventDefault();
+              setTrashHot(true);
+            }}
+            onDragLeave={() => setTrashHot(false)}
+            onDrop={(event) => {
+              event.preventDefault();
+              const id = event.dataTransfer.getData("text/plain");
+              if (id) {
+                onDeleteChat(id, false);
+              }
+              setDragId(null);
+              setTrashHot(false);
+            }}
+          >
+            🗑 Отпустите, чтобы удалить чат
+          </div>
+        ) : null}
       </div>
     </nav>
   );

@@ -32,9 +32,12 @@ export type ChatRowProps = {
   onArchive: () => void;
   /** Удалить чат совсем — после подтверждения в меню. */
   onDelete: () => void;
+  /** DnD (B8): строку можно перетащить в корзину внизу сайдбара. */
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
 };
 
-export function ChatRow({ chat, now, pinned, onTogglePin, onOpen, onReturn, onRename, onArchive, onDelete }: ChatRowProps) {
+export function ChatRow({ chat, now, pinned, onTogglePin, onOpen, onReturn, onRename, onArchive, onDelete, onDragStart, onDragEnd }: ChatRowProps) {
   /** Точка открытия меню: правый щелчок по строке или кнопка «⋯». */
   const [spot, setSpot] = useState<MenuSpot | null>(null);
   /** Меню в шаге подтверждения удаления — вопрос вместо пунктов. */
@@ -84,6 +87,13 @@ export function ChatRow({ chat, now, pinned, onTogglePin, onOpen, onReturn, onRe
   return (
     <div
       className="sidebar-row"
+      draggable
+      onDragStart={(event) => {
+        event.dataTransfer.setData("text/plain", chat.id ?? "");
+        event.dataTransfer.effectAllowed = "move";
+        onDragStart?.();
+      }}
+      onDragEnd={() => onDragEnd?.()}
       onContextMenu={(event) => {
         event.preventDefault();
         openAt({ x: event.clientX, y: event.clientY });

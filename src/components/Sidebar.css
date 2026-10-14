@@ -148,6 +148,23 @@
   outline-offset: 2px;
 }
 
+/* Корзина DnD (B8): видна, пока тащат строку чата; бросок — удаление. */
+.sidebar__trash {
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  color: var(--text-dim);
+  font-size: 12px;
+  text-align: center;
+}
+
+.sidebar__trash--hot {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: var(--bg-hover);
+}
+
 .sidebar__lists {
   display: flex;
   flex-direction: column;
