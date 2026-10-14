@@ -281,6 +281,15 @@ class Fixture {
         row("progress_run", "tool", "⧗ glob"),
       ];
     }
+    if (params.feed === "фейловер") {
+      // Отказ модели (урок PAIR): вопрос ушёл, движок ответил ошибкой — строка
+      // «Сообщение не ушло: …» с той же формой, что шлёт мост окна
+      // (opencode/mod.rs, Cmd::Prompt при отказе api.prompt).
+      return [
+        row("fail_user", "user", "Собери отчёт по панелям окна", minutesAgo(2)),
+        row("fail_notice", "notice", "Сообщение не ушло: 429 Too Many Requests — модель перегружена", minutesAgo(1)),
+      ];
+    }
     if (params.feed === "many" || params.feed.startsWith("сравнение")) {
       // Панель сравнения снимается над лентой с сообщениями — кадр целиком.
       return Fixture.many();

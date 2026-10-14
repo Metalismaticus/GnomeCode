@@ -3,7 +3,7 @@ import type { KeyboardEvent, ReactNode } from "react";
 
 import { DEFAULT_MODEL } from "../appstate";
 import type { FeedRow } from "../bridge";
-import { timeOf } from "../compare";
+import { timeOf, type CompareModel } from "../compare";
 import type { InlineToken, MarkdownBlock } from "../markdown";
 import { parseMarkdown } from "../markdown";
 import { sourceBlocks } from "../sources";
@@ -19,6 +19,18 @@ const TONE: Record<string, string> = {
   "Сервер OpenCode снова отвечает": "feed__row--back",
   "Сообщение не ушло": "feed__row--down",
 };
+
+/** Отказ хода к модели (урок PAIR): строка «Сообщение не ушло: …» — тот
+ *  префикс, что шлёт мост окна при отказе api.prompt (opencode/mod.rs). Под
+ *  такой строкой лента предлагает другой ход — не переключает сама. */
+const FAILOVER_PREFIX = "Сообщение не ушло:";
+
+const failoverRow = (row: FeedRow): boolean =>
+  row.kind === "notice" && row.text.startsWith(FAILOVER_PREFIX);
+
+/** Та же проверка для окна чата: ему нужно знать, есть ли в ленте отказ хода —
+ *  ради него лениво читается каталог сравнения (подсказка «на базе сравнения»). */
+export const isFailoverRow = failoverRow;
 
 /** Первый символ строки вызова — знак статуса: ✓ успех, ⚠ отказ, ✗ провал;
  *  ⧗/⋯ значит «ещё работает» — на бегущей строке знак не рисуется, работа
@@ -297,6 +309,8 @@ export function Feed({
   error,
   chatTitle,
   model,
+  failover,
+  onFailover,
   onSourceFile,
   onSourcePlugin,
 }: {
@@ -306,6 +320,12 @@ export function Feed({
   chatTitle: string;
   /** Имя модели чата — подпись ответа (спека ленты §8): модель одна на окно. */
   model: string;
+  /** Другой ход для строки отказа (урок PAIR, «на базе сравнения моделей»):
+   *  первая доступная модель каталога, не равная текущей; null — подсказки нет. */
+  failover?: CompareModel | null;
+  /** «Переключить» подсказки: модель чата меняется тем же ходом, что из
+   *  панели сравнения — бейдж и состояние окна; строка помечается сделанным. */
+  onFailover?: (rowId: string, model: CompareModel) => void;
   /** Клик по источнику-файлу: показать файл в дереве правой панели. */
   onSourceFile: (path: string) => void;
   /** Клик по источнику-плагину: открыть раздел «Плагины». */
@@ -313,6 +333,9 @@ export function Feed({
 }) {
   /** Раскрытая строка вызова: клик по строке — открыть, повторный — закрыть. */
   const [opened, setOpened] = useState<string | undefined>(undefined);
+  /** Строки отказа, на подсказке которых нажали «Переключить»: их место —
+   *  тихое «Переключено», а не вечно ждущий вопрос. */
+  const [switched, setSwitched] = useState<Record<string, string>>({});
   const toggle = (id: string): void => {
     setOpened((open) => (open === id ? undefined : id));
   };
@@ -341,6 +364,30 @@ export function Feed({
               {row.kind !== "tool" && row.kind !== "assistant" ? row.text || "…" : null}
             </div>
             {expanded ? <RowDetails row={row} chatTitle={chatTitle} model={model}  /> : null}
+            {failoverRow(row) && failover ? (
+              switched[row.id] ? (
+                <div className="feed__failover feed__failover--done" data-testid="feed-failover-done">
+                  Переключено на {switched[row.id]} — повторите вопрос
+                </div>
+              ) : (
+                <div className="feed__failover" data-testid="feed-failover">
+                  <span className="feed__failover-ask">
+                    Модель не ответила. Переключиться на {failover.name}?
+                  </span>
+                  <button
+                    type="button"
+                    className="feed__failover-btn"
+                    data-testid="feed-failover-switch"
+                    onClick={() => {
+                      setSwitched((held) => ({ ...held, [row.id]: failover.name }));
+                      onFailover?.(row.id, failover);
+                    }}
+                  >
+                    Переключить
+                  </button>
+                </div>
+              )
+            ) : null}
             {block ? (
               <SourcesBlock sources={block} onFile={onSourceFile} onPlugin={onSourcePlugin}  />
             ) : null}

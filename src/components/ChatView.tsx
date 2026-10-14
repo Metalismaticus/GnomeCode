@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type { ApprovalDecision, PluginScope } from "../bridge";
 import type { CatalogEntry } from "../catalog";
@@ -14,7 +14,7 @@ import { ChatHeader } from "./ChatHeader";
 import { ChatPluginsPanel } from "./ChatPluginsPanel";
 import { Composer } from "./Composer";
 import { EmptyChat } from "./EmptyChat";
-import { Feed } from "./Feed";
+import { Feed, isFailoverRow } from "./Feed";
 import { PluginApproval } from "./PluginApproval";
 import { PluginPicker } from "./PluginPicker";
 import { PluginSummary } from "./PluginSummary";
@@ -69,7 +69,16 @@ export function ChatView({
   const { rows, error, send } = useFeed();
   const toolsets = useToolsets();
   const catalog = useCatalog(overlay === "catalog");
-  const compare = useCompare(overlay === "compare");
+  /** Отказ хода в ленте (урок PAIR): ради подсказки «Переключиться на X?»
+   *  каталог сравнения читается лениво — кэш-первый ход, дешёвый. */
+  const failoverPresent = rows.some(isFailoverRow);
+  const compare = useCompare(overlay === "compare" || failoverPresent);
+  /** Первый доступный ход, не равный текущей модели: его предлагает строка
+   *  отказа. Каталога нет (не читался, пуст) — подсказки нет, лента молчит. */
+  const failover = useMemo(
+    () => compare.models.find((one) => one.available && one.name !== model) ?? null,
+    [compare.models, model],
+  );
   /** Развёрнутая строка снимка: `?состояние=сравнение-раскрыто` открывает панель
    *  с подробностями North Mini Code вместо клика — кадр без действий владельца. */
   const initialExpanded = params.feed === "сравнение-раскрыто" ? "cohere/north-mini-code-1-0" : null;
@@ -356,6 +365,8 @@ export function ChatView({
             error={error}
             chatTitle={title}
             model={model}
+            failover={failover}
+            onFailover={(_rowId, choice) => onChooseModel({ name: choice.name, id: choice.id })}
             onSourceFile={revealSource}
             onSourcePlugin={onOpenPluginsPage}
           />
