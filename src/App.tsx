@@ -14,6 +14,7 @@ import { chatsList, projectsList } from "./app/lists";
 import { moneyOf } from "./compare";
 import { ChatView } from "./components/ChatView";
 import { ImportFirstRun } from "./components/ImportFirstRun";
+import { Rail } from "./components/Rail";
 import { ContextPanel } from "./components/ContextPanel";
 import { PluginsPage } from "./components/PluginsPage";
 import { SettingsPage } from "./components/SettingsPage";
@@ -324,6 +325,12 @@ export default function App() {
           верхней полосе каждой страницы: чата, «Плагинов», «Статистики» и
           настроек — окно без рамки, управление окном не пропадает
           (замечание владельца 2026-10-10). */}
+      <Rail
+        page={page === "stats" ? "stats" : page === "plugins" ? "plugins" : page === "settings" ? "settings" : "chat"}
+        onPage={setPage}
+        onNewChat={newChat}
+        onPickFolder={project.pick}
+      />
       <Sidebar
         projects={projects}
         chats={chats}

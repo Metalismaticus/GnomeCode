@@ -1,0 +1,72 @@
+/* Icon-rail (B10, концепт владельца): узкая колонка слева — логотип, разделы
+   иконками, быстрые действия. Активный раздел подсвечен полосой-акцентом. */
+
+.rail {
+  width: 68px;
+  min-width: 68px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-1);
+  border-right: 1px solid var(--border);
+  background: var(--bg-panel);
+  overflow-y: auto;
+}
+
+.rail__logo {
+  height: 30px;
+  width: auto;
+  align-self: center;
+  margin-bottom: var(--space-2);
+  filter: var(--glow-filter);
+}
+
+.rail__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border: none;
+  background: none;
+  border-radius: var(--radius-md);
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 9px;
+  padding: var(--space-1) 0;
+  cursor: pointer;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.rail__item:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.rail__item--active {
+  background: var(--badge-bg);
+  color: var(--text);
+}
+
+.rail__glyph {
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.rail__label {
+  max-width: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rail__actions-title {
+  margin-top: var(--space-2);
+  padding: var(--space-1) var(--space-1) 0;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  text-align: center;
+}
