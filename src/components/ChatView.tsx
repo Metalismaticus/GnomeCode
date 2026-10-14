@@ -58,7 +58,9 @@ export function ChatView({
         ? "menu"
         : params.feed.startsWith("сравнение")
           ? "compare"
-          : "none",
+          : params.feed.startsWith("каталог")
+            ? "catalog"
+            : "none",
   );
   /** Карточка, чью сводку прав открыли: решение ещё не принято. */
   const [pending, setPending] = useState<CatalogEntry | undefined>(undefined);

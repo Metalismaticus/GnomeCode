@@ -339,6 +339,56 @@ pub async fn catalog_list() -> Result<Vec<install::CatalogEntry>, String> {
     install::fetch(install::CATALOG_URL)
 }
 
+/// Снимок каталога для вкладки Available (DT7): карточки, пометка «из кэша»
+/// и дата последнего успешного чтения индекса.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CatalogSnapshot {
+    pub entries: Vec<install::CatalogEntry>,
+    /// Индекс прочитан из кэша: сайт не ответил — данные от прошлой проверки.
+    pub stale: bool,
+    /// Дата кэша (unix-миллисекунды); None — кэша нет.
+    pub fetched_at: Option<u64>,
+}
+
+/// Снимок каталога (DT7): живой индекс; сайт не ответил — кэш последнего
+/// успешного чтения с датой («данные от <дата>»); кэша нет — причина словами.
+#[tauri::command]
+pub async fn catalog_snapshot() -> Result<CatalogSnapshot, String> {
+    let cache = install::index_cache_file(
+        std::env::var(crate::state::DATA_DIR_VAR)
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|_| std::env::temp_dir()),
+    );
+    match install::get_index(install::CATALOG_URL) {
+        Ok(text) => {
+            let entries = install::parse_index(&text)?;
+            // Кэш индекса — копия сырого текста: дата файла = дата данных.
+            let _ = install::save_index_cache(&cache, &text);
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis() as u64)
+                .ok();
+            Ok(CatalogSnapshot {
+                entries,
+                stale: false,
+                fetched_at: now,
+            })
+        }
+        Err(reason) => match install::cached_index(&cache) {
+            Some((text, fetched_at)) => {
+                let entries = install::parse_index(&text)?;
+                Ok(CatalogSnapshot {
+                    entries,
+                    stale: true,
+                    fetched_at: Some(fetched_at),
+                })
+            }
+            None => Err(reason),
+        },
+    }
+}
+
 /// Установить плагин из каталога: файл — в папку плагинов движка, запись — в
 /// реестр установленного, движок перезапустится тихо (читает плагины при старте).
 #[tauri::command]

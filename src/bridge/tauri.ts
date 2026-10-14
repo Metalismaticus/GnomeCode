@@ -23,6 +23,7 @@ import type {
   TreeNode,
   UpdatesNote,
 } from "./types";
+import type { CatalogSnapshot } from "./types";
 import type { WindowState, WindowPatch } from "../appstate";
 import type { CatalogEntry } from "../catalog";
 import type { CompareSnapshot } from "../compare";
@@ -168,6 +169,9 @@ export const tauriBridge = (): Bridge => ({
   },
   async importScan() {
     return (await invoke<ImportScan>("import_scan")) as ImportScan;
+  },
+  async catalogSnapshot() {
+    return (await invoke<CatalogSnapshot>("catalog_snapshot")) as CatalogSnapshot;
   },
   async keyStatuses(providers: string[]) {
     // Проверка ключа — по одному провайдеру: мост знает только запись целиком.

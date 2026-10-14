@@ -181,6 +181,15 @@ export type LocalServer = {
   baseUrl: string;
 };
 
+/** Снимок каталога (DT7): данные живого индекса или кэша последнего чтения. */
+export type CatalogSnapshot = {
+  entries: CatalogEntry[];
+  /** Индекс из кэша: сайт не ответил — данные от прошлой проверки. */
+  stale: boolean;
+  /** Дата данных (unix-миллисекунды); null — кэша не было. */
+  fetchedAt: number | null;
+};
+
 /** Скан конфигурации для экрана первого запуска (DT1): импортированные и всё
  *  ещё выключенные (чекбоксы), свежее этого запуска (тост), нераспознанные
  *  записи с причинами — «Распознано N из M». */
@@ -333,6 +342,9 @@ export type Bridge = {
   localDetect(): Promise<LocalServer[]>;
   /** Скан конфигурации opencode.json для экрана первого запуска (DT1). */
   importScan(): Promise<ImportScan>;
+  /** Снимок каталога (DT7): карточки, «из кэша» и дата данных; сайт не ответил
+   *  и кэша нет — причина словами. */
+  catalogSnapshot(): Promise<CatalogSnapshot>;
   /** Статусы ключей: «задан» у провайдера или нет; секрет наружу не идёт. */
   keyStatuses(providers: string[]): Promise<Record<string, boolean>>;
   /** Сохранить ключ и тихо перезапустить движок — читается только при старте. */

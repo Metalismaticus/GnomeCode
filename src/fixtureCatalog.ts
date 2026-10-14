@@ -9,7 +9,9 @@
 // каталогу, чтобы поиск показывал отбор, а не весь список подряд.
 
 import type { Plugin, PluginScope } from "./bridge";
+import type { CatalogSnapshot } from "./bridge";
 import type { CatalogEntry } from "./catalog";
+import { params } from "./viewparams";
 import { adopt, builder, plugins as fixturePlugins, type Card } from "./fixturePlugins";
 
 const GITHUB: CatalogEntry = {
@@ -40,6 +42,22 @@ const POSTGRES: CatalogEntry = {
 };
 
 const ENTRIES: CatalogEntry[] = [GITHUB, POSTGRES];
+
+/** Дата кэша для оффлайн-состояния: позавчера — «данные от <дата>» видно. */
+const STALE_MS = Date.now() - 2 * 24 * 60 * 60 * 1000;
+
+/** Снимок каталога (DT7): свежий по умолчанию; `?состояние=каталог-оффлайн` —
+ *  те же карточки из «кэша» с датой; `?состояние=каталог-ошибка` — сайт не
+ *  ответил и кэша нет, причина словами. */
+export function snapshot(): CatalogSnapshot {
+  if (params.feed === "каталог-ошибка") {
+    throw new Error("raw.githubusercontent не отвечает: timeout");
+  }
+  if (params.feed === "каталог-оффлайн") {
+    return { entries: entries(), stale: true, fetchedAt: STALE_MS };
+  }
+  return { entries: entries(), stale: false, fetchedAt: Date.now() };
+}
 
 /** Карточки каталога: копии — установка не переписывает сам индекс. */
 export function entries(): CatalogEntry[] {

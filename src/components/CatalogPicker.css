@@ -24,6 +24,110 @@
   padding-bottom: var(--space-2);
 }
 
+/* Оффлайн (DT7): inline-отказ с «Повторить» — данные из кэша остаются ниже. */
+.catalog-picker__offline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--danger, #b91c1c);
+  border-radius: var(--radius-md);
+  color: var(--danger, #b91c1c);
+  font-size: 12px;
+}
+
+/* Данные из кэша (DT7): карточки остаются, дата честно названа. */
+.catalog-picker__stale {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--badge-border);
+  border-radius: var(--radius-md);
+  background: var(--badge-bg);
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.catalog-picker__retry {
+  flex: none;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  padding: 2px 10px;
+  cursor: pointer;
+}
+
+.catalog-picker__retry:hover {
+  background: var(--bg-hover);
+}
+
+/* Skeleton (DT7): три карточки-заготовки с мягкой полосой — загрузка видна
+   формой, а не словами. */
+.catalog-picker__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.catalog-card--skeleton {
+  pointer-events: none;
+}
+
+.catalog-skeleton__line {
+  height: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
+  animation: catalog-skeleton 1.2s ease-in-out infinite;
+}
+
+.catalog-skeleton__line--name {
+  height: 14px;
+  width: 40%;
+}
+
+.catalog-skeleton__line--short {
+  width: 65%;
+}
+
+@keyframes catalog-skeleton {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* CTA реестра (DT7): подпись и ссылка на подачу — подвал каталога. */
+.catalog-picker__cta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.catalog-picker__cta a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.catalog-picker__cta a:hover {
+  text-decoration: underline;
+}
+
 .catalog-picker__title {
   font-size: 13px;
   font-weight: 600;

@@ -147,7 +147,43 @@ pub fn atomically(target: &Path, json: &str) -> Result<(), String> {
 /// Индекс каталога по адресу: список записей, ошибки — словами для окна каталога.
 pub fn fetch(source: &str) -> Result<Vec<CatalogEntry>, String> {
     let text = get(source)?;
-    serde_json::from_str(&text).map_err(|e| format!("индекс каталога не читается: {e}"))
+    parse_index(&text)
+}
+
+/// Сырой текст индекса: снимку каталога (DT7) нужен он — кэш хранит текст как есть.
+pub fn get_index(source: &str) -> Result<String, String> {
+    get(source)
+}
+
+/// Разбор сырого текста индекса — тот же разбор, что у fetch.
+pub fn parse_index(text: &str) -> Result<Vec<CatalogEntry>, String> {
+    serde_json::from_str(text).map_err(|e| format!("индекс каталога не читается: {e}"))
+}
+
+/// Файл кэша индекса в папке данных (DT7): «данные от <дата>» при оффлайне.
+pub fn index_cache_file(fallback: PathBuf) -> PathBuf {
+    data_file(fallback, "catalog-cache.json")
+}
+
+/// Кэш индекса: сырой текст с диска и дата файла (unix-мс) — откуда окно берёт
+/// «данные от <дата>». Нет файла — None.
+pub fn cached_index(cache: &Path) -> Option<(String, u64)> {
+    let text = fs::read_to_string(cache).ok()?;
+    let date = fs::metadata(cache).ok()?.modified().ok()?;
+    let ms = date
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()?
+        .as_millis() as u64;
+    Some((text, ms))
+}
+
+/// Записать кэш индекса: сырой текст как есть, папку создаёт.
+pub fn save_index_cache(cache: &Path, text: &str) -> Result<(), String> {
+    if let Some(parent) = cache.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| format!("папка данных не создалась {}: {e}", parent.display()))?;
+    }
+    fs::write(cache, text).map_err(|e| format!("кэш индекса не записан {}: {e}", cache.display()))
 }
 
 /// Установить плагин по id: индекс, запись реестра, файл — в папку плагинов движка.

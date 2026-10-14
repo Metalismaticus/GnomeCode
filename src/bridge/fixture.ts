@@ -19,7 +19,11 @@ import {
   uninstall as uninstallFixture,
 } from "../fixturePlugins";
 import { params } from "../viewparams";
-import { entries as fixtureCatalog, install as installFixture } from "../fixtureCatalog";
+import {
+  entries as fixtureCatalog,
+  install as installFixture,
+  snapshot as fixtureCatalogSnapshot,
+} from "../fixtureCatalog";
 import { list as fixtureCompare } from "../fixtureCompare";
 import { summary as fixtureStats } from "../fixtureStats";
 import {
@@ -136,6 +140,11 @@ export const fixtureBridge = (): Bridge => ({
   },
   async catalogList() {
     return fixtureCatalog();
+  },
+  async catalogSnapshot() {
+    // Кадры «каталог-оффлайн»/«каталог-ошибка» — те же карточки, но из кэша
+    // с датой или честный отказ (DT7).
+    return fixtureCatalogSnapshot();
   },
   async compareList() {
     recordCompareRead();
