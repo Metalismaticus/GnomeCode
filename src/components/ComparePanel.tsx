@@ -6,10 +6,13 @@
 import { useEffect, useRef, useState } from "react";
 
 import type { CompareModel } from "../compare";
+import { radarSeries, RADAR_AXES } from "../compare/radar";
 import { contextOf, dateOf, featuresOf, moneyOf, scoreOf } from "../compare";
 import type { CompareState } from "../features/compare/useCompare";
+import { RadarChart } from "./RadarChart";
 
 import "./ComparePanel.css";
+import "./RadarChart.css";
 
 export type ComparePanelProps = {
   compare: CompareState;
@@ -53,6 +56,9 @@ export function ComparePanel({ compare, currentModel, mode, initialExpanded, onC
   // под своим заголовком: цены у них «—», поиск находит их вместе с каталогом.
   const catalog = compare.models.filter((model) => !model.engine);
   const engine = compare.models.filter((model) => model.engine);
+  /** База радара (усиление сравнения): модель текущего чата, а без неё —
+   *  первая строка каталога. Раскрытая строка сравнивается с ней на радаре. */
+  const baseline = catalog.find((model) => model.name === currentModel) ?? catalog[0];
   const body = (() => {
     if (compare.error) {
       return (
@@ -77,6 +83,7 @@ export function ComparePanel({ compare, currentModel, mode, initialExpanded, onC
           expanded={expanded}
           setExpanded={setExpanded}
           onChoose={onChoose}
+          baseline={baseline}
         />
         {engine.length ? (
           <>
@@ -90,6 +97,7 @@ export function ComparePanel({ compare, currentModel, mode, initialExpanded, onC
               expanded={expanded}
               setExpanded={setExpanded}
               onChoose={onChoose}
+              baseline={baseline}
             />
           </>
         ) : null}
@@ -124,6 +132,7 @@ function RowList({
   expanded,
   setExpanded,
   onChoose,
+  baseline,
 }: {
   models: CompareModel[];
   currentModel: string;
@@ -131,6 +140,8 @@ function RowList({
   expanded: string | null;
   setExpanded: (update: (open: string | null) => string | null) => void;
   onChoose: (model: CompareModel) => void;
+  /** Модель-база радара: текущая или первая строка каталога. */
+  baseline?: CompareModel;
 }) {
   return (
     <>
@@ -143,6 +154,7 @@ function RowList({
           expanded={expanded === model.id}
           onToggle={() => setExpanded((open) => (open === model.id ? null : model.id))}
           onChoose={() => onChoose(model)}
+          baseline={baseline}
         />
       ))}
     </>
@@ -222,6 +234,7 @@ function Row({
   expanded,
   onToggle,
   onChoose,
+  baseline,
 }: {
   model: CompareModel;
   current: boolean;
@@ -229,6 +242,7 @@ function Row({
   expanded: boolean;
   onToggle: () => void;
   onChoose: () => void;
+  baseline?: CompareModel;
 }) {
   const top = model.benchmarks[0];
   return (
@@ -296,16 +310,49 @@ function Row({
           </button>
         )}
       </button>
-      {expanded ? <Expanded model={model}  /> : null}
+      {expanded ? <Expanded model={model} against={baseline} /> : null}
     </div>
   );
 }
 
-/** Раскрытие строки: описание, полный прайс, выпуск, признаки и бенчмарки. */
-function Expanded({ model }: { model: CompareModel }) {
+/** Значения и флаги реальности одной серией — радару нужны отдельными массивами. */
+function pointsOf(series: { name: string; points: { value: number; real: boolean }[] }): {
+  values: number[];
+  real: boolean[];
+} {
+  return {
+    values: series.points.map((point) => point.value),
+    real: series.points.map((point) => point.real),
+  };
+}
+
+/** Раскрытие строки: радар пяти осей против модели-базы (усиление сравнения,
+ *  как на opencode.ai/data/compare), описание, полный прайс, выпуск, признаки
+ *  и бенчмарки. Радара нет, если сравнивать не с кем (база = эта же строка). */
+function Expanded({ model, against }: { model: CompareModel; against?: CompareModel }) {
   const features = featuresOf(model);
+  const comparable = against !== undefined && against.id !== model.id;
   return (
     <div className="compare-details" data-testid="compare-details">
+      {comparable ? (
+        <div className="compare-details__radar" data-testid="compare-radar">
+          <RadarChart
+            axes={[...RADAR_AXES]}
+            series={[
+              {
+                name: `${against.name} — база`,
+                color: "var(--text-dim, #888)",
+                ...pointsOf(radarSeries(against, model)),
+              },
+              {
+                name: model.name,
+                color: "var(--accent, #7c5cff)",
+                ...pointsOf(radarSeries(model, against)),
+              },
+            ]}
+          />
+        </div>
+      ) : null}
       <div className="compare-details__description">{model.description}</div>
       <div className="compare-details__price">
         Цена за 1 млн: Ввод {moneyOf(model.input)} · Вывод {moneyOf(model.output)}

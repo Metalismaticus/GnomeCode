@@ -1,0 +1,75 @@
+/* Радар сравнения моделей (усиление сравнения, как на opencode.ai/data):
+   пентагон сетки, оси с подписями, полигон на модель. Цвет — токены тем. */
+
+.radar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.radar__svg {
+  max-width: 100%;
+}
+
+.radar__ring {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.radar__axis {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.radar__axis-label {
+  font-size: 11px;
+  fill: var(--text-dim);
+}
+
+.radar__shape {
+  fill-opacity: 0.16;
+  stroke-width: 1.5;
+}
+
+.radar__point {
+  stroke-width: 1.5;
+}
+
+.radar__point--hollow {
+  opacity: 0.9;
+}
+
+.radar__legend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.radar__legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.radar__legend-chip {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.radar__legend-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.radar__legend-note {
+  font-size: 11px;
+  color: var(--text-faint);
+}
