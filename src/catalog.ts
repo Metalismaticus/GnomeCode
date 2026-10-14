@@ -21,4 +21,8 @@ export type CatalogEntry = {
   entry: string;
   permissions: CatalogPermission[];
   commands: CatalogCommand[];
+  /** Источник записи реестра: каталог или импорт opencode.json (F11). */
+  source?: "registry" | "imported";
+  /** Выключен владельцем (поле записи реестра установленного). */
+  disabled?: boolean;
 };

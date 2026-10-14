@@ -46,6 +46,7 @@ fn record(id: &str) -> CatalogEntry {
             category: None,
         }],
         disabled: false,
+        source: gnomecode_lib::plugins::install::Source::default(),
     }
 }
 

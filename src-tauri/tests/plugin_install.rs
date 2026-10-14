@@ -214,6 +214,7 @@ fn merge_lists_installed_plugins_from_the_registry() {
             category: None,
         }],
         disabled: false,
+        source: install::Source::default(),
     }];
 
     let merged = merged(

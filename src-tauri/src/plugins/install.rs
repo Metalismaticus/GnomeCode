@@ -75,6 +75,21 @@ pub struct CatalogEntry {
     /// реестры без поля читаются (serde default), повторная установка включает заново.
     #[serde(default)]
     pub disabled: bool,
+    /// Откуда запись: каталог или импорт opencode.json (F11). Импортированные
+    /// движок грузит сам — файла и репозитория у нас нет, автообновление их
+    /// не трогает (1.1). Старые реестры без поля — записи каталога.
+    #[serde(default)]
+    pub source: Source,
+}
+
+/// Источник записи реестра (F11): каталог — наши установка и обновление;
+/// импорт — пакет из opencode.json владельца, жизненным циклом ведёт движок.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Source {
+    #[default]
+    Registry,
+    Imported,
 }
 
 /// Что реестр помнит об установленном плагине: вся запись каталога целиком.
@@ -88,6 +103,11 @@ pub fn records(registry: &Path) -> BTreeMap<String, Installed> {
         .ok()
         .and_then(|bytes| serde_json::from_slice(&bytes).ok())
         .unwrap_or_default()
+}
+
+/// Записать реестр установленного: установщик и импорт ходят в один файл.
+pub fn save_records(registry: &Path, records: &BTreeMap<String, Installed>) -> Result<(), String> {
+    write(registry, records)
 }
 
 fn write(registry: &Path, records: &BTreeMap<String, Installed>) -> Result<(), String> {

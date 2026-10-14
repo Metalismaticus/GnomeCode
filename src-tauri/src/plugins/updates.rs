@@ -244,6 +244,12 @@ pub fn check_and_update(
     notes.catalog = None;
     let mut applied = vec![];
     for entry in install::installed(registry) {
+        // Импортированные из opencode.json вне каталога: жизненным циклом
+        // ведёт движок — автообновление их не трогает (1.1). Переход под
+        // управление реестра (П-1) придёт со сборкой реестра (T5).
+        if entry.source == install::Source::Imported {
+            continue;
+        }
         let Some(fresh) = index.iter().find(|one| one.id == entry.id) else {
             // Плагина нет в индексе: обновлять нечем, оставляем пометку, а не
             // прошлое обновление — прежнюю историю может перечитать владелец.

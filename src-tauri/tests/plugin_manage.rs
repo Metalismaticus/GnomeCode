@@ -4,7 +4,7 @@
 //! не ошибка для файла.
 //! Проверки на временных папках — данных владельца не касаются.
 
-use gnomecode_lib::plugins::install::CatalogEntry;
+use gnomecode_lib::plugins::install::{self, CatalogEntry};
 use gnomecode_lib::plugins::manage;
 
 /// Своя временная папка на тест: действия проверки не трогают данные владельца.
@@ -41,6 +41,7 @@ fn record(id: &str) -> CatalogEntry {
         permissions: vec![],
         commands: vec![],
         disabled: false,
+        source: install::Source::default(),
     }
 }
 

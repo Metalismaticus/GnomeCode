@@ -416,6 +416,15 @@ pub fn run() {
                     .ok()
                     .map(PathBuf::from)
                     .unwrap_or_else(|| handle.path().app_data_dir().unwrap_or_else(|_| std::env::temp_dir()));
+                // Импорт opencode.json (CE-1): новые пакеты владельца — в реестр
+                // отключёнными. Сбой — тихо: старт не блокируем (S2).
+                let imported = plugins::import::run(
+                    plugins::import::config_path().as_deref(),
+                    &plugins::install::registry_file(folder.clone()),
+                );
+                if imported > 0 {
+                    crate::opencode::log_startup(&format!("импортировано плагинов: {imported}"));
+                }
                 let done = updates::check_and_update(
                     plugins::install::CATALOG_URL,
                     &plugins::install::plugins_dir(),
