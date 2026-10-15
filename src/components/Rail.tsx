@@ -28,14 +28,8 @@ const ITEMS: { page: RailPage; glyph: string; label: string }[] = [
 
 /** Быстрые действия под разделами. «Открыть папку» убрана — дублирует
  *  «+ Новый проект» в колонке чатов (владелец 14.10: «зачем?»). */
-const ACTIONS: { glyph: string; label: string; action: "new" }[] = [
-  { glyph: "➕", label: "Новый чат", action: "new" },
-];
 
 export function Rail({ page, onPage, onNewChat }: RailProps) {
-  const runAction = (action: "new") => {
-    onNewChat();
-  };
   const item = (glyph: string, label: string, active: boolean, onClick: () => void, testid?: string): ReactNode => (
     <button
       type="button"
@@ -56,9 +50,16 @@ export function Rail({ page, onPage, onNewChat }: RailProps) {
         item(one.glyph, one.label, page === one.page, () => onPage(one.page), `rail-${one.page}`),
       )}
       <div className="rail__actions-title">Быстрые действия</div>
-      {ACTIONS.map((one) =>
-        item(one.glyph, one.label, false, () => runAction(one.action)),
-      )}
+      <button
+        type="button"
+        className="rail__item"
+        data-testid="rail-new-chat"
+        title="Новый чат"
+        onClick={onNewChat}
+      >
+        <span className="rail__glyph" aria-hidden="true">➕</span>
+        <span className="rail__label">Новый чат</span>
+      </button>
     </nav>
   );
 }
