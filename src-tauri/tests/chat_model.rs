@@ -38,8 +38,9 @@ fn scratch(name: &str) -> PathBuf {
     file
 }
 
-/// Лупбек, который запоминает то, что мост послал `POST /prompt`: тело запроса
-/// — единственное место, где видно, моделью ли пошёл вопрос.
+/// Лупбек, который запоминает то, что мост послал `POST /model` и
+/// `POST /prompt`: тела запросов — единственное место, где видно, моделью ли
+/// пошёл вопрос (v2.0.30: модель сессии выбирает отдельный запрос).
 fn serve() -> (Endpoint, Arc<Mutex<Vec<String>>>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("свободный порт");
     let endpoint = Endpoint::local(listener.local_addr().expect("адрес").port(), "test-pass".to_string());
@@ -52,13 +53,15 @@ fn serve() -> (Endpoint, Arc<Mutex<Vec<String>>>) {
             thread::spawn(move || {
                 let request = read_request(&mut socket);
                 let line = request.lines().next().unwrap_or_default().to_string();
-                if line.contains("/prompt") {
+                if line.contains("/prompt") || line.contains("/model") {
                     bodies.lock().expect("список тел").push(request);
                 }
                 let reply = if line.starts_with("POST /api/session ") {
                     json_head(r#"{"data":{"id":"ses_fixture"}}"#)
                 } else if line.contains("/prompt") {
                     json_head(r#"{"data":{"id":"msg_fixture"}}"#)
+                } else if line.contains("/model") {
+                    json_head(r#"{"data":null}"#)
                 } else {
                     chunked_head().to_string()
                 };
@@ -130,7 +133,8 @@ fn chosen_model_is_stored_and_survives_restart() {
     assert_eq!(saved.theme, Some(gnomecode_lib::state::Theme::Dark), "правка темы выбор модели не затёрла");
 }
 
-/// «Выбрать» меняет запрос: движку уходит пара providerID/modelID выбранной модели.
+/// «Выбрать» меняет запрос: модель сессии уходит отдельным `POST /model`
+/// парой `providerID`/`id` (v2.0.30), тело prompt — только текст.
 #[test]
 fn prompt_with_chosen_model_names_it() {
     let (endpoint, bodies) = serve();
@@ -142,16 +146,30 @@ fn prompt_with_chosen_model_names_it() {
 
     let body = last_body(&bodies);
     assert!(
-        body.contains(r#""providerID":"cohere""#),
-        "в запросе к чату нет провайдера выбранной модели: {body}"
+        !body.contains("providerID") && !body.contains("modelID"),
+        "prompt в v2.0.30 модели в теле не несёт — иначе она тихо съедается: {body}"
+    );
+    let held = bodies.lock().expect("список тел").clone();
+    let set_model = held
+        .iter()
+        .find(|one| one.contains("/model"))
+        .expect("модель сессии выбрана отдельным запросом");
+    let set_body = set_model
+        .split_once("\r\n\r\n")
+        .map(|(_, body)| body.to_string())
+        .expect("тело запроса после заголовков");
+    assert!(
+        set_body.contains(r#""providerID":"cohere""#),
+        "в выборе модели нет провайдера: {set_body}"
     );
     assert!(
-        body.contains(r#""modelID":"north-mini-code-1-0""#),
-        "в запросе к чату нет модели после «/»: {body}"
+        set_body.contains(r#""id":"north-mini-code-1-0""#),
+        "в выборе модели нет модели под ключом `id` (не modelID): {set_body}"
     );
 }
 
-/// Без выбора — как раньше: тело запроса модели не называет, движок берёт свою.
+/// Без выбора — как раньше: модель сессии не переключается, тело запроса
+/// модели не называет, движок берёт свою.
 #[test]
 fn prompt_without_choice_goes_to_the_default_model() {
     let (endpoint, bodies) = serve();
@@ -165,6 +183,11 @@ fn prompt_without_choice_goes_to_the_default_model() {
     assert!(
         !body.contains("modelID"),
         "запрос без выбора назвал модель — новый текст вопроса ушёл бы не той моделью: {body}"
+    );
+    let held = bodies.lock().expect("список тел").clone();
+    assert!(
+        !held.iter().any(|one| one.contains("/model")),
+        "без выбора модель сессии переключать нельзя — вопрос ушёл бы не на дефолт движка"
     );
 }
 

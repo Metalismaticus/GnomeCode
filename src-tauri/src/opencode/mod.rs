@@ -335,11 +335,12 @@ impl Drop for Chat {
 }
 
 /// Модель запроса из идентификатора каталога `лаборатория/модель`: движку уходит
-/// пара `providerID`/`modelID`. Без «/» — идентификатор не движковый, модель не
+/// пара `providerID`/`id` (v2.0.30: схема `Model.Ref` живого сервера — ключ
+/// модели `id`, не `modelID`). Без «/» — идентификатор не движковый, модель не
 /// передаётся (движок возьмёт свою по умолчанию).
 fn engine_model(id: &str) -> Option<Value> {
     let (provider, model) = id.split_once('/')?;
-    Some(json!({ "providerID": provider, "modelID": model }))
+    Some(json!({ "providerID": provider, "id": model }))
 }
 
 /// Метка момента (unix-миллисекунды): строка вопроса уходит с ней — подпись
@@ -646,7 +647,20 @@ fn pump(
                         file: None,
                         time: Some(now_ms()),
                     });
-                    if let Err(reason) = api.prompt(session, &prompt, model.as_ref()) {
+                    // Модель сессии выбирается отдельным запросом до вопроса
+                    // (v2.0.30: prompt модели в теле не несёт). Не выбралась —
+                    // вопрос и не уходит: на модели по умолчанию он ушёл бы не
+                    // туда, куда выбрал владелец (у неё может не быть средств).
+                    if let Some(model) = model {
+                        if let Err(reason) = api.set_model(session, &model) {
+                            sink.emit(FeedEvent::notice(
+                                "engine",
+                                &format!("Сообщение не ушло: модель не выбрана — {reason}"),
+                            ));
+                            continue;
+                        }
+                    }
+                    if let Err(reason) = api.prompt(session, &prompt) {
                         sink.emit(FeedEvent::notice(
                             "engine",
                             &format!("Сообщение не ушло: {reason}"),

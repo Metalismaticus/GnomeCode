@@ -255,8 +255,9 @@ fn live_engine_serves_the_endpoint_from_the_config() {
     providers_store::remove_secret(TEST_SERVICE, &key).expect("чистый выход");
 }
 
-/// Лупбек: `/api/provider` отдаёт одного провайдера `served` — как живое ядро
-/// отвечает про активированного у себя провайдера (ключ в окружении).
+/// Лупбек: `/api/model` отдаёт модель провайдера `served` — v2.0.30 отвечает
+/// про активированных у себя провайдеров моделями, список `/api/provider`
+/// опустел (замер 2026-10-15).
 fn serve_providers() -> gnomecode_lib::opencode::client::Endpoint {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("свободный порт");
     let endpoint = gnomecode_lib::opencode::client::Endpoint::local(
@@ -268,8 +269,8 @@ fn serve_providers() -> gnomecode_lib::opencode::client::Endpoint {
             let mut socket = socket;
             let request = common::read_request(&mut socket);
             let route = request.lines().next().unwrap_or_default().to_string();
-            let body = if route.contains("/api/provider") {
-                common::json_head(r#"{"data":[{"id":"served","name":"Served"}]}"#)
+            let body = if route.contains("/api/model") {
+                common::json_head(r#"{"data":[{"providerID":"served","modelID":"any"}]}"#)
             } else {
                 common::json_head("{}")
             };

@@ -587,7 +587,7 @@ fn live_sse_usage_probe() {
     let model_body = r#"{"model":{"providerID":"probe-local","id":"probe-model"}}"#;
     let answer = raw_post(&endpoint, &format!("/api/session/{session}/model"), model_body);
     log(&format!("--- модель сессии: {answer}"));
-    let sent = api.prompt(&session, "Ответь одним словом: понг", None);
+    let sent = api.prompt(&session, "Ответь одним словом: понг");
     log(&format!("--- prompt вернул: {sent:?}"));
     let wait_deadline = Instant::now() + Duration::from_secs(90);
     loop {

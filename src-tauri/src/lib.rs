@@ -287,14 +287,14 @@ fn chat_send(
     // как раньше, модели движка.
     let saved = store.load();
     let model = saved.chat_model.or(saved.default_model);
-    // У провайдера модели нет ключа — в ленте строка «нет ключа — задайте в
-    // настройках», запрос движку не уходит (критерий провайдеров, 2026-10-09):
-    // лента знает отказ через ответ команды (useFeed показывает его строкой).
-    if let Some(choice) = &model {
-        if let Some(reason) = plugins::commands::provider_key_missing(&app, &chat, &choice.id) {
-            return Err(reason);
-        }
-    }
+    // Выбор приводится к движковому провайдеру (каталог и движок зовут одного
+    // провайдера по-разному) и проверяется на ключ одним списком моделей
+    // движка (commands::prepare_model) — иначе вопрос уходит не туда, куда
+    // выбрал владелец, или вовсе без ключа.
+    let model = match model {
+        Some(choice) => Some(plugins::commands::prepare_model(&app, &chat, choice)?),
+        None => None,
+    };
     chat.send(&sent.shown, &prompt, &sent.files, model)?;
     // Скоуп «Once» (docs/SPEC/plugins.md, сцена E): соединение служит текущему
     // запросу — следующий вопрос снимает плагин с чата, установка не трогается.

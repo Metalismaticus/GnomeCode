@@ -1015,18 +1015,48 @@ impl<'a> Api<'a> {
     }
 
     /// Отправить текст в сессию: ответ придёт событиями, не телом запроса.
-    /// `model` — модель, выбранная в панели «Сравнение моделей»; нет — модель
-    /// движка по умолчанию, как раньше (замер 2026-10-06: движок принимает
-    /// `model` рядом с текстом и без него).
-    pub fn prompt(&self, session: &str, text: &str, model: Option<&Value>) -> Result<(), String> {
+    /// v2.0.30 (openapi живого сервера, 2026-10-15): тело prompt — только
+    /// текст и вложения, поля `model` в схеме нет (`additionalProperties:
+    /// false`). Модель, присланная в теле, тихо съедалась — вопрос уходил
+    /// на модель по умолчанию конфига. Выбор модели — [`Api::set_model`].
+    pub fn prompt(&self, session: &str, text: &str) -> Result<(), String> {
         let path = format!("/api/session/{session}/prompt");
-        let mut body = json!({ "text": text });
-        if let Some(model) = model {
-            body["model"] = model.clone();
-        }
         self.endpoint
-            .call("POST", &path, Some(&body))
+            .call("POST", &path, Some(&json!({ "text": text })))
             .map(|_| ())
+    }
+
+    /// Выбрать модель сессии: `POST /api/session/{id}/model` телом
+    /// `{"model": …}` (v2.0.30). Схема `Model.Ref` живого сервера — пара
+    /// `providerID` и `id` (ключ модели `id`, не `modelID`).
+    pub fn set_model(&self, session: &str, model: &Value) -> Result<(), String> {
+        let path = format!("/api/session/{session}/model");
+        self.endpoint
+            .call("POST", &path, Some(&json!({ "model": model })))
+            .map(|_| ())
+    }
+
+    /// Модели, которые движок реально обслуживает: пары `(providerID,
+    /// modelID)` из `GET /api/model`. v2.0.30: список активированных
+    /// провайдеров `/api/provider` опустел — обслуживаемое видно только
+    /// моделями. По парам окно приводит выбранную модель к движковому
+    /// провайдеру и решает, нужен ли ключ.
+    pub fn served_models(&self) -> Result<Vec<(String, String)>, String> {
+        let value = self.endpoint.call("GET", "/api/model", None)?;
+        let Some(list) = value.as_array() else {
+            return Err("список моделей движка — не список".to_string());
+        };
+        Ok(list
+            .iter()
+            .filter_map(|one| {
+                let provider = one.get("providerID").and_then(Value::as_str)?;
+                let model = one
+                    .get("modelID")
+                    .and_then(Value::as_str)
+                    .or_else(|| one.get("id").and_then(Value::as_str))?;
+                Some((provider.to_string(), model.to_string()))
+            })
+            .collect())
     }
 
     /// Команда плагина, одобренная слоем прав: `POST /api/session/{id}/command`.
