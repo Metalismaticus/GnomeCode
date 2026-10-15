@@ -13,6 +13,7 @@ import { useCompare } from "../features/compare/useCompare";
 import { useKeyForm, type KeyFormState } from "../features/settings/useKeyForm";
 import { useSettings, type SettingsState } from "../features/settings/useSettings";
 import { params, type Theme } from "../viewparams";
+import { DropZone } from "./DropZone";
 import { ModelsSection } from "./SettingsModels";
 import { Row } from "./SettingsRows";
 import { RuleButtons, VALUE_HINT } from "./PluginConfig";
@@ -437,15 +438,16 @@ function McpSection() {
   );
 }
 
-/** Вкладка «Скиллы» (B7): свои команды-инструкции движку — список, добавление
- *  и редактирование. Скилл = markdown-файл команды движка (command/*.md):
- *  имя, описание и текст инструкции; правка перезапускает движок, кнопка
- *  скилла появляется в шапке чата. */
+/** Вкладка «Скиллы» (B7, правка владельца 15.10): скилл приходит файлом —
+ *  зона перетаскивания .md вместо выбора вручную, создания формой нет.
+ *  Скилл = markdown-файл команды движка (command/*.md): имя — из имени файла,
+ *  описание — из frontmatter, текст — инструкция; правка перезапускает движок,
+ *  кнопка скилла появляется в шапке чата. */
 function SkillsSection() {
   const [skills, setSkills] = useState<Skill[] | null>(null);
   const [error, setError] = useState("");
-  /** Редактируемый скилл: null — список, "new" — новый, иначе — правка по имени. */
-  const [editing, setEditing] = useState<string | "new" | null>(null);
+  /** Редактируемый скилл: null — список, иначе — правка по имени. */
+  const [editing, setEditing] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [text, setText] = useState("");
@@ -464,12 +466,19 @@ function SkillsSection() {
     load();
   }, [load]);
 
-  const startNew = () => {
-    setName("");
-    setDescription("");
-    setText("");
-    setEditing("new");
+  /** Файл .md брошен в зону: имя — из имени файла (его.slug-ит мост),
+   *  описание — имя файла, текст — содержимое; скилл появляется в списке. */
+  const acceptFile = (file: string, content: string) => {
+    const title = file.replace(/\.md$/i, "");
+    bridge()
+      .skillsSave(title, title, content)
+      .then((list) => {
+        setSkills(list);
+        setError("");
+      })
+      .catch((reason: unknown) => setError(String(reason)));
   };
+
   const startEdit = (skill: Skill) => {
     setName(skill.name);
     setDescription(skill.description);
@@ -508,26 +517,15 @@ function SkillsSection() {
           {error}
         </div>
       ) : null}
+      <DropZone
+        ext="md"
+        hint="Перетащите файл скилла"
+        onFile={acceptFile}
+        testid="skills-drop"
+      />
       {skills === null ? (
         <div className="settings-row__sub">Читаю скиллы…</div>
       ) : null}
-      <input
-        type="file"
-        accept=".md"
-        data-testid="skills-drop"
-        className="skills-drop"
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (!file) return;
-          const skillName = file.name.replace(/\.md$/, "").toLowerCase().replace(/[^a-z0-9-]/g, "-");
-          file.text().then((content) => {
-            bridge()
-              .skillsSave(skillName, file.name.replace(/\.md$/, ""), content)
-              .then(load)
-              .catch((reason: unknown) => setError(String(reason)));
-          });
-        }}
-      />
       {skills?.map((skill) =>
         editing === skill.name ? null : (
           <div className="settings-row" key={skill.name} data-testid="skills-row">
@@ -556,21 +554,16 @@ function SkillsSection() {
           </div>
         ),
       )}
-      {skills !== null && !skills.length && editing === null ? (
+      {skills !== null && !skills.length ? (
         <div className="settings-row__sub" data-testid="skills-empty">
-          Скиллов нет — научите GnomeCode чему-нибудь своему.
+          Скиллов нет — бросьте первый .md файл в зону выше.
         </div>
       ) : null}
       {editing !== null ? (
         <div className="settings-mcp__add" data-testid="skills-form">
-          <input
-            className="settings-key-form__input"
-            data-testid="skills-name"
-            placeholder="Имя (латиница и дефис)"
-            value={name}
-            disabled={editing !== "new"}
-            onChange={(event) => setName(event.target.value)}
-          />
+          <div className="settings-row__sub" data-testid="skills-form-title">
+            Правка скилла «{editing}»
+          </div>
           <input
             className="settings-key-form__input"
             data-testid="skills-description"
@@ -602,16 +595,7 @@ function SkillsSection() {
             Отмена
           </button>
         </div>
-      ) : (
-        <button
-          type="button"
-          className="settings-row__ghost"
-          data-testid="skills-add"
-          onClick={startNew}
-        >
-          Добавить скилл
-        </button>
-      )}
+      ) : null}
     </section>
   );
 }

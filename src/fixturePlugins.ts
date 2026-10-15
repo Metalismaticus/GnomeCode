@@ -358,6 +358,44 @@ export function enable(id: string): Plugin[] {
   return plugins();
 }
 
+/** Имя записи для внешнего файла: латиница-цифры-дефисы (в окне — Rust с
+ *  транслитерацией, src-tauri/src/plugins/install.rs; фикстуре хватает простого). */
+function slugOf(name: string): string {
+  return name
+    .replace(/\.ts$/i, "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/** Установить внешний плагин из файла (B6, бросок .ts): запись выключенная с
+ *  источником external — во вкладке Disabled, включение через сцену H. */
+export function installFile(name: string): Plugin[] {
+  const id = slugOf(name);
+  if (!id) {
+    throw new Error("имя файла — латиница, цифры и дефис");
+  }
+  const held = PLUGINS.findIndex((one) => one.id === id);
+  if (held !== -1) {
+    PLUGINS[held] = {
+      ...PLUGINS[held],
+      source: "external",
+    };
+  } else {
+    PLUGINS.push({
+      ...plugin(id, [], {
+        name: name.replace(/\.ts$/i, ""),
+        description: "внешний плагин — добавлен файлом",
+        uninstallable: true,
+      }),
+      source: "external",
+    });
+  }
+  disabled.add(id);
+  return plugins();
+}
+
 /** Uninstall: запись реестра и файл плагина уходят — карточка исчезает из раздела. */
 export function uninstall(id: string): Plugin[] {
   const gone = PLUGINS.findIndex((one) => one.id === id);

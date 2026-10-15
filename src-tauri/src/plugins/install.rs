@@ -83,13 +83,23 @@ pub struct CatalogEntry {
 }
 
 /// Источник записи реестра (F11): каталог — наши установка и обновление;
-/// импорт — пакет из opencode.json владельца, жизненным циклом ведёт движок.
+/// импорт — пакет из opencode.json владельца, жизненным циклом ведёт движок;
+/// внешний файл — плагин, добавленный перетаскиванием .ts в окно (B6): файл
+/// наш, а обновлений у записи нет — репозитория в декларации нет.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Source {
     #[default]
     Registry,
     Imported,
+    External,
+}
+
+impl Source {
+    /// Вне каталога: автообновление и обновления индекса запись не трогают.
+    pub fn outside_catalog(self) -> bool {
+        matches!(self, Source::Imported | Source::External)
+    }
 }
 
 /// Что реестр помнит об установленном плагине: вся запись каталога целиком.
@@ -197,6 +207,50 @@ pub fn install_by_id(id: &str, registry: &Path, cache: &Path) -> Result<CatalogE
     Ok(entry)
 }
 
+/// Имя записи для внешнего файла (B6): транслитерация + латиница-цифры-дефисы
+/// (F10), как slug скилла — одно знание о правилах имени; пустое — отказ.
+/// Имя файла владельца может быть любым — «Мой Плагин.ts» становится «moy-plugin».
+fn external_id(file_name: &str) -> Option<String> {
+    let stem = file_name.strip_suffix(".ts").unwrap_or(file_name);
+    crate::skills::slug(stem)
+}
+
+/// Установить внешний плагин из файла (B6, перетаскивание .ts): содержимое —
+/// в папку плагинов движка, запись — в реестр выключенной (включение — через
+/// сводку прав сцены H, «права неизвестны», как у импорта). Источник External —
+/// автообновление запись не трогает (репозитория нет). Повторный бросок того же
+/// имени перезаписывает файл, а не дублирует запись. Ответ — id записи.
+pub fn install_from_file(
+    file_name: &str,
+    code: &str,
+    plugins_dir: &Path,
+    registry: &Path,
+) -> Result<String, String> {
+    let id = external_id(file_name)
+        .ok_or_else(|| "имя файла — латиница, цифры и дефис (до 64 знаков)".to_string())?;
+    fs::create_dir_all(plugins_dir)
+        .map_err(|e| format!("папка плагинов не создалась {}: {e}", plugins_dir.display()))?;
+    fs::write(plugins_dir.join(format!("{id}.ts")), code)
+        .map_err(|e| format!("файл плагина не записан: {e}"))?;
+    let entry = CatalogEntry {
+        id: id.clone(),
+        name: file_name.trim_end_matches(".ts").to_string(),
+        description: "внешний плагин — добавлен файлом".to_string(),
+        author: String::new(),
+        version: String::new(),
+        repo: String::new(),
+        entry: file_name.to_string(),
+        permissions: vec![],
+        commands: vec![],
+        disabled: true,
+        source: Source::External,
+    };
+    let mut known = records(registry);
+    known.insert(id.clone(), entry);
+    save_records(registry, &known)?;
+    Ok(id)
+}
+
 /// Скачать входной файл плагина и записать реестр. Папки создаёт на первом месте.
 /// Кэш версий (F5): скачанный артефакт с декларацией запоминается для отката —
 /// сбой кэша установку не ломает, откат лишь скажет «версии нет в кэше».
@@ -282,4 +336,84 @@ pub fn revert(registry: &Path, id: &str, version: &str) -> Result<(), String> {
     };
     entry.version = version.to_string();
     write(registry, &known)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{external_id, install_from_file, records, Source};
+
+    struct TempDir(std::path::PathBuf);
+
+    impl TempDir {
+        fn fresh(name: &str) -> TempDir {
+            let base = std::env::temp_dir().join(format!(
+                "gnomecode-install-{}-{name}",
+                std::process::id()
+            ));
+            let _ = std::fs::remove_dir_all(&base);
+            std::fs::create_dir_all(&base).expect("временная папка создана");
+            TempDir(base)
+        }
+    }
+
+    impl Drop for TempDir {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    /// Имя записи из имени файла: транслитерация и дефисы; пустое и длинное — None.
+    #[test]
+    fn external_id_is_safe() {
+        assert_eq!(external_id("Мой Плагин.ts").as_deref(), Some("moi-plagin"));
+        assert_eq!(external_id("my_plug-2.ts").as_deref(), Some("my-plug-2"));
+        assert_eq!(external_id(".ts").as_deref(), None);
+        assert_eq!(external_id("   .ts").as_deref(), None);
+        let long = "a".repeat(65);
+        assert_eq!(external_id(&long).as_deref(), None);
+    }
+
+    /// Установка из файла: файл в папке плагинов, запись выключенная с источником
+    /// external; повторный бросок перезаписывает, а не дублирует.
+    #[test]
+    fn install_from_file_records_disabled_external() {
+        let dir = TempDir::fresh("file");
+        let plugins = dir.0.join("plugins");
+        let registry = dir.0.join("installed.json");
+
+        let id = install_from_file("Own Tool.ts", "export const x = 1;", &plugins, &registry)
+            .expect("файл установлен");
+        assert_eq!(id, "own-tool");
+        assert!(plugins.join("own-tool.ts").is_file(), "файл плагина на месте");
+
+        let known = records(&registry);
+        let entry = known.get("own-tool").expect("запись в реестре");
+        assert!(entry.disabled, "запись выключенная — включение через сцену H");
+        assert_eq!(entry.source, Source::External);
+        assert!(entry.source.outside_catalog(), "автообновление запись не трогает");
+
+        install_from_file("own tool.ts", "export const y = 2;", &plugins, &registry)
+            .expect("повторная установка");
+        let known = records(&registry);
+        assert_eq!(known.len(), 1, "запись одна — перезаписана, не продублирована");
+        assert!(
+            std::fs::read_to_string(plugins.join("own-tool.ts"))
+                .expect("файл прочитан")
+                .contains("y = 2"),
+            "файл перезаписан новым содержимым"
+        );
+    }
+
+    /// Кривое имя файла — честный отказ, ничего не пишется.
+    #[test]
+    fn install_from_file_rejects_bad_name() {
+        let dir = TempDir::fresh("bad");
+        let registry = dir.0.join("installed.json");
+        let result = install_from_file("   .ts", "x", &dir.0.join("p"), &registry);
+        assert!(result.is_err(), "пустое имя отвергнуто");
+        assert!(
+            records(&registry).is_empty(),
+            "отказ ничего не записал в реестр"
+        );
+    }
 }

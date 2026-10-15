@@ -85,6 +85,19 @@
   border-radius: var(--radius-md);
 }
 
+/* Заметка зоны перетаскивания (B6): итог броска — тост над списком. */
+.plugins-page__toast {
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+  color: var(--text);
+}
+
+.plugins-page__toast--bad {
+  color: var(--danger);
+}
+
 /* Оверлей каталога на странице раздела: пикер прижат к низу (стоит над
    композером чата), здесь его якорит верхний край раздела. */
 .plugins-page .catalog-picker {

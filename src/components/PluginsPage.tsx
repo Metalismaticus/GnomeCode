@@ -6,7 +6,7 @@
  *  оверлей CatalogPicker и сводка прав установки. Updates — обновления при запуске
  *  (пункт 4 партии): карточки из updates.json и сводка новых прав — PluginUpdates. */
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { bridge } from "../bridge";
 import type { Plugin, PluginScope } from "../bridge";
@@ -14,6 +14,7 @@ import type { CatalogEntry } from "../catalog";
 import { useCatalog } from "../features/plugins/useCatalog";
 import { useHeldSummary, type PluginsState } from "../features/plugins/usePlugins";
 import { CatalogPicker } from "./CatalogPicker";
+import { DropZone } from "./DropZone";
 import { PluginConfig } from "./PluginConfig";
 import { PluginEnableGate } from "./PluginEnableGate";
 import { PluginSummary } from "./PluginSummary";
@@ -64,6 +65,37 @@ export function PluginsPage({ plugins, cluster }: { plugins: PluginsState; clust
   /** Сводка прав первого включения (сцена H): плагин из вкладки Disabled,
    *  чей Enable ещё не проходил сводку. */
   const [enableGate, setEnableGate] = useState<Plugin | undefined>(undefined);
+  /** Заметка зоны перетаскивания (B6): «добавлен — включите во вкладке
+   *  Disabled» или честный отказ; сама уходит через 6 секунд. Таймер держится
+   *  в ref — быстрый второй бросок не даёт первому таймеру съесть свою заметку. */
+  const [dropNote, setDropNote] = useState<{ ok: boolean; text: string } | null>(null);
+  const dropTimer = useRef<number | null>(null);
+
+  /** Файл .ts брошен в зону: установка внешнего плагина (файл + реестр +
+   *  тихий рестарт движка), список перечитывается — плагин во вкладке Disabled. */
+  const acceptPluginFile = useCallback(
+    (name: string, code: string) => {
+      bridge()
+        .installPluginFile(name, code)
+        .then((id) => {
+          plugins.refresh();
+          setDropNote({
+            ok: true,
+            text: `Плагин «${id}» добавлен — включите его во вкладке Disabled`,
+          });
+        })
+        .catch((reason: unknown) => {
+          setDropNote({ ok: false, text: `Не добавилось: ${String(reason)}` });
+        })
+        .finally(() => {
+          if (dropTimer.current) {
+            window.clearTimeout(dropTimer.current);
+          }
+          dropTimer.current = window.setTimeout(() => setDropNote(null), 6000);
+        });
+    },
+    [plugins.refresh],
+  );
 
   /** Включение из вкладки Disabled: у плагина уже есть запись правил — сводку
    *  показывали, включаем сразу; нет — первый раз через сцену H (T1). */
@@ -205,6 +237,20 @@ export function PluginsPage({ plugins, cluster }: { plugins: PluginsState; clust
       <div className="plugins-page__body">
         {tab === "installed" ? (
           <>
+            {dropNote ? (
+              <div
+                className={dropNote.ok ? "plugins-page__toast" : "plugins-page__toast plugins-page__toast--bad"}
+                data-testid="plugins-drop-note"
+              >
+                {dropNote.text}
+              </div>
+            ) : null}
+            <DropZone
+              ext="ts"
+              hint="Перетащите внешний плагин"
+              onFile={acceptPluginFile}
+              testid="plugins-drop"
+            />
             {plugins.plugins.filter((one) => !one.disabled).map((one) => (
               <Card
                 key={one.id}

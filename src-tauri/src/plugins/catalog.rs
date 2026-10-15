@@ -107,6 +107,7 @@ fn card(base: &mut Plugin, connected: bool, entry: &CatalogEntry) -> Plugin {
 fn source_of(entry: &CatalogEntry) -> String {
     match entry.source {
         Source::Imported => "imported".to_string(),
+        Source::External => "external".to_string(),
         Source::Registry => "registry".to_string(),
     }
 }

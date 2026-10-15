@@ -104,6 +104,9 @@ export const tauriBridge = (): Bridge => ({
   async uninstallPlugin(id: string) {
     return (await invoke<Plugin[]>("plugin_uninstall", { id })) as Plugin[];
   },
+  async installPluginFile(name: string, code: string) {
+    return (await invoke<string>("plugin_install_file", { name, code })) as string;
+  },
   async updatesNote() {
     return (await invoke<UpdatesNote>("plugin_updates_note")) ?? { note: null, held: [] };
   },

@@ -32,7 +32,9 @@ pub struct Skill {
 
 /// Имя файла скилла: транслитерация кириллицы + латиница/цифры/дефис
 /// (владелец называет скиллы по-русски — «Конвертация 3D» → konvertaciya-3d).
-fn slug(name: &str) -> Option<String> {
+/// Публичная: тем же правилом зовётся внешний плагин из файла (B6) — одно
+/// знание о транслитерации на оба случая.
+pub fn slug(name: &str) -> Option<String> {
     let lowered = name.trim().to_lowercase();
     let mut translit = String::with_capacity(lowered.len());
     for c in lowered.chars() {

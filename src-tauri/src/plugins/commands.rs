@@ -397,8 +397,14 @@ pub async fn catalog_snapshot() -> Result<CatalogSnapshot, String> {
 
 /// Установить плагин из каталога: файл — в папку плагинов движка, запись — в
 /// реестр установленного, движок перезапустится тихо (читает плагины при старте).
+/// Асинхронная: скачивание артефакта живёт до 30 секунд — синком оно держало
+/// главный поток и вешало окно на весь download (тот же класс, что local_detect).
 #[tauri::command]
-pub fn plugin_install(app: AppHandle, chat: State<'_, Chat>, id: String) -> Result<(), String> {
+pub async fn plugin_install(
+    app: AppHandle,
+    chat: State<'_, Chat>,
+    id: String,
+) -> Result<(), String> {
     let folder = data_dir(&app);
     install::install_by_id(
         &id,
@@ -408,6 +414,29 @@ pub fn plugin_install(app: AppHandle, chat: State<'_, Chat>, id: String) -> Resu
     // Счётчик событий (П-3): установка — строка JSONL.
     super::counter::record(&super::counter::file(folder), "install", Some(&id));
     chat.restart()
+}
+
+/// Установить внешний плагин из файла (B6, перетаскивание .ts в раздел
+/// «Плагины»): содержимое — в папку движка, запись — выключенной (включение
+/// через сцену H, «права неизвестны»), движок перезапустится тихо. Ответ — id.
+#[tauri::command]
+pub fn plugin_install_file(
+    app: AppHandle,
+    chat: State<'_, Chat>,
+    name: String,
+    code: String,
+) -> Result<String, String> {
+    let folder = data_dir(&app);
+    let id = install::install_from_file(
+        &name,
+        &code,
+        &install::plugins_dir(),
+        &install::registry_file(folder.clone()),
+    )?;
+    // Счётчик событий (П-3): установка — строка JSONL.
+    super::counter::record(&super::counter::file(folder), "install", Some(&id));
+    chat.restart()?;
+    Ok(id)
 }
 
 /// Откат плагина на версию из кэша GnomeCode (CE-3): файл версии — с проверкой
@@ -841,8 +870,13 @@ pub struct ProviderRow {
 }
 
 /// Список провайдеров окна настроек: движок и свои endpoint'ы, без дублей id.
+/// Асинхронная: два запроса к живому движку — синком они блокировали главный
+/// поток и вешали окно, пока движок занят (тот же урок, что provider_catalog).
 #[tauri::command]
-pub fn provider_list(app: AppHandle, chat: State<'_, Chat>) -> Result<Vec<ProviderRow>, String> {
+pub async fn provider_list(
+    app: AppHandle,
+    chat: State<'_, Chat>,
+) -> Result<Vec<ProviderRow>, String> {
     let endpoint = chat
         .endpoint()
         .ok_or_else(|| "Движок OpenCode не запущен: список провайдеров недоступен".to_string())?;
@@ -937,7 +971,7 @@ fn model_counts(raw: &serde_json::Value) -> std::collections::HashMap<String, us
 /// (формат state.json не растёт). Endpoint меняет конфиг движка — тихий
 /// рестарт; у провайдера движка меняется только видимость в окне.
 #[tauri::command]
-pub fn provider_set_enabled(
+pub async fn provider_set_enabled(
     app: AppHandle,
     chat: State<'_, Chat>,
     id: String,
@@ -948,7 +982,7 @@ pub fn provider_set_enabled(
     if crate::providers_store::endpoint(&crate::providers_store::at(&file), &id).is_some() {
         chat.restart()?;
     }
-    provider_list(app, chat)
+    provider_list(app, chat).await
 }
 
 /// Сколько секунд ждать список моделей endpoint'а: локальные серверы отвечают
@@ -995,7 +1029,7 @@ fn endpoint_models(base_url: &str, key: &str) -> Result<Vec<String>, String> {
 /// самого endpoint'а, ключ — только в хранилище ОС. Тихий рестарт несёт
 /// endpoint движку — его модели появляются в переключателе чата.
 #[tauri::command]
-pub fn endpoint_add(
+pub async fn endpoint_add(
     app: AppHandle,
     chat: State<'_, Chat>,
     name: String,
@@ -1013,18 +1047,22 @@ pub fn endpoint_add(
         crate::providers::save(&crate::providers_store::key_id(&added.id), &key)?;
     }
     chat.restart()?;
-    provider_list(app, chat)
+    provider_list(app, chat).await
 }
 
 /// Удалить свой endpoint: запись и её ключ уходят, движок после тихого
 /// рестарта модели endpoint'а больше не отдаёт.
 #[tauri::command]
-pub fn endpoint_remove(app: AppHandle, chat: State<'_, Chat>, id: String) -> Result<Vec<ProviderRow>, String> {
+pub async fn endpoint_remove(
+    app: AppHandle,
+    chat: State<'_, Chat>,
+    id: String,
+) -> Result<Vec<ProviderRow>, String> {
     let file = crate::providers_store::file(data_dir(&app));
     crate::providers_store::remove_endpoint(&file, &id)?;
     let _ = crate::providers::remove(&crate::providers_store::key_id(&id));
     chat.restart()?;
-    provider_list(app, chat)
+    provider_list(app, chat).await
 }
 
 /// Найденный локальный сервер моделей: карточка «Найден … — подключить?»
@@ -1058,8 +1096,11 @@ fn local_server_alive(base_url: &str) -> bool {
 /// и ещё не подключены. Движок не нужен — провайдеров.json и портов хватает:
 /// карточки видны и до первого запуска ядра. Тишина в ответе — не ошибка:
 /// нет запущенных серверов — карточек нет, как и было.
+/// Асинхронная: проба портов блокирует до секунды на каждой — синком она
+/// вешала главный поток при каждом открытии вкладки «Модели» (жалоба
+/// владельца 15.10: «зависание при переключении вкладок в настройках»).
 #[tauri::command]
-pub fn local_detect(app: AppHandle) -> Result<Vec<LocalServer>, String> {
+pub async fn local_detect(app: AppHandle) -> Result<Vec<LocalServer>, String> {
     let file = crate::providers_store::file(data_dir(&app));
     Ok(crate::providers_store::local_candidates(&crate::providers_store::at(&file))
         .into_iter()

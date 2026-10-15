@@ -127,9 +127,10 @@ export type Plugin = {
   /** Правила категорий из rules.json: `категория → allow/ask/deny`; нет правила —
    *  панель Configure показывает умолчание ask (src-tauri/src/plugins/rules.rs). */
   rules?: Record<string, string>;
-  /** Источник записи реестра (F11): каталог или импорт opencode.json;
-   *  у плагина движка без записи поля нет — сводке нечего про источник говорить. */
-  source?: "registry" | "imported";
+  /** Источник записи реестра (F11): каталог, импорт opencode.json или внешний
+   *  файл (B6); у плагина движка без записи поля нет — сводке нечего про
+   *  источник говорить. */
+  source?: "registry" | "imported" | "external";
   /** Что updates.json помнит об обновлении плагина (src-tauri/src/plugins/updates.rs):
    *  версии «от → до», пометка и новые права; нет — обновлений не было. */
   update?: PluginUpdate;
@@ -308,6 +309,9 @@ export type Bridge = {
   setPluginEnabled(disabled: boolean, id: string): Promise<Plugin[]>;
   /** Удалить плагин после подтверждения: запись реестра и файл плагина уходят. */
   uninstallPlugin(id: string): Promise<Plugin[]>;
+  /** Установить внешний плагин из файла (B6, перетаскивание .ts): содержимое —
+   *  в папку движка, запись — выключенной; ответ — id записи. */
+  installPluginFile(name: string, code: string): Promise<string>;
   /** Пометка последней проверки каталога и удержанные правами обновления:
    *  «каталог недоступен — работаем на текущих» и записи, по которым сводка
    *  новых прав открывается сама при старте (updates.rs, сцена K). */

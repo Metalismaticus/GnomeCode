@@ -1,0 +1,30 @@
+/* Зона перетаскивания файла (DropZone.tsx): пунктирный прямоугольник, под
+   курсором с файлом — подсветка; те же токены, что у пустых состояний страниц. */
+
+.dropzone {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  text-align: center;
+  color: var(--text-dim);
+  background: transparent;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.dropzone--hot {
+  border-color: var(--accent);
+  background: var(--bg-panel);
+}
+
+.dropzone__title {
+  color: var(--text);
+}
+
+.dropzone__sub {
+  margin-top: var(--space-1);
+}
+
+.dropzone__error {
+  margin-top: var(--space-2);
+  color: var(--danger);
+}

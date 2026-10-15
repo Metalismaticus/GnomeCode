@@ -14,6 +14,7 @@ import {
   enable as enableFixture,
   heldUpdates as heldUpdatesFixture,
   importScan as importScanFixture,
+  installFile as installFileFixture,
   plugins as fixturePlugins,
   takeOnce as takeOnceFixture,
   uninstall as uninstallFixture,
@@ -140,6 +141,12 @@ export const fixtureBridge = (): Bridge => ({
   },
   async uninstallPlugin(id: string) {
     return uninstallFixture(id);
+  },
+  async installPluginFile(name: string) {
+    const list = installFileFixture(name);
+    // id записи = имя файла без .ts в slug (Rust отвечает slug'ом с
+    // транслитерацией; фикстуре хватает последнего слова пути).
+    return list.find((one) => one.source === "external")?.id ?? "";
   },
   async updatesNote() {
     // Каталог в состоянии фикстуры отвечал: пометки о недоступности нет;

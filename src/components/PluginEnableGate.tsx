@@ -55,6 +55,9 @@ export function PluginEnableGate({ plugin, onAllow, onCancel }: PluginEnableGate
         {plugin.source === "imported" ? (
           <span>источник: ваш opencode.json · целостность не проверена</span>
         ) : null}
+        {plugin.source === "external" ? (
+          <span>источник: внешний файл · целостность не проверена</span>
+        ) : null}
       </div>
       <div className="plugin-summary__list" data-testid="enable-permissions">
         {shown.map((one) => {
