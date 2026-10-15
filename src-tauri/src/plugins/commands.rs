@@ -898,7 +898,7 @@ pub fn provider_list(app: AppHandle, chat: State<'_, Chat>) -> Result<Vec<Provid
 /// в опенкод добавим всю поддержку провайдеров»). Кэш с диска; первого запуска
 /// кэша нет — дочитываем с сайта здесь же.
 #[tauri::command]
-pub fn provider_catalog(app: AppHandle) -> Result<Vec<ProviderRow>, String> {
+pub async fn provider_catalog(app: AppHandle) -> Result<Vec<ProviderRow>, String> {
     let catalog = ensure_catalog(&app)
         .ok_or_else(|| "Каталог провайдеров не читается: models.dev не ответил".to_string())?;
     let held = crate::providers_store::at(&crate::providers_store::file(data_dir(&app)));
