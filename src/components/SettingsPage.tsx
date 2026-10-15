@@ -511,6 +511,23 @@ function SkillsSection() {
       {skills === null ? (
         <div className="settings-row__sub">Читаю скиллы…</div>
       ) : null}
+      <input
+        type="file"
+        accept=".md"
+        data-testid="skills-drop"
+        className="skills-drop"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (!file) return;
+          const skillName = file.name.replace(/\.md$/, "").toLowerCase().replace(/[^a-z0-9-]/g, "-");
+          file.text().then((content) => {
+            bridge()
+              .skillsSave(skillName, file.name.replace(/\.md$/, ""), content)
+              .then(load)
+              .catch((reason: unknown) => setError(String(reason)));
+          });
+        }}
+      />
       {skills?.map((skill) =>
         editing === skill.name ? null : (
           <div className="settings-row" key={skill.name} data-testid="skills-row">
