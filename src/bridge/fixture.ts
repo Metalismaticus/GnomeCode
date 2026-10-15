@@ -115,6 +115,13 @@ export const fixtureBridge = (): Bridge => ({
     // attach его берёт (проверка «внутри папки» на фикстуре проходит честно).
     return `${fixtureRoot}\\README.md`;
   },
+  async pickText(ext: string) {
+    // Клик по зоне в фикстуре: проводника нет — зона получает подходящий файл.
+    return {
+      name: `picked-skill.${ext}`,
+      text: "Инструкция из проводника: фикстура выбора файла.",
+    };
+  },
   async openTerminal() {
     // В фикстуре консоли нет: QA ловит сам вызов флагом страницы.
     (window as { __terminalOpened?: boolean }).__terminalOpened = true;
@@ -181,10 +188,9 @@ export const fixtureBridge = (): Bridge => ({
     return uninstallFixture(id);
   },
   async installPluginFile(name: string) {
-    const list = installFileFixture(name);
-    // id записи = имя файла без .ts в slug (Rust отвечает slug'ом с
-    // транслитерацией; фикстуре хватает последнего слова пути).
-    return list.find((one) => one.source === "external")?.id ?? "";
+    installFileFixture(name);
+    // id = slug имени (тот же правило, что в Rust; фикстуре хватает простого).
+    return name.replace(/\.ts$/i, "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
   },
   async updatesNote() {
     // Каталог в состоянии фикстуры отвечал: пометки о недоступности нет;

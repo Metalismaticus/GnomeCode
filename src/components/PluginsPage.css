@@ -265,3 +265,83 @@
   outline-offset: 4px;
   border-radius: var(--radius-md);
 }
+
+/* Колонки раздела: слева дерево проекта, справа содержимое вкладки. */
+.plugins-page__columns {
+  display: flex;
+  gap: var(--space-3);
+  align-items: stretch;
+  min-height: 0;
+}
+
+.plugins-page__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.plugins-page__tree {
+  flex: none;
+  width: 240px;
+  align-self: flex-start;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+}
+
+.plugins-page__tree-title {
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: var(--space-2);
+}
+
+.plugins-page__tree-note {
+  color: var(--text-dim);
+}
+
+.plugins-tree__row {
+  display: flex;
+  align-items: baseline;
+}
+
+.plugins-tree__toggle {
+  flex: none;
+  width: 18px;
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.plugins-tree__pick {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+
+.plugins-tree__pick:hover:not(:disabled) {
+  background: var(--border);
+}
+
+.plugins-tree__pick:disabled {
+  color: var(--text-dim);
+  cursor: default;
+}
+
+.plugins-tree__row--ts .plugins-tree__pick {
+  color: var(--accent);
+  font-weight: 600;
+}

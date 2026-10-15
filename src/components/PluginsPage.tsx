@@ -9,10 +9,11 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent as ReactDragEvent, type ReactNode } from "react";
 
 import { bridge } from "../bridge";
-import type { Plugin, PluginScope } from "../bridge";
+import type { Plugin, PluginScope, TreeNode } from "../bridge";
 import type { CatalogEntry } from "../catalog";
 import { useCatalog } from "../features/plugins/useCatalog";
 import { useHeldSummary, type PluginsState } from "../features/plugins/usePlugins";
+import type { ProjectState } from "../features/project/useProject";
 import { CatalogPicker } from "./CatalogPicker";
 import { DropZone } from "./DropZone";
 import { PluginConfig } from "./PluginConfig";
@@ -37,7 +38,7 @@ const TITLES: Record<Exclude<Tab, "installed"> | "installed", string> = {
 
 const TABS: Tab[] = ["installed", "available", "updates", "disabled"];
 
-export function PluginsPage({ plugins, cluster }: { plugins: PluginsState; cluster?: ReactNode }) {
+export function PluginsPage({ plugins, project, cluster }: { plugins: PluginsState; project: ProjectState; cluster?: ReactNode }) {
   /** Состояние «плагины-обновления» открывает раздел прямо на Updates — карточки
    *  обновлений проверяемый экран; обычный вход — Installed. */
   const [tab, setTab] = useState<Tab>(params.feed === "plugins-updates" ? "updates" : "installed");
@@ -100,6 +101,24 @@ export function PluginsPage({ plugins, cluster }: { plugins: PluginsState; clust
     [plugins.refresh],
   );
 
+  /** .ts из дерева проекта: мост читает текст (guard «внутри проекта») — установка. */
+  const installFromTree = useCallback(
+    (path: string) => {
+      const name = path.split(/[\\/]/).pop() ?? "";
+      if (!name.toLowerCase().endsWith(".ts")) {
+        setDropNote({ ok: false, text: `Плагин — это .ts: «${name}» не ставится` });
+        return;
+      }
+      bridge()
+        .readText(path)
+        .then((code) => acceptPluginFile(name, code))
+        .catch((reason: unknown) => {
+          setDropNote({ ok: false, text: `Не добавилось: ${String(reason)}` });
+        });
+    },
+    [acceptPluginFile],
+  );
+
   /** Бросок на любое место раздела: файл .ts из проводника или файл проекта
    *  из дерева (его текст мост читает с guard'ом «внутри папки проекта»). */
   const dropOnPage = useCallback(
@@ -117,21 +136,17 @@ export function PluginsPage({ plugins, cluster }: { plugins: PluginsState; clust
       }
       const path = event.dataTransfer.getData("text/plain");
       if (path) {
-        const name = path.split(/[\\/]/).pop() ?? "plugin.ts";
-        if (!name.toLowerCase().endsWith(".ts")) {
-          setDropNote({ ok: false, text: `Нужен файл .ts — «${name}» не подходит` });
-          return;
-        }
-        void bridge()
-          .readText(path)
-          .then((code) => acceptPluginFile(name, code))
-          .catch((reason: unknown) => {
-            setDropNote({ ok: false, text: `Не добавилось: ${String(reason)}` });
-          });
+        installFromTree(path);
       }
     },
-    [acceptPluginFile],
+    [acceptPluginFile, installFromTree],
   );
+  /** Прокрутка раздела — собственная: смена вкладки возвращает наверх
+   *  (владелец 15.10: после длинного списка приходится листать). */
+  const pageRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    pageRef.current?.scrollTo(0, 0);
+  }, [tab]);
 
   /** Включение из вкладки Disabled: у плагина уже есть запись правил — сводку
    *  показывали, включаем сразу; нет — первый раз через сцену H (T1). */
@@ -243,6 +258,7 @@ export function PluginsPage({ plugins, cluster }: { plugins: PluginsState; clust
 
   return (
     <main
+      ref={pageRef}
       className={pageDropHot ? "plugins-page plugins-page--drop" : "plugins-page"}
       data-testid="plugins-page"
       onDragOver={(event) => {
@@ -288,7 +304,9 @@ export function PluginsPage({ plugins, cluster }: { plugins: PluginsState; clust
         </div>
         {cluster}
       </div>
-      <div className="plugins-page__body">
+      <div className="plugins-page__columns">
+        <ProjectFilesColumn project={project} onInstall={installFromTree} />
+        <div className="plugins-page__main">
         {tab === "installed" ? (
           <>
             {dropNote ? (
@@ -356,6 +374,7 @@ export function PluginsPage({ plugins, cluster }: { plugins: PluginsState; clust
             Список плагинов не читается: {plugins.error}
           </div>
         ) : null}
+        </div>
       </div>
       {confirm ? <UninstallConfirm plugins={plugins.plugins} id={confirm}
         onYes={() => {
@@ -547,5 +566,117 @@ function UninstallConfirm({
         </button>
       </div>
     </div>
+  );
+}
+
+/** Колонка «Файлы проекта» (владелец 15.10: «дерево так и не увидел» — раньше
+ *  дерево жило только в оверлее чата): файлы проекта рядом с плагинами. .ts
+ *  ставится кликом как внешний плагин; любой файл тащится в зону или на страницу.
+ *  Дерево ленивое — одна папка, один вызов моста (project_read_tree). */
+function ProjectFilesColumn({
+  project,
+  onInstall,
+}: {
+  project: ProjectState;
+  onInstall: (path: string) => void;
+}) {
+  const [folders, setFolders] = useState<Record<string, TreeNode[]>>({});
+  const [open, setOpen] = useState<string[]>([]);
+  const [error, setError] = useState("");
+
+  const read = useCallback((path: string) => {
+    bridge()
+      .readTree(path)
+      .then((nodes) => {
+        setFolders((known) => ({ ...known, [path]: nodes }));
+        setError("");
+      })
+      .catch((reason: unknown) => setError(String(reason)));
+  }, []);
+
+  const root = project.root;
+  useEffect(() => {
+    if (root && !folders[root]) {
+      read(root);
+    }
+  }, [root, folders, read]);
+
+  const rows: { node: TreeNode; depth: number }[] = [];
+  const walk = (nodes: TreeNode[], depth: number) => {
+    for (const node of nodes) {
+      rows.push({ node, depth });
+      if (node.kind === "dir" && open.includes(node.path)) {
+        walk(folders[node.path] ?? [], depth + 1);
+      }
+    }
+  };
+  walk(root ? folders[root] ?? [] : [], 0);
+
+  const toggle = (node: TreeNode) => {
+    setOpen((known) =>
+      known.includes(node.path) ? known.filter((path) => path !== node.path) : [...known, node.path],
+    );
+    if (!folders[node.path]) {
+      read(node.path);
+    }
+  };
+
+  return (
+    <aside className="plugins-page__tree" data-testid="plugins-tree">
+      <div className="plugins-page__tree-title">Файлы проекта</div>
+      {!root ? (
+        <div className="plugins-page__tree-note" data-testid="plugins-tree-empty">
+          Выберите папку проекта в чате — её файлы появятся здесь. Файл .ts ставится кликом.
+        </div>
+      ) : null}
+      {error ? <div className="plugins-page__tree-note">{error}</div> : null}
+      {rows.map(({ node, depth }) => (
+        <div
+          key={node.path}
+          className={
+            node.kind === "file" && node.path.toLowerCase().endsWith(".ts")
+              ? "plugins-tree__row plugins-tree__row--ts"
+              : "plugins-tree__row"
+          }
+          data-testid="plugins-tree-row"
+          data-name={node.name}
+          draggable={node.kind === "file"}
+          onDragStart={(event) => {
+            event.dataTransfer.setData("text/plain", node.path);
+            event.dataTransfer.effectAllowed = "copy";
+          }}
+        >
+          {node.kind === "dir" ? (
+            <button
+              type="button"
+              className="plugins-tree__toggle"
+              data-testid="plugins-tree-toggle"
+              data-name={node.name}
+              title={`Открыть папку ${node.name}`}
+              onClick={() => toggle(node)}
+            >
+              ▸
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="plugins-tree__pick"
+            data-testid="plugins-tree-pick"
+            title={
+              node.kind === "file"
+                ? node.path.toLowerCase().endsWith(".ts")
+                  ? `Установить как внешний плагин`
+                  : `«${node.name}» — не .ts: плагином не ставится`
+                : node.path
+            }
+            disabled={node.kind === "dir" || !node.path.toLowerCase().endsWith(".ts")}
+            style={node.kind === "file" ? { paddingLeft: depth * 10 } : { paddingLeft: depth * 10 + 18 }}
+            onClick={() => onInstall(node.path)}
+          >
+            {node.name}
+          </button>
+        </div>
+      ))}
+    </aside>
   );
 }

@@ -76,6 +76,9 @@ export const tauriBridge = (): Bridge => ({
   async pickFile() {
     return (await invoke<string | null>("project_pick_file")) ?? null;
   },
+  async pickText(ext: string) {
+    return (await invoke<{ name: string; text: string } | null>("pick_text_file", { ext })) ?? null;
+  },
   async openTerminal() {
     await invoke<void>("open_terminal");
   },

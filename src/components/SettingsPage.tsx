@@ -70,6 +70,13 @@ export function SettingsPage({ theme, onToggleTheme, defaultModel, onChooseDefau
   const [tab, setTab] = useState<Tab>(
     TABS.includes(initialTab as Tab) ? (initialTab as Tab) : TAB_OF_STATE[params.feed] ?? "вид",
   );
+  /** Тело вкладок — собственный скролл-контейнер: смена вкладки возвращает
+   *  его наверх (владелец 15.10: прокрутка длинной вкладки не должна тащиться
+   *  в короткую). Окно при этом не скроллится — скроллятся страницы. */
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    bodyRef.current?.scrollTo(0, 0);
+  }, [tab]);
   const settings = useSettings();
   /** Панель сравнения в режиме «по умолчанию»: оверлей вкладки «Модели». */
   const [compareOpen, setCompareOpen] = useState(false);
@@ -92,7 +99,7 @@ export function SettingsPage({ theme, onToggleTheme, defaultModel, onChooseDefau
   return (
     <main className="settings-page" data-testid="settings-page">
       <PageHead tab={tab} onTab={setTab} cluster={cluster}  />
-      <div className="settings-page__body">
+      <div className="settings-page__body" ref={bodyRef}>
         {tab === "вид" ? <LookSection theme={theme} onToggleTheme={onToggleTheme}  /> : null}
         {tab === "модели" ? (
           <ModelsSection
@@ -138,12 +145,7 @@ function PageHead({ tab, onTab, cluster }: { tab: Tab; onTab: (tab: Tab) => void
             aria-selected={tab === one}
             className="plugins-page__tab"
             data-testid={`settings-tab-${one}`}
-            onClick={() => {
-              onTab(one);
-              // Вкладка заменила содержимое: с середины длинной вкладки остаться
-              // внизу новой — тот же жест, что и смена страницы (жалоба 15.10).
-              window.scrollTo(0, 0);
-            }}
+            onClick={() => onTab(one)}
           >
             {TITLES[one]}
           </button>
@@ -213,14 +215,34 @@ function LookSection({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: ()
 }
 
 /** Вкладка «Плагины»: умолчания категорий теми же кнопками, что у Configure,
- *  и событийный счётчик (П-3) — opt-in тумблером. */
+ *  событийный счётчик (П-3) — opt-in тумблером, MCP-серверы и зона установки
+ *  внешнего плагина файлом (владелец 15.10: «в настройках в плагины тоже нужен
+ *  драг анд дроп» — та же зона, что у скиллов, рядом). */
 function RulesSection({ settings }: { settings: SettingsState }) {
+  const [pluginNote, setPluginNote] = useState<string | null>(null);
+  /** Файл .ts принят зоной: установка внешнего плагина тем же мостом, что и
+   *  на странице «Плагины»; список там перечитывается при входе. */
+  const installDropped = useCallback((name: string, code: string) => {
+    bridge()
+      .installPluginFile(name, code)
+      .then((id) =>
+        setPluginNote(`Плагин «${id}» добавлен — включите его в разделе «Плагины»`),
+      )
+      .catch((reason: unknown) => setPluginNote(`Не добавилось: ${String(reason)}`));
+  }, []);
   return (
     <section className="settings-section" data-testid="settings-rules">
       <h2 className="settings-section__title">Базовые права для всех плагинов</h2>
       <div className="settings-row__hint settings-rules__hint">
         Действует, пока у плагина нет своего права (раздел «Плагины» → Configure)
       </div>
+      <DropZone
+        ext="ts"
+        hint="Перетащите внешний плагин"
+        onFile={installDropped}
+        note={pluginNote ?? undefined}
+        testid="settings-plugins-drop"
+      />
       {settings.defaults.map((one) => (
         <div
           className="settings-row"

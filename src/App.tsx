@@ -115,7 +115,8 @@ export default function App() {
   }, []);
   /** Смена страницы — с начала: прокрутка «Плагинов» не должна приводить на
    *  низ настроек (замечание владельца 15.10: «настройки появились вверху
-   *  окна, пришлось листать»). Скроллит окно: страницы растут в нём же. */
+   *  окна, пришлось листать»). Контейнеры страниц сбрасывают себя сами
+   *  (SettingsPage/PluginsPage держат реф своего скролла); окно не скроллится. */
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [page]);
@@ -369,7 +370,7 @@ export default function App() {
         chatActions={chatActions}
       />
       {page === "plugins" ? (
-        <PluginsPage plugins={plugins} cluster={<WindowCluster theme={theme} onToggleTheme={toggleTheme}  />} />
+        <PluginsPage plugins={plugins} project={project} cluster={<WindowCluster theme={theme} onToggleTheme={toggleTheme}  />} />
       ) : page === "settings" ? (
         <SettingsPage
           theme={theme}

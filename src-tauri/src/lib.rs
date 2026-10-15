@@ -26,6 +26,8 @@ use plugins::registry::Registry;
 use project::Project;
 use state::{AppState, StatePatch, Store};
 
+use serde::Serialize;
+
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
@@ -204,6 +206,59 @@ fn project_read_text(project: State<'_, Project>, path: String) -> Result<String
         .ok_or("Сначала выберите папку проекта — файл берём из неё")?;
     let (path, _) = project::prompt::within(&root, std::path::Path::new(&path))?;
     project::read_source(&path)
+}
+
+/// Что вернул выбор файла проводником: имя и текст — зоны дропа читают
+/// содержимое, чипы путём не пользуются.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PickedFile {
+    pub name: String,
+    pub text: String,
+}
+
+/// Кап текста выбранного файла: скиллу и плагину хватает с запасом,
+/// гигантский случай не тащим в окно.
+const PICK_MAX_BYTES: usize = 2 * 1024 * 1024;
+
+/// Выбрать файл проводником (клик по зоне дропа без файла) и прочитать его.
+/// `ext` — фильтр расширения без точки («md», «ts»); None — любой файл.
+/// Выбор пользователя — согласие на чтение этого файла, путь наружу не идёт.
+#[tauri::command]
+fn pick_text_file(
+    app: AppHandle,
+    ext: Option<String>,
+) -> Result<Option<PickedFile>, String> {
+    let mut dialog = app.dialog().file();
+    if let Some(extension) = &ext {
+        let filter: &str = extension.as_str();
+        dialog = dialog.add_filter(format!("Файл .{extension}"), &[filter]);
+    }
+    let Some(picked) = dialog.blocking_pick_file() else {
+        return Ok(None);
+    };
+    let path = picked
+        .into_path()
+        .map_err(|reason| format!("файл не выбран: {reason}"))?;
+    let metadata = std::fs::metadata(&path)
+        .map_err(|reason| format!("файл не читается: {reason}"))?;
+    if metadata.len() > PICK_MAX_BYTES as u64 {
+        return Err(format!(
+            "Файл больше 2 МБ — «{}» не подходит",
+            path.file_name()
+                .map(|name| name.to_string_lossy().to_string())
+                .unwrap_or_default()
+        ));
+    }
+    let text = std::fs::read_to_string(&path)
+        .map_err(|reason| format!("файл не прочитался: {reason}"))?;
+    Ok(Some(PickedFile {
+        name: path
+            .file_name()
+            .map(|name| name.to_string_lossy().to_string())
+            .unwrap_or_default(),
+        text,
+    }))
 }
 
 /// Отправить сообщение в сессию OpenCode. Ответ придёт событиями в ленту окна.
@@ -436,6 +491,7 @@ pub fn run() {
             project_symbols,
             project_git_status,
             project_read_text,
+            pick_text_file,
             open_terminal,
             endpoint_add,
             endpoint_remove,

@@ -29,9 +29,10 @@ const TREE: Record<string, TreeNode[]> = {
   [`${ROOT}\\styles`]: [file("tokens.css")],
 };
 
-/** Папка проекта, если состояние страницы показывает дерево (`?состояние=проект`). */
+/** Папка проекта, если состояние страницы показывает дерево (`?состояние=проект`)
+ *  или раздел плагинов (`?состояние=плагины-раздел` — там колонка файлов проекта). */
 export function project(): string | null {
-  return params.feed === "project" ? ROOT : null;
+  return params.feed === "project" || params.feed === "plugins-section" ? ROOT : null;
 }
 
 /** Содержимое одной папки: чужой путь мост не читает — дерево его и не показывает. */
