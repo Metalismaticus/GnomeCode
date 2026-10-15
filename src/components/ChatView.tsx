@@ -309,7 +309,6 @@ export function ChatView({
 
   return (
     <main className="chat" data-testid="chat">
-      <StatsBar currentModel={model} />
       <ChatHeader
         title={title}
         cluster={cluster}
@@ -326,6 +325,7 @@ export function ChatView({
         onToggleCompare={() => setOverlay(overlay === "compare" ? "none" : "compare")}
         compareOpen={overlay === "compare"}
       />
+      <StatsBar currentModel={model} />
       {overlay === "chat-plugins" ? (
         <ChatPluginsPanel
           plugins={plugins.connected}
@@ -333,8 +333,7 @@ export function ChatView({
           onAdd={() => setOverlay("plugins")}
           onClose={() => setOverlay("none")}
         />
-      ) : null}
-      {overlay === "compare" ? (
+      ) : null}      {overlay === "compare" ? (
         <ComparePanel
           compare={compare}
           currentModel={model}
