@@ -83,6 +83,12 @@ pub struct AppState {
     /// serde-умолчание старые state.json без поля не ломает.
     #[serde(default)]
     pub pinned_chats: Option<Vec<String>>,
+    /// Память чата (пункт «Память чата» меню «+»): инструкция текущего чата,
+    /// уходит в каждый его вопрос незаметно в ленте. Поле одно — у текущего
+    /// чата, как `chat_model`; новый чат память сбрасывает. serde-умолчание
+    /// старые state.json без поля не ломает.
+    #[serde(default)]
+    pub chat_memory: Option<String>,
 }
 
 /// Правка состояния: названные поля меняются, остальные остаются как были.
@@ -104,6 +110,8 @@ pub struct StatePatch {
     pub archived_chats: Option<Vec<String>>,
     /// Закреплённые чаты: весь список идентификаторов, как архив.
     pub pinned_chats: Option<Vec<String>>,
+    /// Память чата: текст инструкции текущего чата. Пустая строка — убрали.
+    pub chat_memory: Option<String>,
 }
 
 impl AppState {
@@ -121,6 +129,7 @@ impl AppState {
             default_model: patch.default_model.clone().or_else(|| self.default_model.clone()),
             archived_chats: patch.archived_chats.clone().or_else(|| self.archived_chats.clone()),
             pinned_chats: patch.pinned_chats.clone().or_else(|| self.pinned_chats.clone()),
+            chat_memory: patch.chat_memory.clone().or_else(|| self.chat_memory.clone()),
         }
     }
 }

@@ -6,10 +6,11 @@ import type { PluginsState } from "../../features/plugins/usePlugins";
 import type { ProjectState } from "../../features/project/useProject";
 
 /** Что открыто в чате: меню «⋯», меню «+», список плагинов, окно Tool Sets,
- *  каталог, панель «Plugins in this chat», панель сравнения или ничего. Окно
- *  одобрения — не здесь: его открытость держит `useApproval`; сводку прав
- *  установки держит `pending` — она живёт и при открытом каталоге. */
-export type Overlay = "none" | "more" | "menu" | "plugins" | "toolsets" | "catalog" | "chat-plugins" | "compare";
+ *  каталог, панель «Plugins in this chat», панель сравнения, редактор памяти
+ *  чата или ничего. Окно одобрения — не здесь: его открытость держит
+ *  `useApproval`; сводку прав установки держит `pending` — она живёт и при
+ *  открытом каталоге. */
+export type Overlay = "none" | "more" | "menu" | "plugins" | "toolsets" | "catalog" | "chat-plugins" | "compare" | "memory";
 
 /** Свойства ChatView — публичный вход компонента: их держит и передаёт App,
  *  единственный импортёр. */
@@ -29,8 +30,13 @@ export type ChatViewProps = {
   fsAllow: boolean;
   /** Клик по источнику-плагину: раздел «Плагины» открывается вместо чата. */
   onOpenPluginsPage: () => void;
-  /** Пункт «Настройки» меню «⋯»: та же страница, что шестерёнка сайдбара. */
-  onOpenSettings: () => void;
+  /** Пункт «Настройки» меню «⋯»: та же страница, что шестерёнка сайдбара.
+   *  С вкладкой (пункт «MCP-серверы» меню «+») — настройки открываются на ней. */
+  onOpenSettings: (tab?: string) => void;
+  /** Память чата: инструкция, уходящая в каждый вопрос чата (меню «+»). */
+  memory: string;
+  /** Память чата сохранена: текст идёт в состояние окна и дальше в запросы. */
+  onChangeMemory: (text: string) => void;
   /** Движок не отвечает: команды меню «⋯» выключены с причиной на самом пункте. */
   engineDown: boolean;
   /** Модель текущего чата: бейдж шапки и строка «Выбрана». */

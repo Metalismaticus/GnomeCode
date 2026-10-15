@@ -4,8 +4,10 @@
 //! получает готовые узлы и не разбирает папки сам (ADR-0001, CONCEPT «Архитектура»).
 //! Всё наружу — `Result`: ошибки читаются словами, `panic` здесь нет.
 
+pub mod git;
 pub mod prompt;
 pub mod source;
+pub mod symbols;
 pub mod tree;
 
 use std::path::PathBuf;
@@ -13,6 +15,7 @@ use std::sync::Mutex;
 
 pub use prompt::request;
 pub use source::read_source;
+pub use symbols::Symbol;
 pub use tree::read_tree;
 
 /// Предел элементов в одной папке: очень большой каталог не должен вешать дерево.

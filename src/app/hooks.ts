@@ -111,6 +111,9 @@ export function useChatModels(): {
   sessionId: string | null;
   model: string;
   defaultModel: string;
+  /** Память чата: инструкция этого чата, уходит в каждый вопрос (меню «+»). */
+  memory: string;
+  setMemory: (text: string) => void;
   remember: (question: string) => void;
   choose: (choice: ChatModelChoice) => void;
   chooseDefault: (choice: ChatModelChoice) => void;
@@ -127,6 +130,8 @@ export function useChatModels(): {
   const [ownModel, setOwnModel] = useState<string | null>(null);
   /** Модель по умолчанию для новых чатов: настройка страницы «Настройки». */
   const [defaultModel, setDefaultModel] = useState<string>(DEFAULT_MODEL);
+  /** Память чата: как модель — поле текущего чата в состоянии окна. */
+  const [memory, setMemoryText] = useState<string>("");
 
   /** Титул чата: первый вопрос. Повторные вопросы титул не меняют; время начала
    *  чата пишется тем же патчем — группы дат сайдбара строятся по нему. Ответ
@@ -164,7 +169,7 @@ export function useChatModels(): {
     void patchState({ defaultModel: choice });
   }, []);
 
-  /** Модель, титул, время и сессия из прошлого запуска; папку и тему берёт App рядом. */
+  /** Модель, титул, время, сессия и память из прошлого запуска; папку и тему берёт App рядом. */
   const applySaved = useCallback((saved: WindowState) => {
     if (saved.chatTitle) {
       setTitle(saved.chatTitle);
@@ -181,15 +186,26 @@ export function useChatModels(): {
     if (saved.chatTime) {
       setTime(saved.chatTime);
     }
+    if (saved.chatMemory) {
+      setMemoryText(saved.chatMemory);
+    }
   }, []);
 
   /** «Новый чат»: титул, время и сессия сбрасываются — первый вопрос станет
-   *  титулом нового чата; модель чата не трогается (выбранная модель остаётся
-   *  и у нового чата, сброс только в настройках по умолчанию). */
+   *  титулом нового чата; память чата тоже сбрасывается (новый чат — новая
+   *  память); модель чата не трогается (выбранная модель остаётся и у нового
+   *  чата, сброс только в настройках по умолчанию). */
   const dropChat = useCallback(() => {
     setTitle("");
     setTime(null);
     setSessionId(null);
+    setMemoryText("");
+  }, []);
+
+  /** Память чата сохранена: бейдж меню обновляется сразу, текст идёт в состояние окна. */
+  const setMemory = useCallback((text: string) => {
+    setMemoryText(text);
+    void patchState({ chatMemory: text });
   }, []);
 
   return {
@@ -198,6 +214,8 @@ export function useChatModels(): {
     sessionId,
     model: ownModel ?? defaultModel,
     defaultModel,
+    memory,
+    setMemory,
     remember,
     choose,
     chooseDefault,

@@ -68,3 +68,9 @@
   color: var(--text-faint);
   white-space: nowrap;
 }
+/* Причина несостоявшегося действия: строка внизу меню, меню остаётся открытым. */
+.add-menu__note {
+  padding: var(--space-2) var(--space-3) 0;
+  color: var(--danger);
+}
+

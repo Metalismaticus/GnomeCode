@@ -126,8 +126,78 @@ fn project_clear(
     saved.map(|_| String::new())
 }
 
+/// Выбрать файл для контекста вопроса системным диалогом (пункт «Прикрепить
+/// файл» меню «+»): стартуем в папке проекта, если она выбрана. `None` —
+/// владелец передумал; внутри папки проекта путь проверит интерфейс.
+#[tauri::command]
+fn project_pick_file(
+    app: AppHandle,
+    project: State<'_, Project>,
+) -> Result<Option<String>, String> {
+    let mut dialog = app.dialog().file();
+    if let Some(root) = project.root() {
+        dialog = dialog.set_directory(&root);
+    }
+    let picked = dialog
+        .blocking_pick_file()
+        .map(|picked| picked.into_path().map_err(|e| format!("файл не выбран: {e}")))
+        .transpose()?;
+    Ok(picked.map(|path| path.to_string_lossy().to_string()))
+}
+
+/// Терминал в папке проекта (пункт «Терминал» меню «+»): отдельное окно
+/// консоли Windows, рабочая папка — проект. Без папки — честный отказ.
+#[tauri::command]
+fn open_terminal(project: State<'_, Project>) -> Result<(), String> {
+    use std::os::windows::process::CommandExt;
+    let root = project
+        .root()
+        .ok_or("Сначала выберите папку проекта — терминалу нужна рабочая папка")?;
+    // CREATE_NEW_CONSOLE: консоль открывается отдельным окном, окно приложения
+    // не мигает чёрным. `/K` — консоль остаётся жить после команды смены папки.
+    const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
+    std::process::Command::new("cmd")
+        .arg("/K")
+        .arg(format!("cd /d \"{}\"", root.display()))
+        .creation_flags(CREATE_NEW_CONSOLE)
+        .spawn()
+        .map_err(|reason| format!("терминал не открылся: {reason}"))?;
+    Ok(())
+}
+
+/// Символы приложенных файлов (вкладка «Символы» правой панели): функции,
+/// классы и структуры по строкам. Читает только файлы из папки проекта —
+/// тот же guard, что у отправки (`prompt::within`).
+#[tauri::command]
+fn project_symbols(
+    project: State<'_, Project>,
+    files: Vec<String>,
+) -> Result<Vec<project::Symbol>, String> {
+    let root = project
+        .root()
+        .ok_or("Сначала выберите папку проекта — символы берём из её файлов")?;
+    let mut symbols = Vec::new();
+    for file in &files {
+        let (path, relative) = project::prompt::within(&root, std::path::Path::new(file))?;
+        let source = project::read_source(&path)?;
+        symbols.extend(project::symbols::of_source(&relative, &source));
+    }
+    Ok(symbols)
+}
+
+/// Git-статус проекта (вкладка «Git» правой панели): ветка, изменённые файлы,
+/// последние коммиты. Вызовы — массивами аргументов, без шелла.
+#[tauri::command]
+fn project_git_status(project: State<'_, Project>) -> Result<project::git::GitStatus, String> {
+    let root = project
+        .root()
+        .ok_or("Сначала выберите папку проекта — Git работает в ней")?;
+    project::git::status(&root)
+}
+
 /// Отправить сообщение в сессию OpenCode. Ответ придёт событиями в ленту окна.
 /// Прикреплённые файлы читает мост: движку уходит их содержимое, а в ленте видно имена.
+/// Память чата уходит только движку: в ленте вопрос без её текста.
 #[tauri::command]
 fn chat_send(
     app: AppHandle,
@@ -137,9 +207,15 @@ fn chat_send(
     store: State<'_, Arc<Store>>,
     text: String,
     files: Option<Vec<String>>,
+    memory: Option<String>,
 ) -> Result<(), String> {
     let files = files.unwrap_or_default();
     let sent = project::request(project.root().as_deref(), &text, &files)?;
+    // Память чата: инструкция этого чата — в промпт движку, лента её не показывает.
+    let prompt = match memory.as_deref().map(str::trim) {
+        Some(note) if !note.is_empty() => format!("{}\n\nПамять чата:\n{note}", sent.prompt),
+        _ => sent.prompt,
+    };
     // Модель запроса: своя модель чата, иначе — модель по умолчанию настроек
     // (docs/specs/2026-10-06-12-nastrojki.md, «Модель по умолчанию»); нет и её —
     // как раньше, модели движка.
@@ -153,7 +229,7 @@ fn chat_send(
             return Err(reason);
         }
     }
-    chat.send(&sent.shown, &sent.prompt, &sent.files, model)?;
+    chat.send(&sent.shown, &prompt, &sent.files, model)?;
     // Скоуп «Once» (docs/SPEC/plugins.md, сцена E): соединение служит текущему
     // запросу — следующий вопрос снимает плагин с чата, установка не трогается.
     registry.take_once();
@@ -345,6 +421,10 @@ pub fn run() {
             project_pick_folder,
             project_read_tree,
             project_clear,
+            project_pick_file,
+            project_symbols,
+            project_git_status,
+            open_terminal,
             endpoint_add,
             endpoint_remove,
             local_detect,

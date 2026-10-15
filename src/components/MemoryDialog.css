@@ -1,0 +1,38 @@
+/* Редактор памяти чата (MemoryDialog.tsx): оверлей области чата, как панель
+   сравнения — по центру колонки, тень по DESIGN.md §7 допустима меню и этим окном. */
+
+.memory-dialog {
+  position: absolute;
+  left: 50%;
+  bottom: 96px;
+  transform: translateX(-50%);
+  width: min(560px, calc(100% - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 35%);
+  z-index: 30;
+}
+
+.memory-dialog__title {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.memory-dialog__text {
+  resize: vertical;
+  min-height: 88px;
+}
+
+.memory-dialog__sub {
+  color: var(--text-dim);
+}
+
+.memory-dialog__actions {
+  display: flex;
+  gap: var(--space-2);
+}

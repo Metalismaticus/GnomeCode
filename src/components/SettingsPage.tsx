@@ -55,6 +55,9 @@ export type SettingsPageProps = {
   /** Модель по умолчанию: имя строки и выбор панели (пара имя/идентификатор). */
   defaultModel: string;
   onChooseDefault: (choice: ChatModelChoice) => void;
+  /** Вкладка открытия из меню «+» («MCP-серверы» ведёт на «Плагины»):
+   *  без неё — вкладка состояния адреса или «Внешний вид». */
+  initialTab?: string;
   /** Esc страницы: возврат в чат с фокусом на шестерёнке сайдбара. */
   onClose: () => void;
   /** Кластер кнопок окна (тема + свернуть/развернуть/закрыть): свой набор в
@@ -63,8 +66,10 @@ export type SettingsPageProps = {
   cluster?: ReactNode;
 };
 
-export function SettingsPage({ theme, onToggleTheme, defaultModel, onChooseDefault, onClose, cluster }: SettingsPageProps) {
-  const [tab, setTab] = useState<Tab>(TAB_OF_STATE[params.feed] ?? "вид");
+export function SettingsPage({ theme, onToggleTheme, defaultModel, onChooseDefault, initialTab, onClose, cluster }: SettingsPageProps) {
+  const [tab, setTab] = useState<Tab>(
+    TABS.includes(initialTab as Tab) ? (initialTab as Tab) : TAB_OF_STATE[params.feed] ?? "вид",
+  );
   const settings = useSettings();
   /** Панель сравнения в режиме «по умолчанию»: оверлей вкладки «Модели». */
   const [compareOpen, setCompareOpen] = useState(false);

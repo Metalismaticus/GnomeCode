@@ -28,6 +28,8 @@ export type FixtureState = {
   archivedChats: string[];
   /** Закреплённые чаты: идентификаторы сессий ядра (меню строки). */
   pinnedChats: string[];
+  /** Память чата: инструкция текущего чата (меню «+»), пустая — нет. */
+  chatMemory: string;
 };
 
 const KEY = "gnomecode-fixture-state";
@@ -65,6 +67,7 @@ export function readFixtureState(): FixtureState {
           chatTime: typeof held.chatTime === "number" ? held.chatTime : null,
           archivedChats: pluginIds(held.archivedChats),
           pinnedChats: pluginIds(held.pinnedChats),
+          chatMemory: typeof held.chatMemory === "string" ? held.chatMemory : "",
         };
       }
     }
@@ -82,6 +85,7 @@ export function readFixtureState(): FixtureState {
     chatTime: null,
     archivedChats: [],
     pinnedChats: [],
+    chatMemory: "",
   };
 }
 

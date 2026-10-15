@@ -45,6 +45,18 @@ export type FeedRow = {
 /** Строка дерева файлов: папка или файл, полный путь — чтобы читать содержимое. */
 export type TreeNode = { name: string; path: string; kind: "dir" | "file"; loaded: boolean };
 
+/** Символ файла (вкладка «Символы» правой панели): та же форма, что у моста
+ *  (src-tauri/src/project/symbols.rs). */
+export type SymbolRow = { file: string; kind: string; name: string; line: number };
+
+/** Git-статус проекта (вкладка «Git» правой панели): та же форма, что у моста
+ *  (src-tauri/src/project/git.rs). */
+export type GitStatus = {
+  branch: string;
+  changes: { status: string; path: string }[];
+  commits: { hash: string; subject: string }[];
+};
+
 /** Команда плагина: `name` зовёт движок, `label` стоит на кнопке в шапке;
  *  `category` — категория прав из декларации, по ней слой прав ищет правило
  *  (src-tauri/src/plugins/rules.rs); без категории вызов всегда спрашивает. */
@@ -263,7 +275,7 @@ export type ChatRow = { id: string; title: string; updated?: number };
 
 export type Bridge = {
   /** Вопрос владельца; `files` — пути файлов, которые уйдут с ним движку. */
-  send(text: string, files: string[]): Promise<void>;
+  send(text: string, files: string[], memory?: string): Promise<void>;
   /** Новый чат: лента чистится событием `reset`, движку поднимается новая сессия. */
   newChat(): Promise<void>;
   /** Открыть старый чат: лента чистится тем же `reset` и наполняется его
@@ -307,7 +319,16 @@ export type Bridge = {
   /** Отключить плагин (Enable/Disable в разделе «Плагины»): кнопки команд уходят
    *  из всех чатов, установка не тронута; отдаёт обновлённый список. */
   setPluginEnabled(disabled: boolean, id: string): Promise<Plugin[]>;
-  /** Удалить плагин после подтверждения: запись реестра и файл плагина уходят. */
+  /** Системный диалог выбора файла для контекста (пункт «Прикрепить файл»).
+   *  null — владелец передумал. */
+  pickFile(): Promise<string | null>;
+  /** Терминал в папке проекта: отдельное окно консоли Windows. */
+  openTerminal(): Promise<void>;
+  /** Символы приложенных файлов: функции/классы/структуры по строкам. */
+  projectSymbols(files: string[]): Promise<SymbolRow[]>;
+  /** Git-статус проекта: ветка, изменённые файлы, последние коммиты. */
+  projectGit(): Promise<GitStatus>;
+  /** Убрать плагин после подтверждения: запись реестра и файл плагина уходят. */
   uninstallPlugin(id: string): Promise<Plugin[]>;
   /** Установить внешний плагин из файла (B6, перетаскивание .ts): содержимое —
    *  в папку движка, запись — выключенной; ответ — id записи. */

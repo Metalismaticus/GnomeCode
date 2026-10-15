@@ -22,6 +22,7 @@ const SURFACES = [
   ".chat-plugins",
   ".compare-panel",
   ".header-menu",
+  ".memory-dialog",
   '[data-testid="composer-add"]',
   '[data-testid="composer-model"]',
   MODEL_BADGE,

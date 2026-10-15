@@ -68,8 +68,11 @@ import {
 /** Заглушка вне окна: лента и дерево идут по фикстуре, диалога на странице нет —
  *  папкой проекта становится та, что в фикстуре (src/fixture.ts). */
 export const fixtureBridge = (): Bridge => ({
-  async send(text: string, files: string[]) {
+  async send(text: string, files: string[], memory?: string) {
     fixture.push(text, files);
+    // Память чата фикстурой не играется: страница проверки видит вопрос,
+    // а не служебную инструкцию, — как живая лента (промпт движку один).
+    void memory;
     // Скоуп «Once» (сцена E): соединение служит текущему запросу — следующий
     // вопрос снимает плагин с чата, как registry.take_once (plugin_send).
     takeOnceFixture();
@@ -106,6 +109,36 @@ export const fixtureBridge = (): Bridge => ({
     // `project()` отвечает состоянию `?состояние=проект`) — пустое состояние
     // честно проходит путь выбора папки, как `?состояние=проект` с готовой.
     return fixtureRoot;
+  },
+  async pickFile() {
+    // Диалог файла в фикстуре: README корня фикстуры — файл внутри проекта,
+    // attach его берёт (проверка «внутри папки» на фикстуре проходит честно).
+    return `${fixtureRoot}\\README.md`;
+  },
+  async openTerminal() {
+    // В фикстуре консоли нет: QA ловит сам вызов флагом страницы.
+    (window as { __terminalOpened?: boolean }).__terminalOpened = true;
+  },
+  async projectSymbols(files: string[]) {
+    // Символы фикстуры: те же формы, что отдаёт Rust (symbols.rs) для ts-файлов.
+    return files.flatMap((file) => [
+      { file, kind: "константа", name: "ROOT", line: 9 },
+      { file, kind: "функция", name: "children", line: 38 },
+    ]);
+  },
+  async projectGit() {
+    // Git-статус фикстуры: ветка, пара изменений и коммиты — формы карточек.
+    return {
+      branch: "main",
+      changes: [
+        { status: "M", path: "src/App.tsx" },
+        { status: "??", path: "notes.md" },
+      ],
+      commits: [
+        { hash: "a1b2c3d", subject: "Правая панель: вкладки Символы и Git" },
+        { hash: "e4f5a6b", subject: "Меню «+»: пункты без «позже»" },
+      ],
+    };
   },
   async projectRemove() {
     // Своего хранилища проекта у фикстуры нет: уборка возвращает окно в
@@ -290,6 +323,7 @@ export const fixtureBridge = (): Bridge => ({
       chatTime: saved.chatTime || null,
       archivedChats: saved.archivedChats,
       pinnedChats: saved.pinnedChats,
+      chatMemory: saved.chatMemory ?? null,
     };
   },
   async statePatch(patch: WindowPatch) {
@@ -305,6 +339,7 @@ export const fixtureBridge = (): Bridge => ({
       chatTime: patch.chatTime ?? saved.chatTime,
       archivedChats: patch.archivedChats ?? saved.archivedChats,
       pinnedChats: patch.pinnedChats ?? saved.pinnedChats,
+      chatMemory: patch.chatMemory ?? saved.chatMemory,
     };
     writeFixtureState(next);
     return {
@@ -319,6 +354,7 @@ export const fixtureBridge = (): Bridge => ({
       chatTime: next.chatTime || null,
       archivedChats: next.archivedChats,
       pinnedChats: next.pinnedChats,
+      chatMemory: next.chatMemory ?? null,
     };
   },
   async providerList() {

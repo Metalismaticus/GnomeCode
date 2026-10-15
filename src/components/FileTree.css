@@ -105,3 +105,52 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Вкладки «Символы» и «Git»: строка = имя + вид + номер строки; клик по строке
+   подсвечивает файл в дереве. Ветка репозитория — заголовок раздела. */
+.tree__sym,
+.tree__commit {
+  display: flex;
+  gap: var(--space-2);
+  width: 100%;
+  align-items: baseline;
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.tree__sym:hover {
+  background: var(--bg-panel);
+}
+
+.tree__sym-name,
+.tree__commit .tree__sym-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tree__sym-kind {
+  color: var(--text-dim);
+  flex: none;
+}
+
+.tree__sym-line {
+  color: var(--text-faint);
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.tree__branch {
+  padding: var(--space-1) var(--space-2);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.tree__commit {
+  cursor: default;
+}

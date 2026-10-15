@@ -48,16 +48,18 @@ export type ComposerProps = {
   toolsetsOpen: boolean;
   catalogOpen: boolean;
   onToggleAdd: () => void;
-  onConnectPlugins: () => void;
   onBrowsePlugins: () => void;
   onClosePlugins: () => void;
-  onToolsets: () => void;
   /** Клик по Install карточки каталога: открыть сводку прав. */
   onInstallCatalog: (entry: CatalogEntry) => void;
   /** Клик по строке сета (или его полосе скоупов) — подключить группу. */
   onConnectToolset: (name: string, scope?: PluginScope) => void;
   /** «Save as Tool Set» из подключённого сейчас к чату. */
   onSaveToolset: (name: string) => void;
+  /** Клик по пункту меню «+»: решение — у ChatView (handleAddAction). */
+  onAddAction: (key: string) => void;
+  /** Причина несостоявшегося действия: строка внизу меню «+». */
+  addNote?: string;
 };
 
 /** Тихая пилюля модели: тот же вход в сравнение, что бейдж шапки, но без акцента —
@@ -103,13 +105,13 @@ export function Composer({
   toolsetsOpen,
   catalogOpen,
   onToggleAdd,
-  onConnectPlugins,
   onBrowsePlugins,
   onClosePlugins,
-  onToolsets,
   onConnectToolset,
   onSaveToolset,
   onInstallCatalog,
+  onAddAction,
+  addNote,
 }: ComposerProps) {
   const hasText = Boolean(draft.trim());
   return (
@@ -173,11 +175,10 @@ export function Composer({
       ) : null}
       <AddMenu
         open={addOpen && !pickerOpen && !toolsetsOpen && !catalogOpen}
-        onClose={onClosePlugins}
         plugins={plugins}
         files={files}
-        onConnect={onConnectPlugins}
-        onToolsets={onToolsets}
+        onAction={onAddAction}
+        note={addNote}
       />
     </div>
   );

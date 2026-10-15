@@ -9,6 +9,7 @@ import type {
   Bridge,
   ChatRow,
   FeedEvent,
+  GitStatus,
   Listener,
   LocalServer,
   ImportScan,
@@ -19,6 +20,7 @@ import type {
   RuleEntry,
   StatsPeriod,
   StatsSummary,
+  SymbolRow,
   ToolSet,
   TreeNode,
   UpdatesNote,
@@ -44,8 +46,8 @@ export const inTauri = () => typeof window !== "undefined" && "__TAURI_INTERNALS
 
 /** Живой мост в окне Tauri: ответ приходит событиями ленты, а не телом команды. */
 export const tauriBridge = (): Bridge => ({
-  async send(text: string, files: string[]) {
-    await invoke("chat_send", { text, files });
+  async send(text: string, files: string[], memory?: string) {
+    await invoke("chat_send", { text, files, memory: memory ?? null });
   },
   async newChat() {
     await invoke("chat_new");
@@ -70,6 +72,18 @@ export const tauriBridge = (): Bridge => ({
   },
   async pickFolder() {
     return (await invoke<string | null>("project_pick_folder")) ?? null;
+  },
+  async pickFile() {
+    return (await invoke<string | null>("project_pick_file")) ?? null;
+  },
+  async openTerminal() {
+    await invoke<void>("open_terminal");
+  },
+  async projectSymbols(files: string[]) {
+    return (await invoke<SymbolRow[]>("project_symbols", { files })) as SymbolRow[];
+  },
+  async projectGit() {
+    return (await invoke<GitStatus>("project_git_status")) as GitStatus;
   },
   async projectRemove() {
     return (await invoke<string>("project_clear")) as string;

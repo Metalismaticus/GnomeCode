@@ -99,13 +99,13 @@ export function useFeed() {
     };
   }, []);
 
-  const send = useCallback(async (text: string, files: string[] = []) => {
+  const send = useCallback(async (text: string, files: string[] = [], memory?: string) => {
     const trimmed = text.trim();
     if (!trimmed) {
       return;
     }
     try {
-      await bridge().send(trimmed, files);
+      await bridge().send(trimmed, files, memory);
     } catch (reason: unknown) {
       // Ошибка отправки видна в ленте словами, а не молчаливой пустотой.
       setEvents((known) => [

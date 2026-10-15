@@ -180,6 +180,7 @@ export default function App() {
         defaultModel: null,
         archivedChats: null,
         pinnedChats: null,
+        chatMemory: null,
       });
       void bridge().openChat(row.id);
     },
@@ -204,6 +205,7 @@ export default function App() {
           defaultModel: null,
           archivedChats: null,
         pinnedChats: null,
+        chatMemory: null,
         });
         void patchState({ session: opened.id, chatTitle: opened.title, chatTime: opened.time ?? 0 });
       } else {
@@ -277,6 +279,7 @@ export default function App() {
           defaultModel: null,
           archivedChats: null,
         pinnedChats: null,
+        chatMemory: null,
         });
         void patchState({ chatTitle: title });
       }
@@ -301,10 +304,18 @@ export default function App() {
   /** Возврат в чат со страницы настроек: фокус — кнопке «⋯» шапки (§18 спеки
    *  сайдбара: шестерёнки в сайдбаре больше нет, прежний адрес фокуса исчез). */
   const closeSettings = useCallback(() => {
+    setSettingsTab(undefined);
     setPage("chat");
     requestAnimationFrame(() => {
       (document.querySelector('[data-testid="header-more"]') as HTMLElement | null)?.focus();
     });
+  }, []);
+  /** Открыть настройки с вкладкой (пункт «MCP-серверы» меню «+» ведёт на
+   *  вкладку «Плагины», где секция MCP): без вкладки — как шестерёнка. */
+  const [settingsTab, setSettingsTab] = useState<string | undefined>(undefined);
+  const openSettings = useCallback((tab?: string) => {
+    setSettingsTab(tab);
+    setPage("settings");
   }, []);
 
   // Оверлей правой панели закрывается сам — см. usePanelOverlay.
@@ -359,6 +370,7 @@ export default function App() {
           onToggleTheme={toggleTheme}
           defaultModel={chat.defaultModel}
           onChooseDefault={chat.chooseDefault}
+          initialTab={settingsTab}
           onClose={closeSettings}
           cluster={<WindowCluster theme={theme} onToggleTheme={toggleTheme}  />}
         />
@@ -373,7 +385,9 @@ export default function App() {
           project={project}
           onFirstQuestion={chat.remember}
           onOpenPluginsPage={() => setPage("plugins")}
-          onOpenSettings={() => setPage("settings")}
+          onOpenSettings={openSettings}
+          memory={chat.memory}
+          onChangeMemory={chat.setMemory}
           engineDown={data.engineDown}
           fsAllow={fsAllow}
           model={chat.model}

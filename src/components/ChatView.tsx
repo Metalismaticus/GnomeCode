@@ -1,5 +1,6 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 
+import { bridge } from "../bridge";
 import type { ApprovalDecision, PluginScope } from "../bridge";
 import type { CatalogEntry } from "../catalog";
 import type { CompareModel } from "../compare";
@@ -15,6 +16,7 @@ import { ChatPluginsPanel } from "./ChatPluginsPanel";
 import { Composer } from "./Composer";
 import { EmptyChat } from "./EmptyChat";
 import { Feed, isFailoverRow } from "./Feed";
+import { MemoryDialog } from "./MemoryDialog";
 import { StatsBar } from "./StatsBar";
 import { PluginApproval } from "./PluginApproval";
 import { PluginPicker } from "./PluginPicker";
@@ -37,6 +39,8 @@ export function ChatView({
   fsAllow,
   onOpenPluginsPage,
   onOpenSettings,
+  memory,
+  onChangeMemory,
   engineDown,
   model,
   onChooseModel,
@@ -49,6 +53,9 @@ export function ChatView({
 }: ChatViewProps) {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  /** Строка причины в меню «+»: отказ прикрепления чужого файла виден там же,
+   *  где кликнули, — меню не закрывается, пока причина на экране. */
+  const [addNote, setAddNote] = useState("");
   // Сравнение, меню «⋯» и меню «+» героя на снимках открываются сразу:
   // `?состояние=сравнение*`, `?меню=открыто`, `?плюс=открыто`; строка
   // `сравнение-раскрыто` несёт строку с развёрнутыми подробностями. Кадры
@@ -92,7 +99,7 @@ export function ChatView({
       setSending(true);
       onFirstQuestion?.(text);
       try {
-        await send(text, fsAllow ? project.files.map((file) => file.path) : []);
+        await send(text, fsAllow ? project.files.map((file) => file.path) : [], memory);
         // Скоуп «Once» (сцена E): следующий вопрос снимает плагин с чата —
         // кнопки в шапке пересчитываются свежим списком.
         plugins.refresh();
@@ -100,7 +107,82 @@ export function ChatView({
         setSending(false);
       }
     },
-    [send, project.files, fsAllow, onFirstQuestion, plugins.refresh],
+    [send, project.files, fsAllow, onFirstQuestion, plugins.refresh, memory],
+  );
+
+  /** Клик по пункту меню «+»: все восемь пунктов рабочие. Меню закрывается
+   *  само — кроме ошибки прикрепления: причина видна строкой в самом меню. */
+  const handleAddAction = useCallback(
+    (key: string) => {
+      const close = () => setOverlay("none");
+      switch (key) {
+        case "project-files":
+          close();
+          if (!panelOpen) {
+            onTogglePanel();
+          }
+          return;
+        case "attach-file": {
+          void bridge()
+            .pickFile()
+            .then((picked) => {
+              if (!picked) {
+                return;
+              }
+              const root = project.root.replace(/\\/g, "/").toLowerCase();
+              const inside =
+                root &&
+                (picked.replace(/\\/g, "/").toLowerCase().startsWith(`${root}/`) ||
+                  picked.replace(/\\/g, "/").toLowerCase() === root);
+              if (!inside) {
+                setAddNote("Файл вне папки проекта — прикреплять можно только из неё");
+                return;
+              }
+              project.attachPath(picked);
+              close();
+            })
+            .catch((reason: unknown) => setAddNote(String(reason)));
+          return;
+        }
+        case "whole-project":
+          // Файлы корня папки проекта: ограничение по количеству — промпт растёт
+          // с каждым приложенным файлом (содержимое уходит движку целиком).
+          project.top
+            .filter((node) => node.kind === "file")
+            .slice(0, 12)
+            .forEach((node) => project.attach(node));
+          close();
+          return;
+        case "chat-memory":
+          setOverlay("memory");
+          return;
+        case "connect-plugin":
+          close();
+          setOverlay("plugins");
+          return;
+        case "tool-set":
+          setOverlay("toolsets");
+          return;
+        case "mcp":
+          close();
+          onOpenSettings("плагины");
+          return;
+        case "terminal":
+          close();
+          void bridge()
+            .openTerminal()
+            .catch(() => {
+              // Консоль не открылась (нет папки проекта): причина — в правой панели.
+              if (!panelOpen) {
+                onTogglePanel();
+              }
+            });
+          return;
+        default:
+          close();
+      }
+    },
+    [panelOpen, onTogglePanel, project, onOpenSettings],
   );
 
   /** Подключение из списка закрывает список: кнопки в шапке — подтверждение,
@@ -296,14 +378,17 @@ export function ChatView({
       toolsetsOpen={overlay === "toolsets"}
       catalogOpen={overlay === "catalog"}
       catalog={catalog}
-      onToggleAdd={() => setOverlay(overlay === "menu" ? "none" : "menu")}
-      onConnectPlugins={() => setOverlay("plugins")}
+      onToggleAdd={() => {
+        setAddNote("");
+        setOverlay(overlay === "menu" ? "none" : "menu");
+      }}
       onBrowsePlugins={() => setOverlay("catalog")}
       onClosePlugins={() => setOverlay("none")}
-      onToolsets={() => setOverlay("toolsets")}
       onConnectToolset={connectFromToolset}
       onSaveToolset={saveToolset}
       onInstallCatalog={installFromCatalog}
+      onAddAction={handleAddAction}
+      addNote={addNote}
     />
   );
 
@@ -350,6 +435,9 @@ export function ChatView({
           description={approval.asked.description}
           onDecide={decide}
         />
+      ) : null}
+      {overlay === "memory" ? (
+        <MemoryDialog memory={memory} onSave={onChangeMemory} onClose={() => setOverlay("none")} />
       ) : null}
       {pending ? <PluginSummary entry={pending} onAllow={allowInstall} onCancel={cancelInstall}  /> : null}
       {heldSummary ? <PluginSummary entry={heldSummary} onAllow={allowHeld} onCancel={cancelHeld}  /> : null}

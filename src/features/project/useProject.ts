@@ -26,6 +26,9 @@ export type ProjectState = {
   pick: () => void;
   toggle: (node: TreeNode) => void;
   attach: (node: TreeNode) => void;
+  /** Прикрепить файл по пути (диалог «Прикрепить файл»): имя — последний
+   *  сегмент пути. Чужой (вне корня) путь берёт на себя вызывающий. */
+  attachPath: (path: string) => void;
   detach: (path: string) => void;
   /** Открыть файл из блока «Sources used»: пройти сегменты пути от корня, раскрывая
    *  папки, и подсветить его строку. Абсолютный путь чипа — по полному пути, путь
@@ -96,6 +99,16 @@ export function useProject(initial: string): ProjectState {
     }
   }, [files]);
 
+  /** Файл из системного диалога: тот же чип, что у дерева, — имя из пути.
+   *  Повторное прикрепление того же пути ничего не меняет. */
+  const attachPath = useCallback((path: string) => {
+    const clean = path.replace(/\/$/, "");
+    const name = clean.split(/[\\/]/).pop() ?? clean;
+    setFiles((known) =>
+      known.some((file) => file.path === clean) ? known : [...known, { path: clean, name }],
+    );
+  }, []);
+
   const detach = useCallback((path: string) => {
     setFiles((known) => known.filter((file) => file.path !== path));
   }, []);
@@ -142,6 +155,7 @@ export function useProject(initial: string): ProjectState {
     pick,
     toggle,
     attach,
+    attachPath,
     detach,
     reveal,
   };

@@ -45,7 +45,8 @@ pub fn request(root: Option<&Path>, text: &str, files: &[String]) -> Result<Sent
 /// Файл должен лежать в папке проекта: пути из интерфейса приходят из дерева,
 /// а читать что угодно с диска по строке из окна мост не должен. Возвращает путь
 /// и его же от папки проекта — через «/» так его читает и движок, и владелец.
-fn within(root: &Path, path: &Path) -> Result<(PathBuf, String), String> {
+/// Публичная: тот же guard у символов приложенных файлов (project_symbols).
+pub fn within(root: &Path, path: &Path) -> Result<(PathBuf, String), String> {
     let whole = parts(path);
     let base = parts(root);
     let inside = whole.len() > base.len()
