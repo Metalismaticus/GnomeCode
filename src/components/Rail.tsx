@@ -16,8 +16,6 @@ export type RailProps = {
   onPage: (page: RailPage) => void;
   /** «+ Новый чат»: тот же ход, что кнопка сайдбара. */
   onNewChat: () => void;
-  /** «Открыть папку»: системный диалог выбора проекта. */
-  onPickFolder: () => void;
 };
 
 /** Разделы rail: иконка (глиф-символ) и подпись. */
@@ -28,19 +26,15 @@ const ITEMS: { page: RailPage; glyph: string; label: string }[] = [
   { page: "settings", glyph: "⚙", label: "Настройки" },
 ];
 
-/** Быстрые действия под разделами. */
-const ACTIONS: { glyph: string; label: string; action: "folder" | "new" }[] = [
-  { glyph: "📁", label: "Открыть папку", action: "folder" },
+/** Быстрые действия под разделами. «Открыть папку» убрана — дублирует
+ *  «+ Новый проект» в колонке чатов (владелец 14.10: «зачем?»). */
+const ACTIONS: { glyph: string; label: string; action: "new" }[] = [
   { glyph: "➕", label: "Новый чат", action: "new" },
 ];
 
-export function Rail({ page, onPage, onNewChat, onPickFolder }: RailProps) {
-  const runAction = (action: "folder" | "new") => {
-    if (action === "folder") {
-      onPickFolder();
-    } else {
-      onNewChat();
-    }
+export function Rail({ page, onPage, onNewChat }: RailProps) {
+  const runAction = (action: "new") => {
+    onNewChat();
   };
   const item = (glyph: string, label: string, active: boolean, onClick: () => void, testid?: string): ReactNode => (
     <button

@@ -78,6 +78,13 @@ export default function App() {
   const plugins = usePlugins();
   const approval = useApproval(plugins.refresh);
   const chat = useChatModels();
+  /** Браузерное контекстное меню WebView2 («Печать», «Обновить») — отключено:
+   *  ПКМ в окне продукта не даёт действий браузера (замечание владельца 14.10). */
+  useEffect(() => {
+    const prevent = (event: MouseEvent) => event.preventDefault();
+    document.addEventListener("contextmenu", prevent);
+    return () => document.removeEventListener("contextmenu", prevent);
+  }, []);
   /** Экран первого запуска (DT1): скан конфигурации один на запуск. Есть
    *  импортированные-выключенные — окно комбинированного одобрения поверх;
    *  «обработано» только явным действием (Включить выбранные или Пропустить).
@@ -329,7 +336,6 @@ export default function App() {
         page={page === "stats" ? "stats" : page === "plugins" ? "plugins" : page === "settings" ? "settings" : "chat"}
         onPage={setPage}
         onNewChat={newChat}
-        onPickFolder={project.pick}
       />
       <Sidebar
         projects={projects}

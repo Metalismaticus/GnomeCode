@@ -144,8 +144,8 @@ function SystemPromptSection() {
           onChange={(event) => setText(event.target.value)}
         />
         <span className="settings-row__sub">
-          Дополняет AGENTS.md проекта, действует на все чаты. Индивидуальный
-          промт на конкретный чат движком пока не поддерживается.
+          Инструкции дополняют конфиг проекта, действуют на все чаты.
+          Индивидуальный промт на конкретный чат движком пока не поддерживается.
         </span>
         {status ? (
           <span className="settings-row__sub" data-testid="systemprompt-status">

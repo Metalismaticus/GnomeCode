@@ -36,6 +36,23 @@
   color: var(--text);
 }
 
+.stats-bar__provider {
+  height: 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel-2);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 0 var(--space-2);
+  cursor: pointer;
+}
+
+.stats-bar__provider:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 .stats-bar__cards {
   display: flex;
   gap: var(--space-4);
