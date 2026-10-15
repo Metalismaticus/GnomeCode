@@ -69,6 +69,11 @@ import {
  *  папкой проекта становится та, что в фикстуре (src/fixture.ts). */
 export const fixtureBridge = (): Bridge => ({
   async send(text: string, files: string[], memory?: string) {
+    // Кадр `?медленно=1`: ответ едет полторы секунды — очередь вопросов
+    // (владелец 15.10) проверяется без живого движка.
+    if (params.slow) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
     fixture.push(text, files);
     // Память чата фикстурой не играется: страница проверки видит вопрос,
     // а не служебную инструкцию, — как живая лента (промпт движку один).

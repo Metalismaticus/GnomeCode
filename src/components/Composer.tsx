@@ -13,7 +13,7 @@ import { ToolSetPicker } from "./ToolSetPicker";
 
 import "./Composer.css";
 
-const PLACEHOLDER = "Напишите сообщение… (Ctrl + Enter — отправить)";
+const PLACEHOLDER = "Напишите сообщение… (Enter — отправить)";
 const EMPTY = "Напишите сообщение — отправлять нечего";
 
 export type ComposerProps = {
@@ -60,6 +60,11 @@ export type ComposerProps = {
   onAddAction: (key: string) => void;
   /** Причина несостоявшегося действия: строка внизу меню «+». */
   addNote?: string;
+  /** Очередь вопросов (владелец 15.10: «отправку по энтер… в очередь»):
+   *  отправка во время ответа ставит вопрос в очередь — уйдёт сам. */
+  queue?: string[];
+  /** Убрать вопрос из очереди. */
+  onUnqueue?: (index: number) => void;
 };
 
 /** Тихая пилюля модели: тот же вход в сравнение, что бейдж шапки, но без акцента —
@@ -112,11 +117,31 @@ export function Composer({
   onInstallCatalog,
   onAddAction,
   addNote,
+  queue = [],
+  onUnqueue,
 }: ComposerProps) {
   const hasText = Boolean(draft.trim());
   return (
     <div className={hero ? "composer composer--hero" : "composer"}>
       <div className="composer__column">
+        {queue.length ? (
+          <div className="composer__queue" data-testid="composer-queue">
+            {queue.map((text, index) => (
+              <span className="chip" key={`${index}-${text}`} data-testid="queue-chip" title={text}>
+                {`${index + 1}. ${text.length > 40 ? `${text.slice(0, 40)}…` : text}`}
+                <button
+                  type="button"
+                  className="chip__close"
+                  data-testid="queue-chip-close"
+                  title="Убрать из очереди"
+                  onClick={() => onUnqueue?.(index)}
+                >
+                  ✕
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : null}
         <FileChips files={files} onDetach={onDetach}  />
         <div className="composer__box">
           <Button
@@ -138,7 +163,9 @@ export function Composer({
             rows={1}
             onChange={(event) => onDraft(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === "Enter" && event.ctrlKey) {
+              // Enter и Ctrl+Enter — отправить (владелец 15.10); во время ответа
+              // отправка уходит в очередь. Shift+Enter — перенос строки.
+              if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
                 onSend();
               }
@@ -148,13 +175,13 @@ export function Composer({
           <Button
             square
             variant="ghost"
-            className={`composer__send${hasText || sending ? "" : " composer__send--hidden"}`}
+            className={`composer__send${hasText ? "" : " composer__send--hidden"}`}
             data-testid="send"
             onClick={onSend}
-            disabled={!hasText || sending}
-            title={sending ? "Отправляется" : hasText ? "Отправить" : EMPTY}
+            disabled={!hasText}
+            title={sending ? "Ответ печатается — сообщение встанет в очередь" : hasText ? "Отправить (Enter)" : EMPTY}
           >
-            {sending ? "…" : "↑"}
+            ↑
           </Button>
         </div>
       </div>

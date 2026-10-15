@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent } from "react";
 
 import { bridge } from "../bridge";
 import type { ApprovalDecision, PluginScope } from "../bridge";
@@ -53,11 +53,12 @@ export function ChatView({
 }: ChatViewProps) {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  /** Очередь вопросов (владелец 15.10): отправка во время ответа не блокируется —
+   *  вопрос встаёт в очередь и уезжает сам, когда ход завершился. */
+  const [queue, setQueue] = useState<string[]>([]);
   /** Строка причины в меню «+»: отказ прикрепления чужого файла виден там же,
    *  где кликнули, — меню не закрывается, пока причина на экране. */
   const [addNote, setAddNote] = useState("");
-  /** Над файлом тащат файл из дерева: композер подсвечен — сюда можно бросить. */
-  const [dropHot, setDropHot] = useState(false);
   // Сравнение, меню «⋯» и меню «+» героя на снимках открываются сразу:
   // `?состояние=сравнение*`, `?меню=открыто`, `?плюс=открыто`; строка
   // `сравнение-раскрыто` несёт строку с развёрнутыми подробностями. Кадры
@@ -97,7 +98,6 @@ export function ChatView({
 
   const ask = useCallback(
     async (text: string) => {
-      setDraft("");
       setSending(true);
       onFirstQuestion?.(text);
       try {
@@ -111,6 +111,35 @@ export function ChatView({
     },
     [send, project.files, fsAllow, onFirstQuestion, plugins.refresh, memory],
   );
+
+  /** Отправка: на свободе уходит сразу, во время ответа — в очередь
+   *  (владелец 15.10). Очередь разгружает эффект ниже, когда sending снялся. */
+  const handleSend = useCallback(() => {
+    const text = draft.trim();
+    if (!text) {
+      return;
+    }
+    setDraft("");
+    if (sending) {
+      setQueue((known) => [...known, text]);
+      return;
+    }
+    void ask(text);
+  }, [draft, sending, ask]);
+
+  /** Ход завершился — из очереди уезжает следующий вопрос, пока есть. */
+  useEffect(() => {
+    if (sending || !queue.length) {
+      return;
+    }
+    const [next, ...rest] = queue;
+    setQueue(rest);
+    void ask(next);
+  }, [sending, queue, ask]);
+
+  const unqueue = useCallback((index: number) => {
+    setQueue((known) => known.filter((_, at) => at !== index));
+  }, []);
 
   /** Клик по пункту меню «+»: все восемь пунктов рабочие. Меню закрывается
    *  само — кроме ошибки прикрепления: причина видна строкой в самом меню. */
@@ -356,13 +385,12 @@ export function ChatView({
   }, [rows.length]);
 
   /** Файл из дерева бросили в чат: прикрепляем к вопросу тем же путём, что
-   *  клик по дереву. Бросить можно в любое место колонки — композер подсвечен,
-   *  пока тащат (dropHot). OS-файлы из проводника здесь не принимаем: у чипа
-   *  должен быть путь из проекта, для чужих файлов есть «Прикрепить файл». */
+   *  клик по дереву. Бросить можно в любое место колонки. OS-файлы из
+   *  проводника здесь не принимаем: у чипа должен быть путь из проекта, для
+   *  чужих файлов есть «Прикрепить файл». */
   const dropFromTree = useCallback(
     (event: ReactDragEvent) => {
       event.preventDefault();
-      setDropHot(false);
       const path = event.dataTransfer.getData("text/plain");
       if (path) {
         project.attachPath(path);
@@ -383,7 +411,9 @@ export function ChatView({
       draft={draft}
       sending={sending}
       onDraft={setDraft}
-      onSend={() => void ask(draft)}
+      onSend={handleSend}
+      queue={queue}
+      onUnqueue={unqueue}
       files={project.files}
       onDetach={project.detach}
       model={model}
@@ -412,17 +442,11 @@ export function ChatView({
 
   return (
     <main
-      className={dropHot ? "chat chat--drop" : "chat"}
+      className="chat"
       data-testid="chat"
       onDragOver={(event) => {
         if (event.dataTransfer.types.includes("text/plain")) {
           event.preventDefault();
-          setDropHot(true);
-        }
-      }}
-      onDragLeave={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-          setDropHot(false);
         }
       }}
       onDrop={dropFromTree}

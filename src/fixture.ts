@@ -286,12 +286,14 @@ class Fixture {
       ];
     }
     if (params.feed === "фейловер") {
-      // Отказ модели (урок PAIR): вопрос ушёл, движок ответил ошибкой — строка
-      // «Сообщение не ушло: …» с той же формой, что шлёт мост окна
-      // (opencode/mod.rs, Cmd::Prompt при отказе api.prompt).
+      // Отказ модели (урок PAIR): обе формы отказа, что детектит лента —
+      // «Сообщение не ушло: …» моста окна (opencode/mod.rs, Cmd::Prompt) и
+      // «Модель ответила ошибкой: …» моста ленты (client.rs, ExecutionFailed —
+      // кадр повторяет реальный 402 провайдера из замера ET0).
       return [
         row("fail_user", "user", "Собери отчёт по панелям окна", minutesAgo(2)),
         row("fail_notice", "notice", "Сообщение не ушло: 429 Too Many Requests — модель перегружена", minutesAgo(1)),
+        row("fail_engine", "notice", "Модель ответила ошибкой: Upstream request failed: Insufficient account funds", minutesAgo(1)),
       ];
     }
     if (params.feed === "many" || params.feed.startsWith("сравнение")) {
