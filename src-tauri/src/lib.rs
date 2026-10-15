@@ -266,7 +266,6 @@ fn pick_text_file(
 /// Память чата уходит только движку: в ленте вопрос без её текста.
 #[tauri::command]
 fn chat_send(
-    app: AppHandle,
     chat: State<'_, Chat>,
     project: State<'_, Project>,
     registry: State<'_, Registry>,
@@ -284,17 +283,11 @@ fn chat_send(
     };
     // Модель запроса: своя модель чата, иначе — модель по умолчанию настроек
     // (docs/specs/2026-10-06-12-nastrojki.md, «Модель по умолчанию»); нет и её —
-    // как раньше, модели движка.
+    // как раньше, модели движка. Готовит её поток ленты (mod.rs,
+    // prepare_prompt_model): сеть с потока команды вешала окно, пока движок
+    // занят ответом — отправка казалась пропавшей.
     let saved = store.load();
     let model = saved.chat_model.or(saved.default_model);
-    // Выбор приводится к движковому провайдеру (каталог и движок зовут одного
-    // провайдера по-разному) и проверяется на ключ одним списком моделей
-    // движка (commands::prepare_model) — иначе вопрос уходит не туда, куда
-    // выбрал владелец, или вовсе без ключа.
-    let model = match model {
-        Some(choice) => Some(plugins::commands::prepare_model(&app, &chat, choice)?),
-        None => None,
-    };
     chat.send(&sent.shown, &prompt, &sent.files, model)?;
     // Скоуп «Once» (docs/SPEC/plugins.md, сцена E): соединение служит текущему
     // запросу — следующий вопрос снимает плагин с чата, установка не трогается.
@@ -392,6 +385,38 @@ fn feed_replay(replay: State<'_, Arc<WindowSink>>) -> Result<(), String> {
     Ok(())
 }
 
+/// Удалить все чаты: каждая сессия уходит из движка вместе с историей
+/// (тот же `DELETE /api/session/{id}`, что у одиночного удаления). Лента
+/// поднимает новый чат — открытый удалённый разговор не остаётся висеть.
+#[tauri::command]
+fn chat_clear_all(
+    chat: State<'_, Chat>,
+    store: State<'_, Arc<Store>>,
+) -> Result<Vec<opencode::session::ChatRow>, String> {
+    let endpoint = chat
+        .endpoint()
+        .ok_or_else(|| "Движок OpenCode не запущен: чаты не удалить".to_string())?;
+    let api = opencode::client::Api::new(&endpoint);
+    let all = opencode::session::chats(&api)?;
+    let mut removed = 0usize;
+    for one in &all {
+        if api.delete_session(&one.id).is_ok() {
+            removed += 1;
+        }
+    }
+    // Титул открытого чата больше не имеет смысла: чатов нет.
+    let _ = store.patch(&StatePatch {
+        chat_title: Some(String::new()),
+        ..StatePatch::default()
+    });
+    let fresh = opencode::session::chats(&api).unwrap_or_default();
+    if removed > 0 {
+        // Лента чистится и поднимает новую сессию: старый открытый чат удалён.
+        chat.new_chat()?;
+    }
+    Ok(fresh)
+}
+
 /// Каталог моделей: свежий с opencode.ai или из кэша (`compare.json` в папке
 /// данных, узор `catalog_list`); доступность у провайдера решает движок.
 ///
@@ -450,6 +475,7 @@ pub fn run() {
             chat_new,
             chat_open,
             chat_delete,
+            chat_clear_all,
             chat_rename,
             chat_send,
             compare_list,

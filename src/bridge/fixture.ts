@@ -100,6 +100,11 @@ export const fixtureBridge = (): Bridge => ({
     // список (баг владельца 14.10: удаление молчало, чат оставался).
     return fixture.remove(id);
   },
+  async chatClearAll() {
+    // Фикстура чистит весь список и открывает пустой разговор.
+    fixture.clearAll();
+    return [];
+  },
   async listen(listener: Listener) {
     return fixture.play(listener);
   },

@@ -1,5 +1,5 @@
-/* Левая колонка (docs/DESIGN.md, раздел 5): 240 px, при ширине окна < 1200 px — 200 px.
-   Токен --sidebar-w-narrow добавлен в src/styles/tokens.css этой правкой. */
+/* Левая колонка (docs/DESIGN.md, раздел 5): 280 px, при ширине окна < 1200 px — 240 px
+   (правка владельца 15.10: блок шире — надписи, кнопки и логотип крупнее). */
 
 .sidebar {
   width: var(--sidebar-w);
@@ -19,7 +19,7 @@
   /* Зазор 12 (--space-3): крупному знаку тесен прежний 8 (§18 спеки сайдбара). */
   gap: var(--space-3);
   font-weight: 700;
-  font-size: 15px;
+  font-size: 17px;
   min-width: 0;
 }
 
@@ -32,7 +32,7 @@
    силуэту файла, box-shadow рисовал прямоугольник с квадратными углами.
    Файл знака — src/assets/logo.png (отладочная копия образца docs/refs). */
 .sidebar__logo-mark {
-  height: 36px;
+  height: 44px;
   width: auto;
   object-fit: contain;
   filter: var(--glow-filter);
@@ -55,13 +55,13 @@
 
 .sidebar__search-input {
   width: 100%;
-  height: 32px;
+  height: 36px;
   padding: var(--space-2) var(--space-6) var(--space-2) var(--space-3);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   background: var(--bg-input);
   color: var(--text);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .sidebar__search-input:focus-visible {
@@ -71,15 +71,15 @@
 
 .sidebar__search-clear {
   position: absolute;
-  top: 4px;
+  top: 6px;
   right: 4px;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   border: none;
   border-radius: var(--radius-sm);
   background: none;
   color: var(--text-dim);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1;
   display: grid;
   place-items: center;
@@ -99,7 +99,7 @@
    не элемент управления, фокуса и наведения у неё нет. */
 .sidebar__none {
   padding: 6px var(--space-2);
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-faint);
 }
 
@@ -114,7 +114,7 @@
 }
 
 .sidebar__head-title {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--text);
 }
@@ -125,13 +125,13 @@
 }
 
 .sidebar__head-btn {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border: none;
   border-radius: var(--radius-sm);
   background: none;
   color: var(--text-dim);
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1;
   cursor: pointer;
   display: grid;
@@ -155,7 +155,7 @@
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-md);
   color: var(--text-dim);
-  font-size: 12px;
+  font-size: 13px;
   text-align: center;
 }
 
@@ -173,7 +173,7 @@
   border: 1px dashed var(--accent);
   border-radius: var(--radius-md);
   color: var(--accent);
-  font-size: 12px;
+  font-size: 13px;
   text-align: center;
 }
 
@@ -189,7 +189,7 @@
 }
 
 .sidebar__section-title {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -206,9 +206,9 @@
   border-radius: var(--radius-md);
   background: none;
   color: var(--text-dim);
-  font-size: 13px;
+  font-size: 14px;
   font-family: inherit;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3);
   text-align: left;
   cursor: pointer;
 }

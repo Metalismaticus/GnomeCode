@@ -85,6 +85,19 @@ export function ChatView({
   /** Отказ хода в ленте (урок PAIR): ради подсказки «Переключиться на X?»
    *  каталог сравнения читается лениво — кэш-первый ход, дешёвый. */
   const failoverPresent = rows.some(isFailoverRow);
+  /** Число завершённых ходов в ленте: расход записывается на шаге модели —
+   *  полоса статистики перечитывает сводку сама (баг владельца 15.10: числа
+   *  стояли, пока не тыкнешь в период). */
+  const doneCount = useMemo(
+    () =>
+      rows.filter(
+        (row) =>
+          row.kind === "notice" &&
+          (row.text === "Ответ модели получен" ||
+            row.text.startsWith("Модель ответила ошибкой")),
+      ).length,
+    [rows],
+  );
   const compare = useCompare(overlay === "compare" || failoverPresent);
   /** Первый доступный ход, не равный текущей модели: его предлагает строка
    *  отказа. Каталога нет (не читался, пуст) — подсказки нет, лента молчит. */
@@ -467,7 +480,7 @@ export function ChatView({
         onToggleCompare={() => setOverlay(overlay === "compare" ? "none" : "compare")}
         compareOpen={overlay === "compare"}
       />
-      <StatsBar currentModel={model} />
+      <StatsBar currentModel={model} refreshKey={doneCount} />
       {overlay === "chat-plugins" ? (
         <ChatPluginsPanel
           plugins={plugins.connected}

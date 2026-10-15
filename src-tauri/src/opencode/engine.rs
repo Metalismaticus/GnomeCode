@@ -37,6 +37,13 @@ pub fn set_config_folder(folder: PathBuf) {
     let _ = CONFIG_FOLDER.set(folder);
 }
 
+/// Папка данных для конфига провайдеров: та же, что задал setup окна
+/// ([`set_config_folder`]). Поток ленты читает из неё providers.json —
+/// другого знания о папке окна у него нет.
+pub fn config_folder() -> Option<PathBuf> {
+    CONFIG_FOLDER.get().cloned()
+}
+
 /// Что движку уходит при подъёме: конфиг провайдеров и переменные ключей.
 /// Обе части читаются на каждом подъёме — тихий рестарт после сохранения
 /// ключа несёт движку свежие (engine.rs, `spawn`).

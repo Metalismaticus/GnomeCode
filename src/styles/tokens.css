@@ -26,8 +26,8 @@
      (docs/specs/2026-10-08-1-чат.md, §3–4). */
   --feed-column: 760px;
 
-  --sidebar-w: 240px;
-  --sidebar-w-narrow: 200px;
+  --sidebar-w: 280px;
+  --sidebar-w-narrow: 240px;
   --context-w: 280px;
 }
 

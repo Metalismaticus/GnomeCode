@@ -1,7 +1,7 @@
-/* Строка списка сайдбара: первая линия — название 13 px и время 11 px справа,
-   вторая — подпись 11 px приглушённым; высота ~44 px, паддинг 6×8 (плотность
-   строки принята кадром, docs/specs/2026-10-10-4-сайдбар.md, §4). Длинное имя,
-   путь и превью усекаются с «…», полный текст — в title строки. */
+/* Строка списка сайдбара: первая линия — название 14 px и время 12 px справа,
+   вторая — подпись 12 px приглушённым; высота ~48 px (правка владельца 15.10:
+   надписи и аватары крупнее, блок шире — 280 px). Длинное имя, путь и превью
+   усекаются с «…», полный текст — в title строки. */
 
 .sidebar-item {
   display: flex;
@@ -9,12 +9,12 @@
   gap: 2px;
   width: 100%;
   min-width: 0;
-  padding: 6px var(--space-2);
+  padding: 7px var(--space-2);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: none;
   color: var(--text-dim);
-  font-size: 13px;
+  font-size: 14px;
   text-align: left;
   transition: background 0.15s ease, color 0.15s ease;
 }
@@ -40,7 +40,7 @@
 .sidebar-item__end {
   flex: none;
   margin-left: auto;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.4;
   color: var(--text-faint);
 }
@@ -62,7 +62,7 @@
 
 .sidebar-item__sub {
   min-width: 0;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.4;
   color: var(--text-faint);
   white-space: nowrap;
@@ -89,13 +89,13 @@ button.sidebar-item:focus-visible {
    статусные цвета, не акцент; кольцо — цвет подложки сайдбара. */
 .sidebar-item__avatar {
   position: relative;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius-sm);
   background: var(--bg-panel-2);
   display: grid;
   place-items: center;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-dim);
 }

@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 
 import type { CompareModel } from "../compare";
 import { radarSeries, RADAR_AXES } from "../compare/radar";
-import { contextOf, dateOf, featuresOf, moneyOf, scoreOf } from "../compare";
+import { contextOf, dateOf, featuresOf, priceOf, scoreOf } from "../compare";
 import type { CompareState } from "../features/compare/useCompare";
 import { RadarChart } from "./RadarChart";
 
@@ -54,7 +54,11 @@ export function ComparePanel({ compare, currentModel, mode, initialExpanded, onC
   const title = mode === "default" ? TITLE_DEFAULT : TITLE;
   // Модели движка (свои endpoint'ы, локальные серверы) идут после каталога
   // под своим заголовком: цены у них «—», поиск находит их вместе с каталогом.
-  const catalog = compare.models.filter((model) => !model.engine);
+  // Внутри каталога сначала доступные (правка владельца 15.10), потом нет —
+  // сортировка устойчивая, порядок внутри групп прежний.
+  const catalog = compare.models
+    .filter((model) => !model.engine)
+    .sort((a, b) => Number(b.available) - Number(a.available));
   const engine = compare.models.filter((model) => model.engine);
   /** База радара (усиление сравнения): ручной выбор (владелец 14.10, как в
    *  образце — ручной выбор); по умолчанию модель текущего чата, без неё —
@@ -294,8 +298,8 @@ function Row({
             <span className="compare-line__unavailable">Нет у провайдера</span>
           ) : null}
         </span>
-        <span className="compare-line__num">{moneyOf(model.input)}</span>
-        <span className="compare-line__num">{moneyOf(model.output)}</span>
+        <span className="compare-line__num">{priceOf(model.input)}</span>
+        <span className="compare-line__num">{priceOf(model.output)}</span>
         <span className="compare-line__num">{contextOf(model.context)}</span>
         <span className="compare-line__score">
           {top ? (
@@ -456,8 +460,8 @@ function Expanded({
       ) : null}
       <div className="compare-details__description">{model.description}</div>
       <div className="compare-details__price">
-        Цена за 1 млн: Ввод {moneyOf(model.input)} · Вывод {moneyOf(model.output)}
-        {model.cacheRead !== null ? <> · Из кэша {moneyOf(model.cacheRead)}</> : null}
+        Цена за 1 млн: Ввод {priceOf(model.input)} · Вывод {priceOf(model.output)}
+        {model.cacheRead !== null ? <> · Из кэша {priceOf(model.cacheRead)}</> : null}
       </div>
       <div className="compare-details__line">{model.releaseDate ? `Выпущена ${model.releaseDate}` : null}{model.releaseDate && features.length ? " · " : ""}{features.join(" · ")}</div>
       <div className="compare-details__benchmarks">

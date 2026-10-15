@@ -632,9 +632,17 @@ function SkillsSection() {
   );
 }
 
-/** Вкладка «Папка данных»: полный путь и его копирование; смены пути нет. */function DataSection({ folder }: { folder: string }) {
+/** Вкладка «Папка данных»: полный путь и его копирование; смены пути нет.
+ *  Ниже — «Удалить все чаты»: шаг подтверждения прямо в кнопке (первый клик
+ *  спрашивает, второй делает), отказ виден строкой, а не молчанием. */
+function DataSection({ folder }: { folder: string }) {
   const [copied, setCopied] = useState(false);
   const copyTimer = useRef<number | null>(null);
+  /** Подтверждение удаления: «Точно удалить?» ждёт второй клик и угасает. */
+  const [confirming, setConfirming] = useState(false);
+  const confirmTimer = useRef<number | null>(null);
+  /** Итог удаления: «Удалено чатов: N» или причина отказа. */
+  const [note, setNote] = useState("");
 
   /** Копировать путь: «Скопировано» на 2 секунды, затем «Скопировать» обратно. */
   const copyFolder = () => {
@@ -647,6 +655,32 @@ function SkillsSection() {
       window.clearTimeout(copyTimer.current);
     }
     copyTimer.current = window.setTimeout(() => setCopied(false), 2000);
+  };
+
+  /** Удалить все чаты: первый клик включает подтверждение (угасает за 5 с),
+   *  второй — делает. Список в сайдбаре перечитывает сам (App держит его). */
+  const clearChats = () => {
+    if (!confirming) {
+      setConfirming(true);
+      if (confirmTimer.current) {
+        window.clearTimeout(confirmTimer.current);
+      }
+      confirmTimer.current = window.setTimeout(() => setConfirming(false), 5000);
+      return;
+    }
+    setConfirming(false);
+    if (confirmTimer.current) {
+      window.clearTimeout(confirmTimer.current);
+    }
+    bridge()
+      .chatClearAll()
+      .then((rows) => {
+        setNote(rows.length ? `Готово — осталось чатов: ${rows.length}` : "Все чаты удалены");
+        window.dispatchEvent(new CustomEvent("gnomecode:chats-changed"));
+      })
+      .catch((reason: unknown) => {
+        setNote(`Не получилось: ${String(reason).replace(/^Error: /, "").replace(/^"|"$/g, "")}`);
+      });
   };
 
   return (
@@ -670,6 +704,17 @@ function SkillsSection() {
         }
       >
         <span className="settings-row__sub">Папку задаёт запуск приложения — смену пути в окне не делаем</span>
+      </Row>
+      <Row label="Чаты" hint="Каждый чат удалится из движка вместе с историей — вернуть нельзя">
+        <span className="settings-row__sub">{note || " "}</span>
+        <button
+          type="button"
+          className={confirming ? "settings-row__danger" : "settings-row__ghost"}
+          data-testid="settings-chats-clear"
+          onClick={clearChats}
+        >
+          {confirming ? "Точно удалить все чаты?" : "Удалить все чаты"}
+        </button>
       </Row>
     </section>
   );

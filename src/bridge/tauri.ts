@@ -61,6 +61,9 @@ export const tauriBridge = (): Bridge => ({
   async chatDelete(id: string) {
     return (await invoke<ChatRow[]>("chat_delete", { id })) as ChatRow[];
   },
+  async chatClearAll() {
+    return (await invoke<ChatRow[]>("chat_clear_all")) as ChatRow[];
+  },
   async listen(listener: Listener) {
     return listen<FeedEvent>(FEED_CHANNEL, (event) => listener(event.payload));
   },

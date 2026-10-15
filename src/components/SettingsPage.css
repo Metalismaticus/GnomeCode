@@ -165,6 +165,27 @@
   border-color: var(--danger);
 }
 
+/* Кнопка подтверждённого действия: на шаге подтверждения — опасная. */
+.settings-row__danger {
+  height: 24px;
+  padding: 2px var(--space-2);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--danger);
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.settings-row__danger:hover {
+  background: var(--bg-hover);
+}
+
+.settings-row__danger:focus-visible {
+  outline: 2px solid var(--danger);
+  outline-offset: 2px;
+}
+
 /* Пометка ключа: статусный цвет, не акцент. */
 
 .settings-key-mark {

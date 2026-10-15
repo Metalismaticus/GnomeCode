@@ -412,6 +412,22 @@ class Fixture {
     return this.rowsAfter();
   }
 
+  /** Удалить все чаты (настройки → «Папка данных»): список пуст, страница
+   *  начинает новый чат — тем же ходом, что живой мост (reset ленты). */
+  clearAll(): ChatRow[] {
+    for (const one of this.chats()) {
+      if (!one.id) {
+        continue;
+      }
+      this.removed.add(one.id);
+      this.talks.delete(one.id);
+    }
+    this.asked = [];
+    this.current = `fx-current-${this.removed.size}`;
+    this.emit({ type: "reset" });
+    return this.rowsAfter();
+  }
+
   /** Переименовать чат: титул меняется в списке страницы — тот же ход, что у
    *  живого моста (chatRename отвечает свежим списком). */
   rename(id: string, title: string): ChatRow[] {

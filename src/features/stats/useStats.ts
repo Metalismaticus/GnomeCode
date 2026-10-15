@@ -29,7 +29,7 @@ export function dayStartOf(): number {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 }
 
-export function useStats(period: StatsPeriod): {
+export function useStats(period: StatsPeriod, refreshKey: number = 0): {
   summary: StatsSummary | null;
   error: string | null;
   reload: () => void;
@@ -56,6 +56,8 @@ export function useStats(period: StatsPeriod): {
     return () => {
       alive = false;
     };
-  }, [period, tick]);
+    // refreshKey: новый ответ модели — новый расход, сводка перечитывается
+    // сама (баг владельца 15.10: числа стояли, пока не тыкнешь в период).
+  }, [period, tick, refreshKey]);
   return { summary, error, reload };
 }

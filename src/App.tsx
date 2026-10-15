@@ -144,6 +144,13 @@ export default function App() {
     actionTimer.current = window.setTimeout(() => setActionError(null), 6000);
   }, []);
   const chatActions = useChatActions(onActionError);
+  /** «Удалить все чаты» в настройках чистит список движка: сайдбар перечитывает
+   *  его сам по событию окна — страница настроек списком не владеет. */
+  useEffect(() => {
+    const onChanged = () => chatActions.refresh();
+    window.addEventListener("gnomecode:chats-changed", onChanged);
+    return () => window.removeEventListener("gnomecode:chats-changed", onChanged);
+  }, [chatActions.refresh]);
   /** Расход активного проекта для сайдбара («этот проект стоил X»): итог за
    *  всё время — одной командой моста, экран статистики держит свой период. */
   const stats = useStats("all");

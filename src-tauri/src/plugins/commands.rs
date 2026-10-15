@@ -1190,66 +1190,9 @@ pub fn key_missing(
     ))
 }
 
-/// Привести выбор владельца к модели, которую движок реально обслуживает, и
-/// проверить ключ. Каталог зовёт провайдера своим id (`zhipuai`), движок —
-/// своим (`zai-coding-plan`): совпадает имя модели после «/», и запрос уходит
-/// движковому провайдеру — выбор в окне не трогается (замер v2.0.30,
-/// 2026-10-15: иначе выбранная из каталога GLM требовала ключ zhipuai, хоть
-/// план Z.AI уже подключён в самом движке). Ключ не нужен своему endpoint'у,
-/// провайдеру с ключом окна и активированному в самом движке.
-pub fn prepare_model(
-    app: &AppHandle,
-    chat: &State<'_, Chat>,
-    choice: crate::state::ChatModel,
-) -> Result<crate::state::ChatModel, String> {
-    let Some(endpoint) = chat.endpoint() else {
-        // Движка нет: вопрос всё равно не уйдёт — лента скажет «не запущен».
-        return Ok(choice);
-    };
-    let served = Api::new(&endpoint).served_models().unwrap_or_default();
-    let id = remap_to_served(&choice.id, &served);
-    let provider = id.split('/').next().unwrap_or_default();
-    let held = crate::providers_store::at(&crate::providers_store::file(data_dir(app)));
-    let own = held.endpoints.iter().any(|known| known.id == provider);
-    let keyed = crate::providers::status(provider).unwrap_or(false);
-    let engine_served = served.iter().any(|(known, _)| *known == provider);
-    if !own && !keyed && !engine_served {
-        return Err(format!(
-            "нет ключа — задайте в настройках (провайдер «{provider}»)"
-        ));
-    }
-    Ok(crate::state::ChatModel {
-        name: choice.name,
-        id,
-    })
-}
-
-/// Идентификатор модели глазами движка: точное совпадение `провайдер/модель`
-/// не трогается; иначе та же модель после «/» под первым по алфавиту
-/// провайдером, которого движок обслуживает. Не обслуживается никем — выбор
-/// как был: про ключ спросит проверка ниже по flow.
-fn remap_to_served(model_id: &str, served: &[(String, String)]) -> String {
-    let Some((provider, mid)) = model_id.split_once('/') else {
-        return model_id.to_string();
-    };
-    if served
-        .iter()
-        .any(|(known, model)| known == provider && model == mid)
-    {
-        return model_id.to_string();
-    }
-    let mut candidates: Vec<&str>= served
-        .iter()
-        .filter(|(_, model)| model == mid)
-        .map(|(known, _)| known.as_str())
-        .collect();
-    candidates.sort();
-    candidates.dedup();
-    match candidates.first() {
-        Some(engine_provider) => format!("{engine_provider}/{mid}"),
-        None => model_id.to_string(),
-    }
-}
+/// Приведение выбора и проверка ключа теперь живут в потоке ленты
+/// (opencode::mod::prepare_prompt_model): сеть с потока команды вешала окно,
+/// пока движок занят ответом. Здесь остался затвор для проверок.
 
 /// Полный путь папки данных (вкладка «Папка данных»): показывает, где лежит
 /// state.json и плагины. Смену пути окно не делает (Решено №9) — папку задаёт

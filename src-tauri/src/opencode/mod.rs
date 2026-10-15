@@ -343,6 +343,55 @@ fn engine_model(id: &str) -> Option<Value> {
     Some(json!({ "providerID": provider, "id": model }))
 }
 
+/// Привести выбор владельца к модели, которую движок реально обслуживает, и
+/// проверить ключ. Каталог зовёт провайдера своим id (`zhipuai`), движок —
+/// своим (`zai-coding-plan`): совпадает имя модели после «/», и запрос уходит
+/// движковому провайдеру, под которым подключён план владельца (замер v2.0.30,
+/// 2026-10-15). Ключ не нужен: своему endpoint'у, провайдеру с ключом окна,
+/// активированному в самом движке. Отказ — причиной строкой.
+fn prepare_prompt_model(api: &Api, model: Value) -> Result<Value, String> {
+    let (provider, mid) = match (
+        model.get("providerID").and_then(Value::as_str),
+        model.get("id").and_then(Value::as_str),
+    ) {
+        (Some(provider), Some(mid)) => (provider, mid),
+        // Не разобрали пару — как было: движок сам скажет, если модели нет.
+        _ => return Ok(model),
+    };
+    let served = api.served_models().unwrap_or_default();
+    let exact = served
+        .iter()
+        .any(|(known, model)| known == provider && model == mid);
+    let engine_provider = if exact {
+        provider.to_string()
+    } else {
+        // Тот же mid под другим провайдером: первый по алфавиту — детерминированно.
+        let mut candidates: Vec<&str>= served
+            .iter()
+            .filter(|(_, model)| model == mid)
+            .map(|(known, _)| known.as_str())
+            .collect();
+        candidates.sort();
+        candidates.dedup();
+        candidates
+            .first()
+            .map(|found| (*found).to_string())
+            .unwrap_or_else(|| provider.to_string())
+    };
+    let held = engine::config_folder()
+        .map(|folder| crate::providers_store::at(&crate::providers_store::file(folder)))
+        .unwrap_or_default();
+    let own = held.endpoints.iter().any(|known| known.id == engine_provider);
+    let keyed = crate::providers::status(&engine_provider).unwrap_or(false);
+    let served_provider = served.iter().any(|(known, _)| *known == engine_provider);
+    if !own && !keyed && !served_provider {
+        return Err(format!(
+            "нет ключа — задайте в настройках (провайдер «{provider}»)"
+        ));
+    }
+    Ok(json!({ "providerID": engine_provider, "id": mid }))
+}
+
 /// Метка момента (unix-миллисекунды): строка вопроса уходит с ней — подпись
 /// реплики показывает время из данных, а не «сейчас» на перерисовке ленты.
 fn now_ms() -> u64 {
@@ -635,6 +684,22 @@ fn pump(
                     return false;
                 }
                 Cmd::Prompt { shown, prompt, files, model } => {
+                    // Выбор модели готовится здесь, в потоке ленты: сеть с
+                    // потока команды вешала окно, пока движок занят ответом
+                    // (урок provider_list). Провайдер приводится к движковому
+                    // по имени модели, ключ проверяется тем же списком —
+                    // отказ виден строкой, вопрос не уходит.
+                    let model = match model.map(|value| prepare_prompt_model(&api, value)) {
+                        Some(Ok(prepared)) => Some(prepared),
+                        Some(Err(reason)) => {
+                            sink.emit(FeedEvent::notice(
+                                "engine",
+                                &format!("Сообщение не ушло: {reason}"),
+                            ));
+                            continue;
+                        }
+                        None => None,
+                    };
                     *sent += 1;
                     // Идентификатор строки вопроса не переиспользуется: два одинаковых
                     // вопроса — две строки, даже если между ними был обрыв потока.

@@ -60,6 +60,11 @@ fn serve() -> (Endpoint, Arc<Mutex<Vec<String>>>) {
                     json_head(r#"{"data":{"id":"ses_fixture"}}"#)
                 } else if line.contains("/prompt") {
                     json_head(r#"{"data":{"id":"msg_fixture"}}"#)
+                } else if line.contains("GET /api/model") {
+                    // Подготовка модели смотрит обслуживаемый список: выбранная
+                    // «cohere/north-mini-code-1-0» движком обслуживается — ключ
+                    // окна ей не нужен (mod.rs, prepare_prompt_model).
+                    json_head(r#"{"data":[{"providerID":"cohere","modelID":"north-mini-code-1-0"}]}"#)
                 } else if line.contains("/model") {
                     json_head(r#"{"data":null}"#)
                 } else {
@@ -152,7 +157,7 @@ fn prompt_with_chosen_model_names_it() {
     let held = bodies.lock().expect("список тел").clone();
     let set_model = held
         .iter()
-        .find(|one| one.contains("/model"))
+        .find(|one| one.starts_with("POST") && one.contains("/model"))
         .expect("модель сессии выбрана отдельным запросом");
     let set_body = set_model
         .split_once("\r\n\r\n")
@@ -186,7 +191,9 @@ fn prompt_without_choice_goes_to_the_default_model() {
     );
     let held = bodies.lock().expect("список тел").clone();
     assert!(
-        !held.iter().any(|one| one.contains("/model")),
+        !held
+            .iter()
+            .any(|one| one.starts_with("POST") && one.contains("/model")),
         "без выбора модель сессии переключать нельзя — вопрос ушёл бы не на дефолт движка"
     );
 }

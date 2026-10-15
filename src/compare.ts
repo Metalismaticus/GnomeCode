@@ -83,6 +83,15 @@ export function moneyOf(price: number | null): string {
   return `$${price.toFixed(2)}`;
 }
 
+/** Цена в таблице сравнения: известный ноль — «Бесплатно», не `$0.00`
+ *  (правка владельца 15.10); цены нет — прочерк, «неизвестно», не ноль. */
+export function priceOf(price: number | null): string {
+  if (price === 0) {
+    return "Бесплатно";
+  }
+  return moneyOf(price);
+}
+
 /** Контекст: K и M, как показывает сайт (`1M`, `256K`, `8K`). */
 export function contextOf(tokens: number): string {
   if (tokens <= 0) {

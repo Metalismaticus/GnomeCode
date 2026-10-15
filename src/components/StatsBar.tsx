@@ -92,9 +92,9 @@ function StatCard({ label, value, used, limit, unit, testid }: {
   );
 }
 
-export function StatsBar({ currentModel }: { currentModel: string }) {
+export function StatsBar({ currentModel, refreshKey = 0 }: { currentModel: string; refreshKey?: number }) {
   const [period, setPeriod] = useState<StatsPeriod>("today");
-  const { summary } = useStats(period);
+  const { summary } = useStats(period, refreshKey);
   /** Фильтр по провайдеру (концепт: «Все провайдеры ▾»): пусто — все. */
   const [providerFilter, setProviderFilter] = useState("");
 
