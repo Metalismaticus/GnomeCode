@@ -33,6 +33,9 @@ keyring = { version = "3", default-features = false, features = ["windows-native
 # Хэш артефактов версий в кэше отката (plugins/vcache.rs, F5): sha256 при
 # получении, сверка при откате — чистый Rust без асинхронного рантайма.
 sha2 = "0.10"
+# Провайдеры, подключённые в самом движке (opencode/auth.rs): движок хранит
+# credential'ы в своей SQLite (opencode.db) — читаем только чтением.
+rusqlite = { version = "0.32", features = ["bundled"] }
 
 [target.'cfg(windows)'.dependencies]
 # Job Object для дочернего движка (opencode/job.rs): KILL_ON_JOB_CLOSE убивает

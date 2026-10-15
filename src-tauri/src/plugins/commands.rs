@@ -900,7 +900,6 @@ pub async fn provider_list(
     let api = Api::new(&endpoint);
     // Провайдеры, подключённые в самом движке (auth.json): их строки показывают
     // «через движок ✓» — форма ключа GnomeCode для них не рисуется.
-    let engine_auth = crate::opencode::auth::connected();
     // Модели по провайдерам — из /api/model; не ответил — строки всё равно
     // видны, у строки будет «моделей: 0».
     let models_raw = api.models().unwrap_or(serde_json::Value::Null);
@@ -919,7 +918,7 @@ pub async fn provider_list(
                     endpoint: held.endpoints.iter().any(|known| known.id == id),
                     catalog: false,
                     enabled: enabled_of(id),
-                    engine_auth: engine_auth.contains(id),
+                    engine_auth: crate::opencode::auth::covers(id),
                 })
             })
             .collect(),
