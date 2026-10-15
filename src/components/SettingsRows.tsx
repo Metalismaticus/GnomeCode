@@ -57,6 +57,7 @@ export function ProviderRowLine({
   status,
   tone,
   isEndpoint,
+  engineAuth,
   models,
   enabled,
   onOpenForm,
@@ -77,6 +78,9 @@ export function ProviderRowLine({
   tone: "dim" | "success" | "danger";
   /** Свой endpoint: пометка у имени и кнопка удаления. */
   isEndpoint: boolean;
+  /** Подключён в самом OpenCode (auth.json): ключом GnomeCode не управляется —
+   *  вместо формы ключа строка говорит, где управление. */
+  engineAuth?: boolean;
   /** Сколько моделей у провайдера (строка каталога models.dev). */
   models?: number;
   /** Включён ли провайдер: выключенный приглушён и помечен. */
@@ -103,6 +107,15 @@ export function ProviderRowLine({
               {" endpoint"}
             </span>
           ) : null}
+          {engineAuth ? (
+            <span
+              className="settings-key-mark settings-key-mark--set"
+              data-testid="settings-engine-mark"
+              title="Подключён в самом OpenCode — GnomeCode переиспользует эту аутентификацию"
+            >
+              {" через движок ✓"}
+            </span>
+          ) : null}
           {!enabled ? (
             <span className="settings-key-mark" data-testid="settings-provider-off">
               {" выключен"}
@@ -110,12 +123,18 @@ export function ProviderRowLine({
           ) : null}
         </span>
         <span className="settings-row__value">
-          <span
-            className={`settings-key-mark${keySet ? " settings-key-mark--set" : ""}`}
-            data-testid="settings-key-mark"
-          >
-            {keySet ? "ключ задан ✓" : "ключ не задан"}
-          </span>
+          {engineAuth ? (
+            <span className="settings-row__sub" data-testid="settings-engine-note">
+              Подключён в самом OpenCode — управление подпиской: opencode auth login · opencode.ai/auth
+            </span>
+          ) : (
+            <span
+              className={`settings-key-mark${keySet ? " settings-key-mark--set" : ""}`}
+              data-testid="settings-key-mark"
+            >
+              {keySet ? "ключ задан ✓" : "ключ не задан"}
+            </span>
+          )}
           {models ? <span className="settings-row__sub">моделей: {models}</span> : null}
         </span>
         <span className="settings-row__actions">
@@ -139,25 +158,29 @@ export function ProviderRowLine({
               Удалить
             </button>
           ) : null}
-          <button
-            type="button"
-            className="settings-row__ghost"
-            data-testid="settings-key-open"
-            title={keySet ? "Заменить ключ провайдера" : "Задать ключ провайдера"}
-            onClick={onOpenForm}
-          >
-            {keySet ? "Заменить ключ" : "Задать ключ"}
-          </button>
-          {keySet ? (
-            <button
-              type="button"
-              className="settings-row__ghost settings-row__ghost--dim"
-              data-testid="settings-key-remove"
-              title={`Убрать ключ ${name}: пометка станет «ключ не задан»`}
-              onClick={onRemove}
-            >
-              Убрать
-            </button>
+          {!engineAuth ? (
+            <>
+              <button
+                type="button"
+                className="settings-row__ghost"
+                data-testid="settings-key-open"
+                title={keySet ? "Заменить ключ провайдера" : "Задать ключ провайдера"}
+                onClick={onOpenForm}
+              >
+                {keySet ? "Заменить ключ" : "Задать ключ"}
+              </button>
+              {keySet ? (
+                <button
+                  type="button"
+                  className="settings-row__ghost settings-row__ghost--dim"
+                  data-testid="settings-key-remove"
+                  title={`Убрать ключ ${name}: пометка станет «ключ не задан»`}
+                  onClick={onRemove}
+                >
+                  Убрать
+                </button>
+              ) : null}
+            </>
           ) : null}
         </span>
       </div>

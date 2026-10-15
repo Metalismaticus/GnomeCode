@@ -219,6 +219,9 @@ export function providers(): ProviderRow[] {  if (!params.feed.startsWith("на�
     endpoint: false,
     catalog: false,
     enabled: !disabled.has(one.id),
+    // OpenCode Go в фикстуре подключён в самом движке (как у владельца):
+    // строка показывает «через движок ✓» без формы ключа.
+    ...(one.id === "opencode-go" ? { engineAuth: true } : {}),
   }));
   // Модель своего endpoint'а движок отдаёт в секцию «Модели движка» —
   // fixtureCompare показывает её, пока endpoint включён.

@@ -178,6 +178,10 @@ export type ProviderRow = {
    *  если движок ещё не перечисляет его (ключа у него нет). */
   catalog: boolean;
   enabled: boolean;
+  /** Подключён в самом OpenCode (auth.json): строка показывает «через движок ✓»,
+   *  форма ключа GnomeCode не рисуется — управляет движок (opencode auth login).
+   *  Нет поля — старая строка без пометки (ведёт себя как раньше). */
+  engineAuth?: boolean;
 };
 
 /** Строка умолчаний прав (секция «default» rules.json): категория и значение. */

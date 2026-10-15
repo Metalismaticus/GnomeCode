@@ -876,6 +876,10 @@ pub struct ProviderRow {
     /// (ключа у него нет), но ключ ему задать можно — замер 2026-10-11.
     pub catalog: bool,
     pub enabled: bool,
+    /// Подключён в самом движке (auth.json, `opencode auth login`): строка
+    /// показывает «через движок ✓», форма ключа GnomeCode не рисуется —
+    /// управление подпиской живёт в OpenCode (opencode.ai/auth).
+    pub engine_auth: bool,
 }
 
 /// Список провайдеров окна настроек: движок и свои endpoint'ы, без дублей id.
@@ -894,6 +898,9 @@ pub async fn provider_list(
     let enabled_of = |id: &str| !held.disabled.iter().any(|known| known == id);
 
     let api = Api::new(&endpoint);
+    // Провайдеры, подключённые в самом движке (auth.json): их строки показывают
+    // «через движок ✓» — форма ключа GnomeCode для них не рисуется.
+    let engine_auth = crate::opencode::auth::connected();
     // Модели по провайдерам — из /api/model; не ответил — строки всё равно
     // видны, у строки будет «моделей: 0».
     let models_raw = api.models().unwrap_or(serde_json::Value::Null);
@@ -912,6 +919,7 @@ pub async fn provider_list(
                     endpoint: held.endpoints.iter().any(|known| known.id == id),
                     catalog: false,
                     enabled: enabled_of(id),
+                    engine_auth: engine_auth.contains(id),
                 })
             })
             .collect(),
@@ -930,6 +938,7 @@ pub async fn provider_list(
             endpoint: true,
             catalog: false,
             enabled: enabled_of(&one.id),
+            engine_auth: false,
         });
     }
     Ok(rows)
@@ -956,6 +965,7 @@ pub async fn provider_catalog(app: AppHandle) -> Result<Vec<ProviderRow>, String
             endpoint: false,
             catalog: true,
             enabled: enabled_of(&one.id),
+            engine_auth: false,
         })
         .collect())
 }

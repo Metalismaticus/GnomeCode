@@ -433,6 +433,7 @@ function providersBody(
       status={form.keyForm === provider.id ? form.status : ""}
       tone={form.tone}
       isEndpoint={provider.endpoint}
+      engineAuth={provider.engineAuth}
       models={provider.models}
       enabled={provider.enabled}
       onOpenForm={() => form.open(provider.id)}
