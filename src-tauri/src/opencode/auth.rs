@@ -6,8 +6,11 @@
 //! Хранилищ два (версии движка): новые держат credential'ы в SQLite
 //! (`opencode.db`, таблица `credential`, колонка `integration_id`), старые —
 //! в `auth.json` (ключи файла — id провайдеров). Читаем оба, объединяем.
-//! Учётка OpenCode (таблица `account`, OAuth-вход) покрывает семейство
-//! провайдеров opencode: OpenCode, OpenCode Go, Zen.
+//! Учётка OpenCode (OAuth-вход) покрывает семейство провайдеров opencode:
+//! OpenCode, OpenCode Go, Zen. Живёт она в двух местах (замер v2.0.30,
+//! 2026-10-15): старые движки — таблица `account`, новые — credential с
+//! `integration_id = 'opencode'` (отдельного ключа у семейства не существует,
+//! так что такой credential — всегда учётка).
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -91,11 +94,17 @@ pub fn connected() -> BTreeSet<String> {
     set
 }
 
+/// Семейство opencode покрыто учёткой: она в таблице `account` (старые движки)
+/// или в credential с `integration_id = 'opencode'` (v2.0.30).
+fn family_connected() -> bool {
+    account_connected() || connected().contains("opencode")
+}
+
 /// Покрыт ли провайдер аутентификацией движка: точное вхождение в хранилищах
 /// или семейство opencode под учёткой (OpenCode, OpenCode Go, Zen — модели
 /// работают под токеном учётной записи, ключа у них не существует).
 pub fn covers(provider_id: &str) -> bool {
-    if provider_id.starts_with("opencode") && account_connected() {
+    if provider_id.starts_with("opencode") && family_connected() {
         return true;
     }
     connected().contains(provider_id)
@@ -103,7 +112,7 @@ pub fn covers(provider_id: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{connected, covers, data_dir};
+    use super::{connected, covers, data_dir, family_connected};
     use rusqlite::Connection;
     use std::path::PathBuf;
 
@@ -163,9 +172,22 @@ mod tests {
         assert!(providers.contains("zai-coding-plan"), "база движка прочитана");
         assert!(providers.contains("anthropic"), "auth.json не потерян");
 
-        // Семейство opencode без точного id: учётка opencode покрывает
-        // OpenCode Go и Zen — отдельного ключа у них не существует.
+        // Семейство opencode без точного id: без учётки не покрыто —
+        // OpenCode Go и Zen отдельного ключа не имеют.
         assert!(!covers("opencode-go"), "без учётки семейство не покрыто");
+
+        // v2.0.30: учётка — credential с integration_id «opencode»,
+        // таблица account пуста. Семейство покрыто и так.
+        conn.execute(
+            "INSERT INTO credential (id, integration_id, label, value) VALUES ('c2', 'opencode', 'Personal', 'tok')",
+            [],
+        )
+        .expect("credential учётки вставлен");
+        assert!(covers("opencode-go"), "credential «opencode» покрывает OpenCode Go");
+        assert!(covers("opencode"), "credential «opencode» покрывает самого OpenCode");
+        assert!(family_connected(), "семейство покрыто credential'ом");
+
+        // Старое хранилище учётки (таблица account) тоже покрывает семейство.
         conn.execute(
             "CREATE TABLE account (email text NOT NULL, url text NOT NULL, access_token text NOT NULL)",
             [],

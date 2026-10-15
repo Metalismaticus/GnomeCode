@@ -287,10 +287,35 @@ fn which(name: &str) -> Option<String> {
 }
 
 /// Раскрыть `%ПАПКА%` и найти файл: с версией в имени — самый свежий по имени.
+/// «*» бывает и в имени папки (`cli\*\opencode-cli.exe` — номер версии CLI),
+/// и в имени файла — проверяем обе части.
 fn find(pattern: &str) -> Option<PathBuf> {
     let mut parts = pattern.rsplitn(2, ['\\', '/']);
-    let file = parts.next()?;
+    let file = parts.next()?.to_string();
     let dir = expand(parts.next()?);
+    // «*» в имени папки: самый свежий каталог версии, файл ищем в нём.
+    if dir.contains('*') {
+        let mut segments = dir.rsplitn(2, ['\\', '/']);
+        let wild = segments.next()?;
+        let parent = expand(segments.next()?);
+        let (prefix, suffix) = wild.split_once('*')?;
+        let mut found: Vec<PathBuf>= std::fs::read_dir(&parent)
+            .ok()?
+            .flatten()
+            .map(|entry| entry.path())
+            .filter(|path| {
+                path.is_dir()
+                    && path
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .is_some_and(|n| n.starts_with(prefix) && n.ends_with(suffix))
+            })
+            .collect();
+        found.sort();
+        let dir = found.pop()?;
+        let path = dir.join(file);
+        return path.is_file().then_some(path);
+    }
     if !file.contains('*') {
         let path = PathBuf::from(dir).join(file);
         return path.is_file().then_some(path);
@@ -362,6 +387,49 @@ fn hide_console(command: &mut Command) {
     }
     #[cfg(not(windows))]
     let _ = command;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::find;
+
+    /// «*» в имени папки: из каталогов версий берётся самая свежая по имени,
+    /// файл ищется в ней (KNOWN_PATHS, папка версий CLI).
+    #[test]
+    fn wildcard_dir_picks_the_fresh_version() {
+        let base = std::env::temp_dir().join(format!("gnomecode-find-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        for version in ["1.0.0-x64", "2.0.30-x64"] {
+            std::fs::create_dir_all(base.join(version)).expect("папка версии создана");
+        }
+        std::fs::write(
+            base.join("2.0.30-x64").join("opencode-cli.exe"),
+            b"engine",
+        )
+        .expect("движок записан");
+        let pattern = format!("{}\\*\\opencode-cli.exe", base.display());
+        let found = find(&pattern).expect("движок в папке версии найден");
+        assert_eq!(
+            found.parent().and_then(|p| p.file_name()).and_then(|n| n.to_str()),
+            Some("2.0.30-x64"),
+            "взят самый свежий каталог версии: {}",
+            found.display()
+        );
+        assert!(found.is_file(), "найден файл, а не каталог");
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// Файл без «*» в обоих частях: точный путь читается как раньше.
+    #[test]
+    fn plain_path_is_found_as_before() {
+        let base = std::env::temp_dir().join(format!("gnomecode-find-plain-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(&base).expect("папка создана");
+        std::fs::write(base.join("opencode-cli.exe"), b"engine").expect("движок записан");
+        let pattern = format!("{}\\opencode-cli.exe", base.display());
+        assert!(find(&pattern).is_some(), "точный путь найден");
+        let _ = std::fs::remove_dir_all(&base);
+    }
 }
 
 /// Вывод движка в общий буфер: в ленте ошибка читается словами, а не кодом.

@@ -924,6 +924,25 @@ pub async fn provider_list(
             .collect(),
         None => Vec::new(),
     };
+    // v2.0.30 (замер 2026-10-15): /api/provider отдаёт пустой список —
+    // активированные провайдеры видны только моделями в /api/model. Строки
+    // собираем из них: имя — идентификатор (display-имён движок больше не
+    // отдаёт). У старых движков список непустой и ветка молчит.
+    if rows.is_empty() {
+        let mut ids: Vec<String>= counts.keys().cloned().collect();
+        ids.sort();
+        for id in ids {
+            rows.push(ProviderRow {
+                endpoint: held.endpoints.iter().any(|known| known.id == id),
+                id: id.clone(),
+                name: id.clone(),
+                models: counts.get(&id).copied().unwrap_or_default(),
+                catalog: false,
+                enabled: enabled_of(&id),
+                engine_auth: crate::opencode::auth::covers(&id),
+            });
+        }
+    }
     // Свои endpoint'ы, которых движок не отдал (выключен или движок ещё
     // читал конфиг): строка остаётся — включить и удалить её надо всегда.
     for one in &held.endpoints {
