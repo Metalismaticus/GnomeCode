@@ -117,8 +117,8 @@ function PageHead({ tab, onTab, cluster }: { tab: Tab; onTab: (tab: Tab) => void
     firstTab.current?.focus();
   }, []);
   return (
-    <div className="settings-page__head">
-      <div className="settings-page__top">
+    <div className="settings-page__head" data-tauri-drag-region>
+      <div className="settings-page__top" data-tauri-drag-region>
         <h1 className="settings-page__title" data-tauri-drag-region>Настройки</h1>
         {cluster}
       </div>
