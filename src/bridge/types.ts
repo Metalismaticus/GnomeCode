@@ -326,6 +326,8 @@ export type Bridge = {
   openTerminal(): Promise<void>;
   /** Символы приложенных файлов: функции/классы/структуры по строкам. */
   projectSymbols(files: string[]): Promise<SymbolRow[]>;
+  /** Текст файла проекта по пути (перетащили из дерева) — guard «внутри проекта». */
+  readText(path: string): Promise<string>;
   /** Git-статус проекта: ветка, изменённые файлы, последние коммиты. */
   projectGit(): Promise<GitStatus>;
   /** Убрать плагин после подтверждения: запись реестра и файл плагина уходят. */

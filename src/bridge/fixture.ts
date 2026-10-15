@@ -126,6 +126,11 @@ export const fixtureBridge = (): Bridge => ({
       { file, kind: "функция", name: "children", line: 38 },
     ]);
   },
+  async readText(path: string) {
+    // Фикстура отдаёт заглушку-плагин: дроп из дерева в «Плагины» проверяем.
+    void path;
+    return "export default definePlugin({ name: \"from-tree\" });";
+  },
   async projectGit() {
     // Git-статус фикстуры: ветка, пара изменений и коммиты — формы карточек.
     return {

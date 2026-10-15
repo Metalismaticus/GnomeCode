@@ -390,7 +390,16 @@ pub async fn catalog_snapshot() -> Result<CatalogSnapshot, String> {
                     fetched_at: Some(fetched_at),
                 })
             }
-            None => Err(reason),
+            None => Err(match reason {
+                // 404 — index.json в репозитории реестра ещё не опубликован
+                // (сборка реестра — задача T5 за гейтом владельца): это не
+                // «сеть сломалась», текст говорим соответствующий.
+                reason if reason.contains("404") => {
+                    "Реестр ещё не опубликован — каталог появится вместе с релизом репозитория"
+                        .to_string()
+                }
+                reason => reason,
+            }),
         },
     }
 }

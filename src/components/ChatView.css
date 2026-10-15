@@ -17,3 +17,8 @@
   color: var(--text-faint);
   font-size: 13px;
 }
+/* Файл из дерева тащат в чат: композер подсвечен — сюда можно бросить. */
+.chat--drop .composer__box {
+  outline: 2px dashed var(--accent);
+  outline-offset: 2px;
+}

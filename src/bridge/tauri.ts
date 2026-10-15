@@ -82,6 +82,9 @@ export const tauriBridge = (): Bridge => ({
   async projectSymbols(files: string[]) {
     return (await invoke<SymbolRow[]>("project_symbols", { files })) as SymbolRow[];
   },
+  async readText(path: string) {
+    return (await invoke<string>("project_read_text", { path })) as string;
+  },
   async projectGit() {
     return (await invoke<GitStatus>("project_git_status")) as GitStatus;
   },

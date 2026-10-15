@@ -138,7 +138,12 @@ function PageHead({ tab, onTab, cluster }: { tab: Tab; onTab: (tab: Tab) => void
             aria-selected={tab === one}
             className="plugins-page__tab"
             data-testid={`settings-tab-${one}`}
-            onClick={() => onTab(one)}
+            onClick={() => {
+              onTab(one);
+              // Вкладка заменила содержимое: с середины длинной вкладки остаться
+              // внизу новой — тот же жест, что и смена страницы (жалоба 15.10).
+              window.scrollTo(0, 0);
+            }}
           >
             {TITLES[one]}
           </button>

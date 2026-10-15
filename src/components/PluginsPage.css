@@ -258,3 +258,10 @@
   border-color: var(--danger);
   color: var(--danger);
 }
+
+/* Файл тащат на страницу раздела: бросить можно в любое место, не только в зону. */
+.plugins-page--drop .plugins-page__body {
+  outline: 2px dashed var(--accent);
+  outline-offset: 4px;
+  border-radius: var(--radius-md);
+}

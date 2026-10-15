@@ -195,6 +195,17 @@ fn project_git_status(project: State<'_, Project>) -> Result<project::git::GitSt
     project::git::status(&root)
 }
 
+/// Текст файла проекта по пути (файл перетащили из дерева в раздел «Плагины»):
+/// тот же guard, что у отправки — читать можно только внутри папки проекта.
+#[tauri::command]
+fn project_read_text(project: State<'_, Project>, path: String) -> Result<String, String> {
+    let root = project
+        .root()
+        .ok_or("Сначала выберите папку проекта — файл берём из неё")?;
+    let (path, _) = project::prompt::within(&root, std::path::Path::new(&path))?;
+    project::read_source(&path)
+}
+
 /// Отправить сообщение в сессию OpenCode. Ответ придёт событиями в ленту окна.
 /// Прикреплённые файлы читает мост: движку уходит их содержимое, а в ленте видно имена.
 /// Память чата уходит только движку: в ленте вопрос без её текста.
@@ -424,6 +435,7 @@ pub fn run() {
             project_pick_file,
             project_symbols,
             project_git_status,
+            project_read_text,
             open_terminal,
             endpoint_add,
             endpoint_remove,

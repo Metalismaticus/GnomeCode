@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent } from "react";
 
 import { bridge } from "../bridge";
 import type { ApprovalDecision, PluginScope } from "../bridge";
@@ -56,6 +56,8 @@ export function ChatView({
   /** Строка причины в меню «+»: отказ прикрепления чужого файла виден там же,
    *  где кликнули, — меню не закрывается, пока причина на экране. */
   const [addNote, setAddNote] = useState("");
+  /** Над файлом тащат файл из дерева: композер подсвечен — сюда можно бросить. */
+  const [dropHot, setDropHot] = useState(false);
   // Сравнение, меню «⋯» и меню «+» героя на снимках открываются сразу:
   // `?состояние=сравнение*`, `?меню=открыто`, `?плюс=открыто`; строка
   // `сравнение-раскрыто` несёт строку с развёрнутыми подробностями. Кадры
@@ -353,6 +355,22 @@ export function ChatView({
     }
   }, [rows.length]);
 
+  /** Файл из дерева бросили в чат: прикрепляем к вопросу тем же путём, что
+   *  клик по дереву. Бросить можно в любое место колонки — композер подсвечен,
+   *  пока тащат (dropHot). OS-файлы из проводника здесь не принимаем: у чипа
+   *  должен быть путь из проекта, для чужих файлов есть «Прикрепить файл». */
+  const dropFromTree = useCallback(
+    (event: ReactDragEvent) => {
+      event.preventDefault();
+      setDropHot(false);
+      const path = event.dataTransfer.getData("text/plain");
+      if (path) {
+        project.attachPath(path);
+      }
+    },
+    [project.attachPath],
+  );
+
   /** Композер живёт внизу окна всегда (правка владельца 2026-10-10, спека
    *  приветствия §16): в пустом чате это герой с крупным полем, в разговоре —
    *  та же строка; один элемент без перемонтирования — черновик, фокус и
@@ -393,7 +411,22 @@ export function ChatView({
   );
 
   return (
-    <main className="chat" data-testid="chat">
+    <main
+      className={dropHot ? "chat chat--drop" : "chat"}
+      data-testid="chat"
+      onDragOver={(event) => {
+        if (event.dataTransfer.types.includes("text/plain")) {
+          event.preventDefault();
+          setDropHot(true);
+        }
+      }}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          setDropHot(false);
+        }
+      }}
+      onDrop={dropFromTree}
+    >
       <ChatHeader
         title={title}
         cluster={cluster}

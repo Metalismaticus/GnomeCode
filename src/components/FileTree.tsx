@@ -223,6 +223,13 @@ function TreeLine({
       role="treeitem"
       aria-selected={selected}
       style={node.kind === "dir" ? undefined : { paddingLeft: 0 }}
+      draggable={node.kind === "file"}
+      onDragStart={(event) => {
+        // Файл тащат в чат (прикрепить к вопросу) или в «Плагины» (установить):
+        // путь — единственное, что нужно обоим DROP-таргетам.
+        event.dataTransfer.setData("text/plain", node.path);
+        event.dataTransfer.effectAllowed = "copy";
+      }}
     >
       {node.kind === "dir" ? (
         <button

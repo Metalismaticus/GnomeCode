@@ -6,7 +6,7 @@
  *  оверлей CatalogPicker и сводка прав установки. Updates — обновления при запуске
  *  (пункт 4 партии): карточки из updates.json и сводка новых прав — PluginUpdates. */
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type DragEvent as ReactDragEvent, type ReactNode } from "react";
 
 import { bridge } from "../bridge";
 import type { Plugin, PluginScope } from "../bridge";
@@ -70,6 +70,9 @@ export function PluginsPage({ plugins, cluster }: { plugins: PluginsState; clust
    *  в ref — быстрый второй бросок не даёт первому таймеру съесть свою заметку. */
   const [dropNote, setDropNote] = useState<{ ok: boolean; text: string } | null>(null);
   const dropTimer = useRef<number | null>(null);
+  /** Над страницей тащат файл: подсветка — бросить можно в любое место раздела,
+   *  не только в зону на вкладке Installed (замечание владельца 15.10). */
+  const [pageDropHot, setPageDropHot] = useState(false);
 
   /** Файл .ts брошен в зону: установка внешнего плагина (файл + реестр +
    *  тихий рестарт движка), список перечитывается — плагин во вкладке Disabled. */
@@ -95,6 +98,39 @@ export function PluginsPage({ plugins, cluster }: { plugins: PluginsState; clust
         });
     },
     [plugins.refresh],
+  );
+
+  /** Бросок на любое место раздела: файл .ts из проводника или файл проекта
+   *  из дерева (его текст мост читает с guard'ом «внутри папки проекта»). */
+  const dropOnPage = useCallback(
+    (event: ReactDragEvent) => {
+      event.preventDefault();
+      setPageDropHot(false);
+      const osFile = event.dataTransfer.files?.[0];
+      if (osFile) {
+        if (!osFile.name.toLowerCase().endsWith(".ts")) {
+          setDropNote({ ok: false, text: `Нужен файл .ts — «${osFile.name}» не подходит` });
+          return;
+        }
+        void osFile.text().then((code) => acceptPluginFile(osFile.name, code));
+        return;
+      }
+      const path = event.dataTransfer.getData("text/plain");
+      if (path) {
+        const name = path.split(/[\\/]/).pop() ?? "plugin.ts";
+        if (!name.toLowerCase().endsWith(".ts")) {
+          setDropNote({ ok: false, text: `Нужен файл .ts — «${name}» не подходит` });
+          return;
+        }
+        void bridge()
+          .readText(path)
+          .then((code) => acceptPluginFile(name, code))
+          .catch((reason: unknown) => {
+            setDropNote({ ok: false, text: `Не добавилось: ${String(reason)}` });
+          });
+      }
+    },
+    [acceptPluginFile],
   );
 
   /** Включение из вкладки Disabled: у плагина уже есть запись правил — сводку
@@ -206,7 +242,25 @@ export function PluginsPage({ plugins, cluster }: { plugins: PluginsState; clust
   const configured = config ? plugins.plugins.find((one) => one.id === config) : undefined;
 
   return (
-    <main className="plugins-page" data-testid="plugins-page">
+    <main
+      className={pageDropHot ? "plugins-page plugins-page--drop" : "plugins-page"}
+      data-testid="plugins-page"
+      onDragOver={(event) => {
+        if (
+          event.dataTransfer.types.includes("Files") ||
+          event.dataTransfer.types.includes("text/plain")
+        ) {
+          event.preventDefault();
+          setPageDropHot(true);
+        }
+      }}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          setPageDropHot(false);
+        }
+      }}
+      onDrop={dropOnPage}
+    >
       <div className="plugins-page__head" data-tauri-drag-region>
         <h1 className="plugins-page__title" data-tauri-drag-region>Плагины</h1>
         <div className="plugins-page__tabs" role="tablist" aria-label="Разделы плагинов">
